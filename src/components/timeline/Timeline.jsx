@@ -22,7 +22,7 @@ export default function Timeline() {
   const rulerScrollRef = useRef(null)
 
   const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex)
-  const totalWidth = Math.max(duration * PX_PER_SEC + 40, 400)
+  const totalWidth = duration * PX_PER_SEC + 120
   const rulerMarks = Array.from({ length: Math.floor(duration / 0.5) + 1 }, (_, i) => i * 0.5)
 
   // Sync ruler scroll with track scroll
@@ -260,7 +260,8 @@ export default function Timeline() {
 function DraggableAnimBlock({ anim, onUpdate, onDelete, duration }) {
   const blockRef = useRef(null)
 
-  const onMouseDown = (e) => {
+  // Drag body = move startTime
+  const onBodyMouseDown = (e) => {
     e.preventDefault()
     e.stopPropagation()
     const startX = e.clientX
@@ -268,14 +269,28 @@ function DraggableAnimBlock({ anim, onUpdate, onDelete, duration }) {
 
     const onMove = (mv) => {
       const dx = mv.clientX - startX
-      const deltaSec = dx / PX_PER_SEC
-      const newStart = Math.max(0, Math.min(duration - (anim.duration || 1), origStart + deltaSec))
+      const newStart = Math.max(0, Math.min(duration - (anim.duration || 1), origStart + dx / PX_PER_SEC))
       onUpdate({ ...anim, startTime: Math.round(newStart * 10) / 10 })
     }
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // Drag right edge = resize duration
+  const onResizeMouseDown = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const origDur = anim.duration || 1
+    const origStart = anim.startTime || 0
+
+    const onMove = (mv) => {
+      const dx = mv.clientX - startX
+      const newDur = Math.max(0.1, Math.min(duration - origStart, origDur + dx / PX_PER_SEC))
+      onUpdate({ ...anim, duration: Math.round(newDur * 10) / 10 })
     }
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
@@ -286,25 +301,34 @@ function DraggableAnimBlock({ anim, onUpdate, onDelete, duration }) {
   return (
     <div
       ref={blockRef}
-      onMouseDown={onMouseDown}
-      className="absolute top-1.5 flex items-center px-2 rounded select-none group"
+      onMouseDown={onBodyMouseDown}
+      className="absolute top-1.5 flex items-center rounded select-none group"
       style={{
         left, width, height: 26, cursor: 'move',
         background: 'linear-gradient(135deg,rgba(139,92,246,0.8),rgba(168,85,247,0.8))',
         border: '1px solid rgba(139,92,246,1)',
-        fontSize: 10, fontWeight: 600, color: 'white', overflow: 'hidden', whiteSpace: 'nowrap',
+        fontSize: 10, fontWeight: 600, color: 'white', overflow: 'visible', whiteSpace: 'nowrap',
       }}
       title={`${anim.type} | ${anim.startTime}s → ${(anim.startTime || 0) + (anim.duration || 1)}s`}
     >
-      <span className="flex-1 truncate">{anim.type}</span>
+      <span className="flex-1 truncate pl-2 overflow-hidden">{anim.type}</span>
       <button
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onDelete() }}
-        className="hidden group-hover:flex items-center justify-center rounded-full ml-1 shrink-0"
+        className="hidden group-hover:flex items-center justify-center rounded-full mx-1 shrink-0"
         style={{ width: 14, height: 14, background: 'rgba(239,68,68,0.9)', fontSize: 9 }}
       >
         ✕
       </button>
+      {/* Right resize handle */}
+      <div
+        onMouseDown={onResizeMouseDown}
+        className="absolute top-0 bottom-0 flex items-center justify-center"
+        style={{ right: -4, width: 8, cursor: 'ew-resize', zIndex: 10 }}
+        title="Drag to resize duration"
+      >
+        <div style={{ width: 3, height: 14, borderRadius: 2, background: 'rgba(255,255,255,0.7)' }} />
+      </div>
     </div>
   )
 }
