@@ -1,10 +1,13 @@
 import React from 'react'
+import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react'
 import { Field, NumInput, SelectInput } from '../left/PropertiesSection.jsx'
 
 const FONTS = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Courier New', 'Verdana', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black']
 const COLORS = ['#FFFFFF', '#000000', '#6B7280', '#EF4444', '#3B82F6', '#10B981', '#F59E0B']
 
 export default function TextProperties({ el, update, save }) {
+  const colorInputRef = React.useRef(null)
+
   return (
     <div className="space-y-2 pb-2 border-b border-gray-700">
       <Field label="Text Content">
@@ -29,33 +32,46 @@ export default function TextProperties({ el, update, save }) {
               key={c}
               onClick={() => save({ color: c })}
               title={c}
-              style={{ background: c, width: 22, height: 22, borderRadius: 4, border: el.color === c ? '2px solid #3b82f6' : '2px solid #444' }}
+              style={{
+                background: c,
+                width: 22, height: 22, borderRadius: 4,
+                border: el.color === c ? '2px solid #3b82f6' : '2px solid #444',
+                flexShrink: 0,
+              }}
             />
           ))}
-          <input type="color" value={el.color || '#000000'} onChange={(e) => save({ color: e.target.value })}
-            style={{ width: 22, height: 22, borderRadius: 4, border: '2px solid #444', cursor: 'pointer', padding: 0, background: 'linear-gradient(135deg,#f00,#ff7f00,#ff0,#0f0,#00f,#8b00ff)' }} />
+          {/* Custom colour picker trigger */}
+          <button
+            onClick={() => colorInputRef.current?.click()}
+            title="Custom color"
+            style={{ width: 22, height: 22, borderRadius: 4, border: '2px solid #444', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >
+            <Palette size={12} className="text-gray-300" />
+          </button>
+          <input
+            ref={colorInputRef}
+            type="color"
+            value={el.color || '#000000'}
+            onChange={(e) => save({ color: e.target.value })}
+            className="hidden"
+          />
         </div>
       </Field>
-      <div>
-        <div className="flex gap-2 mt-1">
-          <StyleBtn label="B" bold active={el.bold} onClick={() => save({ bold: !el.bold })} />
-          <StyleBtn label="I" italic active={el.italic} onClick={() => save({ italic: !el.italic })} />
-          <StyleBtn label="U" underline active={el.underline} onClick={() => save({ underline: !el.underline })} />
-        </div>
+
+      <div className="flex gap-2 mt-0.5">
+        <StyleBtn icon={Bold} active={el.bold} onClick={() => save({ bold: !el.bold })} title="Bold" />
+        <StyleBtn icon={Italic} active={el.italic} onClick={() => save({ italic: !el.italic })} title="Italic" />
+        <StyleBtn icon={Underline} active={el.underline} onClick={() => save({ underline: !el.underline })} title="Underline" />
       </div>
+
       <Field label="Text Align">
         <div className="flex gap-2 mt-0.5">
-          {['left', 'center', 'right'].map((a) => (
-            <button
-              key={a}
-              onClick={() => save({ textAlign: a })}
-              className={`flex-1 py-1.5 text-xs rounded transition-colors ${el.textAlign === a ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
-            >
-              {a === 'left' ? '⬅' : a === 'center' ? '☰' : '➡'}
-            </button>
-          ))}
+          <AlignBtn icon={AlignLeft}   value="left"   current={el.textAlign} onClick={() => save({ textAlign: 'left' })} />
+          <AlignBtn icon={AlignCenter} value="center" current={el.textAlign} onClick={() => save({ textAlign: 'center' })} />
+          <AlignBtn icon={AlignRight}  value="right"  current={el.textAlign} onClick={() => save({ textAlign: 'right' })} />
         </div>
       </Field>
+
       <Field label="Text Shadow">
         <ShadowInputs prefix="textShadow" el={el} save={save} />
       </Field>
@@ -66,46 +82,59 @@ export default function TextProperties({ el, update, save }) {
   )
 }
 
-function StyleBtn({ label, active, onClick, bold, italic, underline }) {
+function StyleBtn({ icon: Icon, active, onClick, title }) {
   return (
     <button
       onClick={onClick}
-      style={{ fontWeight: bold ? 'bold' : 'normal', fontStyle: italic ? 'italic' : 'normal', textDecoration: underline ? 'underline' : 'none' }}
-      className={`flex-1 py-1.5 text-sm rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+      title={title}
+      className={`flex-1 flex items-center justify-center py-1.5 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
     >
-      {label}
+      <Icon size={13} />
+    </button>
+  )
+}
+
+function AlignBtn({ icon: Icon, value, current, onClick }) {
+  const active = current === value || (!current && value === 'left')
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex items-center justify-center py-1.5 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+    >
+      <Icon size={13} />
     </button>
   )
 }
 
 function ShadowInputs({ prefix, el, save, spread }) {
+  const fields = spread
+    ? ['X', 'Y', 'Blur', 'Spread']
+    : ['X', 'Y', 'Blur']
+
   return (
-    <div className={`grid gap-1 mt-0.5`} style={{ gridTemplateColumns: spread ? 'repeat(5,1fr)' : 'repeat(4,1fr)' }}>
+    <div className="grid gap-1 mt-0.5" style={{ gridTemplateColumns: `repeat(${fields.length + 1}, 1fr)` }}>
+      {fields.map((label) => {
+        const key = label === 'X' ? `${prefix}X` : label === 'Y' ? `${prefix}Y` : label === 'Blur' ? `${prefix}Blur` : `${prefix}Spread`
+        return (
+          <div key={label}>
+            <input
+              type="number" value={el[key] || 0}
+              min={label === 'Blur' ? 0 : -100} max={label === 'Blur' ? 100 : (label === 'Spread' ? 50 : 100)}
+              onChange={(e) => save({ [key]: Number(e.target.value) })}
+              className="w-full bg-gray-800 rounded px-1 py-1 text-xs text-gray-100"
+              placeholder={label}
+            />
+            <label className="text-xs text-gray-500">{label === 'X' || label === 'Y' ? `${label} Offset` : label === 'Blur' ? 'Blur Size' : label}</label>
+          </div>
+        )
+      })}
       <div>
-        <input type="number" value={el[`${prefix}X`] || 0} min={-100} max={100} onChange={(e) => save({ [`${prefix}X`]: Number(e.target.value) })}
-          className="w-full bg-gray-800 rounded px-1 py-1 text-xs text-gray-100" placeholder="X" />
-        <label className="text-xs text-gray-500">X</label>
-      </div>
-      <div>
-        <input type="number" value={el[`${prefix}Y`] || 0} min={-100} max={100} onChange={(e) => save({ [`${prefix}Y`]: Number(e.target.value) })}
-          className="w-full bg-gray-800 rounded px-1 py-1 text-xs text-gray-100" placeholder="Y" />
-        <label className="text-xs text-gray-500">Y</label>
-      </div>
-      <div>
-        <input type="number" value={el[`${prefix}Blur`] || 0} min={0} max={100} onChange={(e) => save({ [`${prefix}Blur`]: Number(e.target.value) })}
-          className="w-full bg-gray-800 rounded px-1 py-1 text-xs text-gray-100" placeholder="Blur" />
-        <label className="text-xs text-gray-500">Blur</label>
-      </div>
-      {spread && (
-        <div>
-          <input type="number" value={el[`${prefix}Spread`] || 0} min={-50} max={50} onChange={(e) => save({ [`${prefix}Spread`]: Number(e.target.value) })}
-            className="w-full bg-gray-800 rounded px-1 py-1 text-xs text-gray-100" placeholder="Spread" />
-          <label className="text-xs text-gray-500">Spread</label>
-        </div>
-      )}
-      <div>
-        <input type="color" value={el[`${prefix}Color`] || (spread ? '#ffffff' : '#000000')} onChange={(e) => save({ [`${prefix}Color`]: e.target.value })}
-          className="w-full h-7 bg-gray-800 rounded" />
+        <input
+          type="color"
+          value={el[`${prefix}Color`] || (spread ? '#ffffff' : '#000000')}
+          onChange={(e) => save({ [`${prefix}Color`]: e.target.value })}
+          className="w-full h-7 bg-gray-800 rounded"
+        />
         <label className="text-xs text-gray-500">Color</label>
       </div>
     </div>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
+import { Palette } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
@@ -11,6 +12,7 @@ export default function AddShapeModal() {
   const [width, setWidth] = useState(200)
   const [height, setHeight] = useState(150)
   const [fillColor, setFillColor] = useState('#3B82F6')
+  const colorRef = useRef(null)
   const { addElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { closeModal } = useUiStore()
@@ -50,10 +52,16 @@ export default function AddShapeModal() {
           <div className="flex gap-1.5 flex-wrap mt-1">
             {COLORS.map((c) => (
               <button key={c} onClick={() => setFillColor(c)} title={c}
-                style={{ background: c, width: 24, height: 24, borderRadius: 4, border: fillColor === c ? '2px solid #3b82f6' : '2px solid #444' }} />
+                style={{ background: c, width: 24, height: 24, borderRadius: 4, border: fillColor === c ? '2px solid #3b82f6' : '2px solid #444', flexShrink: 0 }} />
             ))}
-            <input type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)}
-              style={{ width: 24, height: 24, borderRadius: 4, border: '2px solid #444', cursor: 'pointer', padding: 0 }} />
+            <button
+              onClick={() => colorRef.current?.click()}
+              title="Custom color"
+              style={{ width: 24, height: 24, borderRadius: 4, border: '2px solid #444', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            >
+              <Palette size={13} className="text-gray-300" />
+            </button>
+            <input ref={colorRef} type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)} className="hidden" />
           </div>
         </div>
       </div>
