@@ -1,5 +1,21 @@
 import JSZip from 'jszip'
 
+// Fetch the GSAP bundle text so we can inline it into the ZIP
+async function fetchGsapSource() {
+  try {
+    // Try to get the local Vite-bundled GSAP module source
+    const mod = await import('gsap/dist/gsap.min.js?url')
+    const res = await fetch(mod.default)
+    if (res.ok) return res.text()
+  } catch (_) { /* fall through */ }
+  // Fallback: fetch from CDN
+  try {
+    const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js')
+    if (res.ok) return res.text()
+  } catch (_) { /* fall through */ }
+  return null
+}
+
 function buildElementCSS(el) {
   const styles = [
     `position:absolute`,
@@ -22,12 +38,28 @@ function buildElementCSS(el) {
     styles.push(`white-space:pre-wrap`)
     styles.push(`word-break:break-word`)
     styles.push(`overflow:hidden`)
+    if (el.textShadowBlur || el.textShadowX || el.textShadowY || el.textGlowBlur) {
+      const parts = []
+      if (el.textShadowBlur || el.textShadowX || el.textShadowY)
+        parts.push(`${el.textShadowX||0}px ${el.textShadowY||0}px ${el.textShadowBlur||0}px ${el.textShadowColor||'#000'}`)
+      if (el.textGlowBlur || el.textGlowX || el.textGlowY)
+        parts.push(`${el.textGlowX||0}px ${el.textGlowY||0}px ${el.textGlowBlur||0}px ${el.textGlowSpread||0}px ${el.textGlowColor||'#fff'}`)
+      if (parts.length) styles.push(`text-shadow:${parts.join(', ')}`)
+    }
   }
   if (el.type === 'shape') {
     const isCircle = el.shapeType === 'circle'
     styles.push(`background:${el.transparent ? 'transparent' : (el.fillColor || '#888')}`)
     styles.push(`border-radius:${isCircle ? '50%' : `${el.borderRadius || 0}px`}`)
     if (el.borderWidth) styles.push(`border:${el.borderWidth}px solid ${el.borderColor || '#000'}`)
+    if (el.shadowBlur || el.shadowX || el.shadowY || el.glowBlur) {
+      const parts = []
+      if (el.shadowBlur || el.shadowX || el.shadowY)
+        parts.push(`${el.shadowX||0}px ${el.shadowY||0}px ${el.shadowBlur||0}px ${el.shadowSpread||0}px ${el.shadowColor||'#000'}`)
+      if (el.glowBlur || el.glowX || el.glowY)
+        parts.push(`${el.glowX||0}px ${el.glowY||0}px ${el.glowBlur||0}px ${el.glowSpread||0}px ${el.glowColor||'#fff'}`)
+      if (parts.length) styles.push(`box-shadow:${parts.join(', ')}`)
+    }
   }
   if (el.type === 'image') {
     styles.push(`border-radius:${el.borderRadius || 0}px`)
@@ -39,7 +71,6 @@ function buildElementHTML(el) {
   if (!el.visible) return ''
   const css = buildElementCSS(el)
   const id = el.id
-
   switch (el.type) {
     case 'text':
       return `<div id="${id}" style="${css}">${escapeHtml(el.text || 'Text')}</div>`
@@ -57,38 +88,49 @@ function buildElementHTML(el) {
 }
 
 function buildAnimationJS(elements) {
-  const lines = []
-  lines.push('var tl = gsap.timeline({ repeat: 0 });')
+  const lines = ['var tl = gsap.timeline({ repeat: 0 });']
   elements.forEach((el) => {
     if (!el.visible) return
     ;(el.animations || []).forEach((anim) => {
-      const id = el.id
+      const t = `document.getElementById('${el.id}')`
       const start = anim.startTime || 0
       const dur = anim.duration || 1
       const ease = anim.ease || 'power1.out'
-      const target = `document.getElementById('${id}')`
+      const op = el.opacity ?? 1
       switch (anim.type) {
-        case 'fadeIn':    lines.push(`tl.fromTo(${target},{autoAlpha:0},{autoAlpha:${el.opacity ?? 1},duration:${dur},ease:'${ease}'},${start});`); break
-        case 'fadeOut':   lines.push(`tl.to(${target},{autoAlpha:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideLeft': lines.push(`tl.fromTo(${target},{x:-400},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideRight':lines.push(`tl.fromTo(${target},{x:400},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideUp':   lines.push(`tl.fromTo(${target},{y:-400},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideDown': lines.push(`tl.fromTo(${target},{y:400},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToLeft':  lines.push(`tl.to(${target},{x:-400,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToRight': lines.push(`tl.to(${target},{x:400,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToUp':    lines.push(`tl.to(${target},{y:-400,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToDown':  lines.push(`tl.to(${target},{y:400,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'scaleIn':  lines.push(`tl.fromTo(${target},{scale:0},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'scaleOut': lines.push(`tl.to(${target},{scale:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'rotate90':  lines.push(`tl.to(${target},{rotation:90,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'rotate180': lines.push(`tl.to(${target},{rotation:180,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'rotate270': lines.push(`tl.to(${target},{rotation:270,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'rotate360': lines.push(`tl.to(${target},{rotation:360,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'fadeIn':       lines.push(`tl.fromTo(${t},{autoAlpha:0},{autoAlpha:${op},duration:${dur},ease:'${ease}'},${start});`); break
+        case 'fadeOut':      lines.push(`tl.to(${t},{autoAlpha:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideLeft':    lines.push(`tl.fromTo(${t},{x:-400},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideRight':   lines.push(`tl.fromTo(${t},{x:400},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideUp':      lines.push(`tl.fromTo(${t},{y:-400},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideDown':    lines.push(`tl.fromTo(${t},{y:400},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToLeft':  lines.push(`tl.to(${t},{x:-400,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToRight': lines.push(`tl.to(${t},{x:400,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToUp':    lines.push(`tl.to(${t},{y:-400,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToDown':  lines.push(`tl.to(${t},{y:400,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'scaleIn':      lines.push(`tl.fromTo(${t},{scale:0},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'scaleOut':     lines.push(`tl.to(${t},{scale:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'rotate90':     lines.push(`tl.to(${t},{rotation:90,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'rotate180':    lines.push(`tl.to(${t},{rotation:180,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'rotate270':    lines.push(`tl.to(${t},{rotation:270,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'rotate360':    lines.push(`tl.to(${t},{rotation:360,duration:${dur},ease:'${ease}'},${start});`); break
         default: break
       }
     })
   })
   return lines.join('\n')
+}
+
+function buildManifestJS({ bannerName, canvasWidth, canvasHeight }) {
+  return `var FT_manifest = {
+  "version": "3.0",
+  "name": ${JSON.stringify(bannerName)},
+  "width": ${canvasWidth},
+  "height": ${canvasHeight},
+  "clickTags": [
+    { "id": "clickTag1", "name": "Default Click" }
+  ]
+};`
 }
 
 function escapeHtml(str) {
@@ -105,25 +147,40 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
   const animJS = buildAnimationJS(sorted)
+  const manifestJS = buildManifestJS({ bannerName, canvasWidth, canvasHeight })
 
-  // Collect embedded images (base64 src)
-  const images = elements.filter((el) => el.type === 'image' && el.src?.startsWith('data:'))
-  const imageFiles = images.map((el, i) => {
+  // Extract base64 images into assets/
+  const imageFiles = []
+  elements.filter((el) => el.type === 'image' && el.src?.startsWith('data:')).forEach((el, i) => {
     const match = el.src.match(/^data:([^;]+);base64,(.+)$/)
-    if (!match) return null
+    if (!match) return
     const ext = match[1].split('/')[1] || 'png'
     const filename = `assets/img_${i}.${ext}`
     zip.file(filename, match[2], { base64: true })
-    return { id: el.id, filename }
-  }).filter(Boolean)
+    imageFiles.push({ src: el.src, filename })
+  })
 
-  // Replace base64 src in HTML with file references
+  // Attempt to fetch GSAP source to bundle locally
+  let gsapScript = null
+  try {
+    // Use the already-loaded GSAP — get it from the CDN as a local file
+    const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js')
+    if (res.ok) gsapScript = await res.text()
+  } catch (_) { /* network blocked — will fall back to CDN src */ }
+
+  const gsapTag = gsapScript
+    ? `<script src="gsap.min.js"><\/script>`
+    : `<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>`
+
+  if (gsapScript) zip.file('gsap.min.js', gsapScript)
+
   let html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="ad.size" content="width=${canvasWidth},height=${canvasHeight}" />
   <title>${escapeHtml(bannerName)}</title>
+  <script src="manifest.js"><\/script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff}
@@ -134,7 +191,7 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   <div id="ad-container">
     ${elementsHTML}
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
+  ${gsapTag}
   <script>
     ${politeLoad ? 'window.addEventListener("load", function() {' : '(function() {'}
     ${animJS}
@@ -143,15 +200,13 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
 </body>
 </html>`
 
-  // Swap base64 image srcs to file paths
-  imageFiles.forEach(({ id, filename }) => {
-    const el = elements.find((e) => e.id === id)
-    if (el) {
-      html = html.replace(el.src, filename)
-    }
+  // Swap base64 srcs for file references
+  imageFiles.forEach(({ src, filename }) => {
+    html = html.replace(src, filename)
   })
 
   zip.file('index.html', html)
+  zip.file('manifest.js', manifestJS)
 
   const blob = await zip.generateAsync({ type: 'blob' })
   const url = URL.createObjectURL(blob)
@@ -176,12 +231,8 @@ export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName
 export function loadBannerJSON(file, callback) {
   const reader = new FileReader()
   reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result)
-      callback(null, data)
-    } catch (err) {
-      callback(err)
-    }
+    try { callback(null, JSON.parse(e.target.result)) }
+    catch (err) { callback(err) }
   }
   reader.readAsText(file)
 }
