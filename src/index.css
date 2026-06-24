@@ -2,21 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-body {
+body, html {
   margin: 0;
-  background: #1a1a2e;
-  color: #e2e8f0;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
   overflow: hidden;
   height: 100vh;
 }
 
 #root {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
+}
+
+/* Compact Tailwind sizing override (matches original) */
+.text-xs { font-size: 10px !important; }
+.text-sm { font-size: 12px !important; }
+.text-base { font-size: 14px !important; }
+.text-lg { font-size: 16px !important; }
+.text-xl { font-size: 18px !important; }
+
+input, select, button, textarea, label { font-size: 12px !important; }
+
+/* Hide scrollbars globally */
+::-webkit-scrollbar { width: 0; height: 0; background: transparent; }
+* { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* Layer locked hatching */
+.is-locked {
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.03) 75%, transparent 75%, transparent);
+  background-size: 12px 12px;
+  filter: grayscale(0.35);
 }

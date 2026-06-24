@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
@@ -20,26 +19,26 @@ export default function AddTextModal() {
 
   return (
     <Modal title="Add Text" onClose={closeModal}>
-      <label className="block text-xs text-slate-400 mb-1">Text content</label>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={3}
-        className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-600 rounded text-slate-200 mb-3 resize-none"
-      />
-      <div className="flex gap-3 mb-4">
-        <div className="flex-1">
-          <label className="block text-xs text-slate-400 mb-1">Font size</label>
-          <input type="number" value={fontSize} min={6} max={300} onChange={(e) => setFontSize(Number(e.target.value))}
-            className="w-full px-2 py-1 text-sm bg-slate-800 border border-slate-600 rounded text-slate-200" />
-        </div>
+      <div className="space-y-3 mb-4">
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Color</label>
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
-            className="w-10 h-8 rounded cursor-pointer bg-transparent border border-slate-600" />
+          <label className="text-xs text-gray-400 block mb-1">Text content</label>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3}
+            className="w-full px-2 py-1.5 text-sm bg-gray-700 rounded text-gray-200 resize-none" />
+        </div>
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="text-xs text-gray-400 block mb-1">Font size</label>
+            <input type="number" value={fontSize} min={6} max={300} onChange={(e) => setFontSize(Number(e.target.value))}
+              className="w-full px-2 py-1.5 text-sm bg-gray-700 rounded text-gray-200" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Color</label>
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
+              className="w-10 h-8 rounded cursor-pointer bg-transparent border border-gray-600" />
+          </div>
         </div>
       </div>
-      <button onClick={onAdd} className="w-full py-2 bg-violet-600 hover:bg-violet-500 rounded text-sm font-medium">
+      <button onClick={onAdd} className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium text-white">
         Add Text
       </button>
     </Modal>
@@ -49,10 +48,10 @@ export default function AddTextModal() {
 export function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-[#1e2d4a] rounded-lg p-5 w-80 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-slate-200">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={16} /></button>
+      <div className="bg-gray-800 rounded-lg p-4 w-96 shadow-xl text-gray-100" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-white">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
         </div>
         {children}
       </div>

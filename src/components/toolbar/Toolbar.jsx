@@ -1,56 +1,44 @@
-import React from 'react'
-import {
-  Type, Square, Image, Video, MousePointer, Eye, Undo2, Redo2,
-  Trash2, Download, Upload, LayoutTemplate,
-} from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
-import { useUiStore } from '../../store/uiStore.js'
+
+const PRESET_SIZES = [
+  { label: '300x250 (Medium Rectangle)', w: 300, h: 250 },
+  { label: '300x600 (Half Page)', w: 300, h: 600 },
+  { label: '320x480 (Mobile Portrait)', w: 320, h: 480 },
+  { label: '800x600 (Large Rectangle)', w: 800, h: 600 },
+  { label: '970x250 (Billboard)', w: 970, h: 250 },
+  { label: '320x50 (Mobile Banner)', w: 320, h: 50 },
+  { label: 'Custom Size', w: null, h: null },
+]
 
 export default function Toolbar() {
-  const { elements, canvasWidth, canvasHeight, setCanvasSize, addElement } = useCanvasStore()
-  const { undo, redo, saveState } = useHistoryStore()
-  const { openModal } = useUiStore()
+  const { elements, canvasWidth, canvasHeight, setCanvasSize } = useCanvasStore()
+  const { saveState, undo, redo } = useHistoryStore()
+  const [bannerName, setBannerName] = useState('ad-banner')
+  const [sizeKey, setSizeKey] = useState('300x250')
+  const [customW, setCustomW] = useState(300)
+  const [customH, setCustomH] = useState(250)
+  const [zoom, setZoom] = useState(100)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
 
-  const addImage = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = (e) => {
-      const file = e.target.files[0]
-      if (!file) return
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        saveState()
-        addElement({
-          type: 'image',
-          src: ev.target.result,
-          filename: file.name,
-          width: 200, height: 150,
-          borderRadius: 0,
-        })
-      }
-      reader.readAsDataURL(file)
+  useEffect(() => {
+    const onClickOutside = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false) }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  const onSizeChange = (e) => {
+    const val = e.target.value
+    setSizeKey(val)
+    if (val !== 'Custom Size') {
+      const preset = PRESET_SIZES.find((p) => p.label.startsWith(val))
+      if (preset) setCanvasSize(preset.w, preset.h)
     }
-    input.click()
   }
 
-  const addClickthrough = () => {
-    saveState()
-    addElement({
-      type: 'clickthrough',
-      width: 300, height: 250,
-      url: '', clickIndex: 1, target: '_blank',
-    })
-  }
-
-  const addInvisible = () => {
-    saveState()
-    addElement({
-      type: 'invisible',
-      width: 100, height: 100,
-    })
-  }
+  const applyCustomSize = () => setCanvasSize(customW, customH)
 
   const clearAll = () => {
     if (!elements.length) return
@@ -59,58 +47,90 @@ export default function Toolbar() {
     useCanvasStore.setState({ elements: [], selectedId: null })
   }
 
-  return (
-    <header className="flex items-center gap-1 px-3 py-2 bg-[#16213e] border-b border-slate-700 shrink-0">
-      <span className="text-sm font-bold text-violet-400 mr-3">Kult AdBuilder</span>
+  const changeZoom = (delta) => setZoom((z) => Math.min(200, Math.max(25, z + delta)))
 
-      <div className="flex items-center gap-1 mr-3">
-        <label className="text-xs text-slate-400">W</label>
+  return (
+    <div className="bg-gray-800 border-b border-gray-700 p-2 flex items-center gap-3 flex-wrap shrink-0">
+      {/* Banner name */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-gray-400 whitespace-nowrap">Banner Name:</label>
         <input
-          type="number" value={canvasWidth} min={50} max={2000}
-          onChange={(e) => setCanvasSize(Number(e.target.value), canvasHeight)}
-          className="w-16 px-1 py-0.5 text-xs bg-slate-800 border border-slate-600 rounded text-slate-200"
-        />
-        <label className="text-xs text-slate-400">H</label>
-        <input
-          type="number" value={canvasHeight} min={50} max={2000}
-          onChange={(e) => setCanvasSize(canvasWidth, Number(e.target.value))}
-          className="w-16 px-1 py-0.5 text-xs bg-slate-800 border border-slate-600 rounded text-slate-200"
+          type="text" value={bannerName} onChange={(e) => setBannerName(e.target.value)}
+          className="bg-gray-700 text-white rounded px-2 py-1 text-sm border border-gray-600 focus:border-blue-500 focus:outline-none w-36"
         />
       </div>
 
-      <div className="w-px h-5 bg-slate-600 mx-1" />
+      {/* Canvas size */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-gray-400 whitespace-nowrap">Canvas Size:</label>
+        <select value={sizeKey} onChange={onSizeChange} className="bg-gray-700 rounded px-2 py-1 text-sm text-white">
+          {PRESET_SIZES.map((p) => (
+            <option key={p.label} value={p.label.split(' ')[0]}>{p.label}</option>
+          ))}
+        </select>
+        {sizeKey === 'Custom' && (
+          <>
+            <input type="number" value={customW} onChange={(e) => setCustomW(Number(e.target.value))}
+              className="bg-gray-700 rounded px-2 py-1 text-sm w-16 text-white" placeholder="Width" />
+            <input type="number" value={customH} onChange={(e) => setCustomH(Number(e.target.value))}
+              className="bg-gray-700 rounded px-2 py-1 text-sm w-16 text-white" placeholder="Height" />
+            <button onClick={applyCustomSize} className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm">Apply</button>
+          </>
+        )}
+      </div>
 
-      <ToolBtn icon={Type} label="Text" onClick={() => openModal('addText')} />
-      <ToolBtn icon={Square} label="Shape" onClick={() => openModal('addShape')} />
-      <ToolBtn icon={Image} label="Image" onClick={addImage} />
-      <ToolBtn icon={Video} label="Video" onClick={() => openModal('addVideo')} />
-      <ToolBtn icon={MousePointer} label="Clickthrough" onClick={addClickthrough} />
-      <ToolBtn icon={Eye} label="Invisible" onClick={addInvisible} />
+      {/* Zoom */}
+      <div className="flex items-center gap-2 border-l border-gray-600 pl-3">
+        <label className="text-xs text-gray-400">Zoom:</label>
+        <button onClick={() => changeZoom(-25)} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm">－</button>
+        <input type="number" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} min={25} max={200} step={25}
+          className="bg-gray-700 text-white rounded px-2 py-1 text-sm w-16 text-center border border-gray-600 focus:border-blue-500 focus:outline-none" />
+        <span className="text-xs text-gray-400">%</span>
+        <button onClick={() => changeZoom(25)} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm">＋</button>
+        <button onClick={() => setZoom(100)} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm" title="Reset zoom">⤡</button>
+      </div>
 
-      <div className="w-px h-5 bg-slate-600 mx-1" />
+      <div className="ml-auto flex items-center gap-2">
+        {/* Undo/Redo */}
+        <button onClick={undo} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">↩ Undo</button>
+        <button onClick={redo} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">↪ Redo</button>
 
-      <ToolBtn icon={Undo2} label="Undo" onClick={undo} />
-      <ToolBtn icon={Redo2} label="Redo" onClick={redo} />
-      <ToolBtn icon={Trash2} label="Clear" onClick={clearAll} />
+        {/* Clear */}
+        <button onClick={clearAll} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+          🗑 Clear All
+        </button>
 
-      <div className="w-px h-5 bg-slate-600 mx-1" />
-
-      <ToolBtn icon={LayoutTemplate} label="Templates" onClick={() => openModal('templates')} />
-      <ToolBtn icon={Download} label="Export ZIP" onClick={() => openModal('export')} />
-      <ToolBtn icon={Upload} label="Publish" onClick={() => openModal('publish')} />
-    </header>
+        {/* Import/Export dropdown */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+          >
+            📁 Import / Export ▾
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-gray-800 text-sm">
+              <MenuItem label="💾 Save Banner" onClick={() => { setMenuOpen(false) }} />
+              <MenuItem label="📂 Load Banner" onClick={() => { setMenuOpen(false) }} />
+              <div className="border-t border-gray-200 my-1" />
+              <label className="w-full flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                <input type="checkbox" defaultChecked className="mr-3 w-4 h-4 text-blue-600" />
+                <span>Polite Load</span>
+              </label>
+              <MenuItem label="📦 Export as ZIP" onClick={() => { setMenuOpen(false) }} />
+              <MenuItem label="▶ Preview Animation" onClick={() => { setMenuOpen(false) }} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
-function ToolBtn({ icon: Icon, label, onClick }) {
+function MenuItem({ label, onClick }) {
   return (
-    <button
-      title={label}
-      onClick={onClick}
-      className="flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-    >
-      <Icon size={14} />
-      <span className="hidden lg:inline">{label}</span>
+    <button onClick={onClick} className="w-full flex items-center px-4 py-2 hover:bg-gray-100 transition-colors text-left">
+      {label}
     </button>
   )
 }

@@ -4,40 +4,60 @@ import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 import { Modal } from './AddTextModal.jsx'
 
+const COLORS = ['#FFFFFF', '#000000', '#6B7280', '#EF4444', '#3B82F6', '#10B981', '#F59E0B']
+
 export default function AddShapeModal() {
   const [shapeType, setShapeType] = useState('rectangle')
-  const [fillColor, setFillColor] = useState('#7c3aed')
+  const [width, setWidth] = useState(200)
+  const [height, setHeight] = useState(150)
+  const [fillColor, setFillColor] = useState('#3B82F6')
   const { addElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { closeModal } = useUiStore()
 
   const onAdd = () => {
     saveState()
-    const size = shapeType === 'circle' ? { width: 100, height: 100 } : { width: 200, height: 100 }
-    addElement({ type: 'shape', shapeType, fillColor, ...size })
+    addElement({ type: 'shape', shapeType, fillColor, width, height })
     closeModal()
   }
 
   return (
     <Modal title="Add Shape" onClose={closeModal}>
-      <label className="block text-xs text-slate-400 mb-1">Shape type</label>
-      <div className="flex gap-2 mb-3">
-        {['rectangle', 'circle'].map((s) => (
-          <button
-            key={s}
-            onClick={() => setShapeType(s)}
-            className={`flex-1 py-1.5 text-xs rounded capitalize ${shapeType === s ? 'bg-violet-600 text-white' : 'bg-slate-700 text-slate-300'}`}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="space-y-3 mb-4">
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Shape Type</label>
+          <select value={shapeType} onChange={(e) => setShapeType(e.target.value)}
+            className="w-full px-2 py-1.5 text-sm bg-gray-700 rounded text-gray-200">
+            <option value="rectangle">Rectangle</option>
+            <option value="circle">Circle</option>
+            <option value="rounded-rectangle">Rounded Rectangle</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Width</label>
+            <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))}
+              className="w-full px-2 py-1.5 text-sm bg-gray-700 rounded text-gray-200" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Height</label>
+            <input type="number" value={height} onChange={(e) => setHeight(Number(e.target.value))}
+              className="w-full px-2 py-1.5 text-sm bg-gray-700 rounded text-gray-200" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Fill Color</label>
+          <div className="flex gap-1.5 flex-wrap mt-1">
+            {COLORS.map((c) => (
+              <button key={c} onClick={() => setFillColor(c)} title={c}
+                style={{ background: c, width: 24, height: 24, borderRadius: 4, border: fillColor === c ? '2px solid #3b82f6' : '2px solid #444' }} />
+            ))}
+            <input type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)}
+              style={{ width: 24, height: 24, borderRadius: 4, border: '2px solid #444', cursor: 'pointer', padding: 0 }} />
+          </div>
+        </div>
       </div>
-      <div className="flex items-center gap-3 mb-4">
-        <label className="text-xs text-slate-400">Fill color</label>
-        <input type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)}
-          className="w-10 h-8 rounded cursor-pointer bg-transparent border border-slate-600" />
-      </div>
-      <button onClick={onAdd} className="w-full py-2 bg-violet-600 hover:bg-violet-500 rounded text-sm font-medium">
+      <button onClick={onAdd} className="w-full py-2 bg-teal-600 hover:bg-teal-700 rounded text-sm font-medium text-white">
         Add Shape
       </button>
     </Modal>

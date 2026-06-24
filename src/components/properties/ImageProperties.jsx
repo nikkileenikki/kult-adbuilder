@@ -1,10 +1,12 @@
 import React from 'react'
-import { Section, Row, NumInput } from './PropertiesPanel.jsx'
+import { Field, NumInput } from '../left/PropertiesSection.jsx'
 
 export default function ImageProperties({ el, update, save }) {
   return (
-    <Section title="Image">
-      <Row label="Radius"><NumInput value={el.borderRadius || 0} min={0} onChange={(v) => save({ borderRadius: v })} /></Row>
-    </Section>
+    <div className="space-y-2 pb-2 border-b border-gray-700">
+      <Field label="Border Radius">
+        <NumInput value={el.borderRadius || 0} min={0} max={200} onChange={(v) => save({ borderRadius: v })} />
+      </Field>
+    </div>
   )
 }

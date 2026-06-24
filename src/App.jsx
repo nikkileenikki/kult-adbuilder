@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react'
+import LeftPanel from './components/left/LeftPanel.jsx'
 import Toolbar from './components/toolbar/Toolbar.jsx'
 import Canvas from './components/canvas/Canvas.jsx'
-import LayersPanel from './components/layers/LayersPanel.jsx'
-import PropertiesPanel from './components/properties/PropertiesPanel.jsx'
 import Timeline from './components/timeline/Timeline.jsx'
 import { useHistoryStore } from './store/historyStore.js'
 import { useUiStore } from './store/uiStore.js'
 import AddTextModal from './components/modals/AddTextModal.jsx'
 import AddShapeModal from './components/modals/AddShapeModal.jsx'
+import AddVideoModal from './components/modals/AddVideoModal.jsx'
+import AnimationModal from './components/modals/AnimationModal.jsx'
 
 export default function App() {
   const { activeModal } = useUiStore()
@@ -25,18 +26,18 @@ export default function App() {
   }, [activeModal, undo, redo])
 
   return (
-    <div className="flex flex-col h-screen bg-[#0f0f1a] text-slate-200 select-none">
-      <Toolbar />
-      <div className="flex flex-1 overflow-hidden">
-        <LayersPanel />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Canvas />
-          <Timeline />
-        </div>
-        <PropertiesPanel />
+    <div className="flex h-screen bg-gray-900 text-gray-100 select-none overflow-hidden">
+      <LeftPanel />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Toolbar />
+        <Canvas />
+        <Timeline />
       </div>
+
       {activeModal === 'addText' && <AddTextModal />}
       {activeModal === 'addShape' && <AddShapeModal />}
+      {activeModal === 'addVideo' && <AddVideoModal />}
+      {activeModal === 'animation' && <AnimationModal />}
     </div>
   )
 }
