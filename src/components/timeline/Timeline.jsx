@@ -1,32 +1,54 @@
-import React, { useRef, useState, useCallback } from 'react'
-import { Film, Play, Square, Eye, EyeOff, Lock, Unlock, Sparkles, Copy, Trash2, GripVertical, FolderPlus } from 'lucide-react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
+import { Film, Play, Square, Eye, EyeOff, Sparkles, Copy, Trash2, GripVertical, FolderPlus } from 'lucide-react'
 import gsap from 'gsap'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 
-const PX_PER_SEC = 60
+const PX_PER_SEC = 80
 
 export default function Timeline() {
-  const { elements, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility, toggleLock, reorderElements, updateElement } = useCanvasStore()
+  const { elements, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility, reorderElements, updateElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { openModal } = useUiStore()
   const [duration, setDuration] = useState(5)
   const [loop, setLoop] = useState(1)
   const [playing, setPlaying] = useState(false)
+  const [playhead, setPlayhead] = useState(0)
   const tlRef = useRef(null)
+  const rafRef = useRef(null)
   const rowDragIdx = useRef(null)
+  const trackScrollRef = useRef(null)
+  const rulerScrollRef = useRef(null)
 
   const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex)
+  const totalWidth = Math.max(duration * PX_PER_SEC + 40, 400)
   const rulerMarks = Array.from({ length: Math.floor(duration / 0.5) + 1 }, (_, i) => i * 0.5)
 
-  // ── Play / Stop ────────────────────────────────────────────────────────────
+  // Sync ruler scroll with track scroll
+  const onTrackScroll = (e) => {
+    if (rulerScrollRef.current) rulerScrollRef.current.scrollLeft = e.target.scrollLeft
+  }
+
+  // Playhead animation loop
+  const tickPlayhead = useCallback(() => {
+    if (!tlRef.current) return
+    setPlayhead(tlRef.current.time())
+    rafRef.current = requestAnimationFrame(tickPlayhead)
+  }, [])
+
+  // ── Play / Stop ─────────────────────────────────────────────────────────────
   const play = useCallback(() => {
     if (tlRef.current) tlRef.current.kill()
+    cancelAnimationFrame(rafRef.current)
 
     const tl = gsap.timeline({
       repeat: loop - 1,
-      onComplete: () => setPlaying(false),
+      onComplete: () => {
+        setPlaying(false)
+        cancelAnimationFrame(rafRef.current)
+        setPlayhead(0)
+      },
     })
 
     elements.forEach((el) => {
@@ -38,78 +60,46 @@ export default function Timeline() {
         const ease = anim.ease || 'power1.out'
 
         switch (anim.type) {
-          case 'fadeIn':
-            tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease }, start)
-            break
-          case 'fadeOut':
-            tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start)
-            break
-          case 'slideLeft':
-            tl.fromTo(dom, { x: -400 }, { x: 0, duration: dur, ease }, start)
-            break
-          case 'slideRight':
-            tl.fromTo(dom, { x: 400 }, { x: 0, duration: dur, ease }, start)
-            break
-          case 'slideUp':
-            tl.fromTo(dom, { y: -400 }, { y: 0, duration: dur, ease }, start)
-            break
-          case 'slideDown':
-            tl.fromTo(dom, { y: 400 }, { y: 0, duration: dur, ease }, start)
-            break
-          case 'slideToLeft':
-            tl.to(dom, { x: -400, duration: dur, ease }, start)
-            break
-          case 'slideToRight':
-            tl.to(dom, { x: 400, duration: dur, ease }, start)
-            break
-          case 'slideToUp':
-            tl.to(dom, { y: -400, duration: dur, ease }, start)
-            break
-          case 'slideToDown':
-            tl.to(dom, { y: 400, duration: dur, ease }, start)
-            break
-          case 'scaleIn':
-            tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease }, start)
-            break
-          case 'scaleOut':
-            tl.to(dom, { scale: 0, duration: dur, ease }, start)
-            break
-          case 'rotate90':
-            tl.to(dom, { rotation: 90, duration: dur, ease }, start)
-            break
-          case 'rotate180':
-            tl.to(dom, { rotation: 180, duration: dur, ease }, start)
-            break
-          case 'rotate270':
-            tl.to(dom, { rotation: 270, duration: dur, ease }, start)
-            break
-          case 'rotate360':
-            tl.to(dom, { rotation: 360, duration: dur, ease }, start)
-            break
-          default:
-            break
+          case 'fadeIn':    tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease }, start); break
+          case 'fadeOut':   tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start); break
+          case 'slideLeft': tl.fromTo(dom, { x: -400 }, { x: 0, duration: dur, ease }, start); break
+          case 'slideRight':tl.fromTo(dom, { x: 400 }, { x: 0, duration: dur, ease }, start); break
+          case 'slideUp':   tl.fromTo(dom, { y: -400 }, { y: 0, duration: dur, ease }, start); break
+          case 'slideDown': tl.fromTo(dom, { y: 400 }, { y: 0, duration: dur, ease }, start); break
+          case 'slideToLeft':  tl.to(dom, { x: -400, duration: dur, ease }, start); break
+          case 'slideToRight': tl.to(dom, { x: 400, duration: dur, ease }, start); break
+          case 'slideToUp':    tl.to(dom, { y: -400, duration: dur, ease }, start); break
+          case 'slideToDown':  tl.to(dom, { y: 400, duration: dur, ease }, start); break
+          case 'scaleIn':  tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease }, start); break
+          case 'scaleOut': tl.to(dom, { scale: 0, duration: dur, ease }, start); break
+          case 'rotate90':  tl.to(dom, { rotation: 90,  duration: dur, ease }, start); break
+          case 'rotate180': tl.to(dom, { rotation: 180, duration: dur, ease }, start); break
+          case 'rotate270': tl.to(dom, { rotation: 270, duration: dur, ease }, start); break
+          case 'rotate360': tl.to(dom, { rotation: 360, duration: dur, ease }, start); break
+          default: break
         }
       })
     })
 
     tlRef.current = tl
     setPlaying(true)
-  }, [elements, loop])
+    rafRef.current = requestAnimationFrame(tickPlayhead)
+  }, [elements, loop, tickPlayhead])
 
   const stop = useCallback(() => {
-    if (tlRef.current) {
-      tlRef.current.kill()
-      tlRef.current = null
-    }
-    // Reset all element transforms
+    if (tlRef.current) { tlRef.current.kill(); tlRef.current = null }
+    cancelAnimationFrame(rafRef.current)
     elements.forEach((el) => {
       const dom = document.getElementById(el.id)
       if (dom) gsap.set(dom, { clearProps: 'all' })
     })
     setPlaying(false)
+    setPlayhead(0)
   }, [elements])
 
-  // ── Row drag-to-reorder ────────────────────────────────────────────────────
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
+
+  // ── Row drag-to-reorder ─────────────────────────────────────────────────────
   const onRowDragStart = (e, idx) => { rowDragIdx.current = idx }
   const onRowDragOver = (e) => e.preventDefault()
   const onRowDrop = (e, toIdx) => {
@@ -125,6 +115,8 @@ export default function Timeline() {
 
   const onDelete = (id) => { saveState(); deleteElement(id) }
   const onDuplicate = (id) => { saveState(); duplicateElement(id) }
+
+  const playheadLeft = playhead * PX_PER_SEC
 
   return (
     <div className="flex-shrink-0 bg-gray-800 border-t border-gray-700 p-3">
@@ -157,47 +149,60 @@ export default function Timeline() {
 
       {/* Timeline container */}
       <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ height: 215 }}>
-        {/* Ruler row */}
-        <div className="flex border-b border-gray-700 bg-gray-900 z-10" style={{ position: 'sticky', top: 0 }}>
+        {/* Header row: label column + scrollable ruler */}
+        <div className="flex border-b border-gray-700 bg-gray-900" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+          {/* Fixed label column header */}
           <div className="flex items-center justify-between px-2 py-1 bg-gray-800 border-r border-gray-700 shrink-0" style={{ width: 250 }}>
             <span className="text-xs text-gray-400 font-semibold">LAYER</span>
             <button title="Create Empty Group" className="text-gray-600 hover:text-yellow-300 px-1 rounded">
               <FolderPlus size={13} />
             </button>
           </div>
-          <div className="flex-1 relative h-8 overflow-hidden">
-            {rulerMarks.map((t) => (
-              <div key={t} className="absolute top-0 bottom-0" style={{ left: t * PX_PER_SEC }}>
-                <div className="absolute top-0 bottom-0 w-px bg-gray-700" />
-                <span className="absolute top-0.5 text-gray-400 select-none" style={{ fontSize: 10, transform: 'translateX(-50%)' }}>{t}s</span>
-              </div>
-            ))}
+          {/* Scrollable ruler — mirrors track scroll */}
+          <div ref={rulerScrollRef} className="flex-1 overflow-hidden relative h-8" style={{ pointerEvents: 'none' }}>
+            <div className="relative h-full" style={{ width: totalWidth }}>
+              {rulerMarks.map((t) => (
+                <div key={t} className="absolute top-0 bottom-0" style={{ left: t * PX_PER_SEC }}>
+                  <div className="absolute top-0 bottom-0 w-px bg-gray-700" />
+                  <span className="absolute top-0.5 text-gray-400 select-none" style={{ fontSize: 10, left: 3 }}>{t}s</span>
+                </div>
+              ))}
+              {/* Playhead marker in ruler */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 z-20"
+                style={{ left: playheadLeft, display: playing || playhead > 0 ? 'block' : 'none' }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Tracks */}
-        <ul style={{ maxHeight: 180, minHeight: 180, overflowY: 'auto', listStyle: 'none', padding: 0, margin: 0 }}>
+        <div
+          ref={trackScrollRef}
+          onScroll={onTrackScroll}
+          style={{ maxHeight: 178, minHeight: 178, overflowY: 'auto', overflowX: 'auto' }}
+        >
           {sorted.length === 0 && (
-            <li className="flex items-center justify-center text-gray-500 text-sm" style={{ height: 180 }}>
+            <div className="flex items-center justify-center text-gray-500 text-sm" style={{ height: 178 }}>
               Add elements and animations to see timeline
-            </li>
+            </div>
           )}
           {sorted.map((el, idx) => (
-            <li
+            <div
               key={el.id}
               draggable
               onDragStart={(e) => onRowDragStart(e, idx)}
               onDragOver={onRowDragOver}
               onDrop={(e) => onRowDrop(e, idx)}
               className="flex border-b border-gray-700"
-              style={{ minHeight: 38, userSelect: 'none' }}
+              style={{ minHeight: 38, userSelect: 'none', minWidth: totalWidth + 250 }}
             >
-              {/* Label + controls */}
+              {/* Fixed label column */}
               <div
                 onClick={() => setSelected(el.id)}
-                className={`flex items-center gap-1 px-1 cursor-pointer border-r border-gray-700 transition-colors shrink-0 ${
+                className={`flex items-center gap-1 px-1 cursor-pointer border-r border-gray-700 transition-colors shrink-0 sticky left-0 z-10 ${
                   selectedId === el.id ? 'bg-blue-500/20 border-r-blue-500' : 'bg-gray-800 hover:bg-blue-500/10'
-                } ${!el.visible ? 'opacity-50' : ''} ${el.locked ? 'is-locked' : ''}`}
+                } ${!el.visible ? 'opacity-50' : ''}`}
                 style={{ width: 250 }}
               >
                 <GripVertical size={12} className="text-gray-500 cursor-grab shrink-0" />
@@ -218,8 +223,12 @@ export default function Timeline() {
                 </div>
               </div>
 
-              {/* Track content — draggable animation blocks */}
-              <div className="flex-1 relative" style={{ background: 'rgb(17,24,39)' }}>
+              {/* Track content */}
+              <div className="relative" style={{ width: totalWidth, background: 'rgb(17,24,39)', flexShrink: 0 }}>
+                {/* Playhead line in track */}
+                {(playing || playhead > 0) && (
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 z-20 pointer-events-none" style={{ left: playheadLeft }} />
+                )}
                 {(el.animations || []).map((anim, animIdx) => (
                   <DraggableAnimBlock
                     key={animIdx}
@@ -239,9 +248,9 @@ export default function Timeline() {
                   />
                 ))}
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   )
@@ -272,7 +281,7 @@ function DraggableAnimBlock({ anim, onUpdate, onDelete, duration }) {
   }
 
   const left = (anim.startTime || 0) * PX_PER_SEC
-  const width = Math.max((anim.duration || 1) * PX_PER_SEC, 24)
+  const width = Math.max((anim.duration || 1) * PX_PER_SEC, 30)
 
   return (
     <div

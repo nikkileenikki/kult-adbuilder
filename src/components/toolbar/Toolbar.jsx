@@ -3,6 +3,7 @@ import { Undo2, Redo2, Trash2, FileArchive, ZoomIn, ZoomOut, Minimize2, ChevronD
 import { useUiStore } from '../../store/uiStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
+import { exportBannerZip, saveBannerJSON, loadBannerJSON } from '../../utils/exportBanner.js'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300x250 (Medium Rectangle)', w: 300, h: 250 },
@@ -15,7 +16,7 @@ const PRESET_SIZES = [
 ]
 
 export default function Toolbar() {
-  const { elements, setCanvasSize } = useCanvasStore()
+  const { elements, canvasWidth, canvasHeight, setCanvasSize } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
   const { openModal } = useUiStore()
   const [bannerName, setBannerName] = useState('ad-banner')
@@ -24,7 +25,9 @@ export default function Toolbar() {
   const [customH, setCustomH] = useState(250)
   const [zoom, setZoom] = useState(100)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [politeLoad, setPoliteLoad] = useState(true)
   const menuRef = useRef(null)
+  const loadInputRef = useRef(null)
 
   useEffect(() => {
     const close = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false) }
@@ -49,6 +52,34 @@ export default function Toolbar() {
   }
 
   const changeZoom = (delta) => setZoom((z) => Math.min(200, Math.max(25, z + delta)))
+
+  const handleExportZip = async () => {
+    setMenuOpen(false)
+    await exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad })
+  }
+
+  const handleSave = () => {
+    setMenuOpen(false)
+    saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName })
+  }
+
+  const handleLoad = () => {
+    setMenuOpen(false)
+    loadInputRef.current?.click()
+  }
+
+  const handleLoadFile = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    loadBannerJSON(file, (err, data) => {
+      if (err) { alert('Failed to load banner file'); return }
+      saveState()
+      if (data.canvasWidth && data.canvasHeight) setCanvasSize(data.canvasWidth, data.canvasHeight)
+      if (data.bannerName) setBannerName(data.bannerName)
+      if (data.elements) useCanvasStore.setState({ elements: data.elements, selectedId: null })
+    })
+    e.target.value = ''
+  }
 
   return (
     <div className="bg-gray-800 border-b border-gray-700 p-2 flex items-center gap-3 flex-wrap shrink-0">
@@ -120,21 +151,32 @@ export default function Toolbar() {
             <ChevronDown size={11} />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 mt-1 w-52 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-gray-800 text-sm">
-              <MenuItem icon={Save} iconClass="text-blue-500" label="Save Banner" onClick={() => setMenuOpen(false)} />
-              <MenuItem icon={FolderOpen} iconClass="text-indigo-500" label="Load Banner" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-gray-800 text-sm">
+              <MenuItem icon={Save} iconClass="text-blue-500" label="Save Banner (.json)" onClick={handleSave} />
+              <MenuItem icon={FolderOpen} iconClass="text-indigo-500" label="Load Banner (.json)" onClick={handleLoad} />
               <div className="border-t border-gray-200 my-1" />
-              <label className="w-full flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                title="Defers asset loading until page load is complete. Recommended for display advertising.">
-                <input type="checkbox" defaultChecked className="mr-3 w-4 h-4 text-blue-600" />
+              <label
+                className="w-full flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer select-none"
+                title="Defers asset loading until page load is complete."
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={politeLoad}
+                  onChange={(e) => setPoliteLoad(e.target.checked)}
+                  className="mr-3 w-4 h-4 text-blue-600"
+                />
                 <span>Polite Load</span>
               </label>
-              <MenuItem icon={FileArchive} iconClass="text-green-500" label="Export as ZIP" onClick={() => setMenuOpen(false)} />
-              <MenuItem icon={Play} iconClass="text-purple-500" label="Preview Animation" onClick={() => setMenuOpen(false)} />
+              <MenuItem icon={FileArchive} iconClass="text-green-500" label="Export as ZIP" onClick={handleExportZip} />
+              <MenuItem icon={Play} iconClass="text-purple-500" label="Preview Animation" onClick={() => { setMenuOpen(false); alert('Open the exported index.html in a browser to preview.') }} />
             </div>
           )}
         </div>
       </div>
+
+      {/* Hidden file input for load */}
+      <input ref={loadInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadFile} />
     </div>
   )
 }
