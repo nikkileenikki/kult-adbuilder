@@ -108,25 +108,54 @@ export default function Timeline() {
     setGroups((g) => [...g, { id, name, collapsed: false }])
   }
 
+  const deleteGroup = (id) => {
+    setGroups((g) => g.filter((grp) => grp.id !== id))
+    // Unassign all elements that were in this group
+    setElementGroups((eg) => {
+      const next = { ...eg }
+      Object.keys(next).forEach((k) => { if (next[k] === id) delete next[k] })
+      return next
+    })
+  }
+
   const toggleGroup = (id) => {
     setGroups((g) => g.map((grp) => grp.id === id ? { ...grp, collapsed: !grp.collapsed } : grp))
   }
 
-  const assignGroup = (elId, groupId) => {
-    setElementGroups((eg) => ({ ...eg, [elId]: groupId }))
-  }
-
   // ── Row drag ────────────────────────────────────────────────────────────────
-  const onRowDragStart = (e, idx) => { rowDragIdx.current = idx }
-  const onRowDragOver = (e) => e.preventDefault()
-  const onRowDrop = (e, toIdx) => {
-    if (rowDragIdx.current === null || rowDragIdx.current === toIdx) return
-    const fromEl = sorted[rowDragIdx.current]
-    const toEl = sorted[toIdx]
-    const fromReal = elements.findIndex((el) => el.id === fromEl.id)
-    const toReal = elements.findIndex((el) => el.id === toEl.id)
+  // rowDragIdx tracks the sorted[] index of the element being dragged
+  const onRowDragStart = (e, elId) => { rowDragIdx.current = elId; e.dataTransfer.effectAllowed = 'move' }
+  const onRowDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
+
+  // Drop on another element row → reorder in elements array
+  const onRowDrop = (e, toElId) => {
+    e.preventDefault()
+    const fromElId = rowDragIdx.current
+    if (!fromElId || fromElId === toElId) return
+    // Only reorder, don't reassign group
+    const fromReal = elements.findIndex((el) => el.id === fromElId)
+    const toReal = elements.findIndex((el) => el.id === toElId)
+    if (fromReal === -1 || toReal === -1) return
     saveState()
     reorderElements(fromReal, toReal)
+    rowDragIdx.current = null
+  }
+
+  // Drop on a group header → assign element to that group
+  const onGroupDrop = (e, groupId) => {
+    e.preventDefault()
+    const fromElId = rowDragIdx.current
+    if (!fromElId) return
+    setElementGroups((eg) => ({ ...eg, [fromElId]: groupId }))
+    rowDragIdx.current = null
+  }
+
+  // Drop on the "ungrouped" zone → remove from group
+  const onUngroupDrop = (e) => {
+    e.preventDefault()
+    const fromElId = rowDragIdx.current
+    if (!fromElId) return
+    setElementGroups((eg) => { const next = { ...eg }; delete next[fromElId]; return next })
     rowDragIdx.current = null
   }
 
@@ -226,14 +255,26 @@ export default function Timeline() {
             if (row.type === 'group') {
               const { grp } = row
               return (
-                <div key={grp.id} className="flex border-b border-gray-700 bg-yellow-900/20"
+                <div key={grp.id}
+                  onDragOver={onRowDragOver}
+                  onDrop={(e) => onGroupDrop(e, grp.id)}
+                  className="flex border-b border-gray-700 bg-yellow-900/20"
                   style={{ minHeight: 32, minWidth: totalWidth + 250, userSelect: 'none' }}>
-                  <div className="flex items-center gap-1 px-2 cursor-pointer bg-yellow-900/30 border-r border-gray-700 shrink-0 sticky left-0 z-10"
-                    style={{ width: 250 }} onClick={() => toggleGroup(grp.id)}>
-                    {grp.collapsed ? <ChevronRight size={12} className="text-yellow-400" /> : <ChevronDown size={12} className="text-yellow-400" />}
-                    <span className="flex-1 text-xs text-yellow-300 font-semibold truncate">{grp.name}</span>
+                  <div className="flex items-center gap-1 px-2 bg-yellow-900/30 border-r border-gray-700 shrink-0 sticky left-0 z-10"
+                    style={{ width: 250 }}>
+                    <button onClick={() => toggleGroup(grp.id)} className="flex items-center gap-1 flex-1 min-w-0 cursor-pointer">
+                      {grp.collapsed ? <ChevronRight size={12} className="text-yellow-400 shrink-0" /> : <ChevronDown size={12} className="text-yellow-400 shrink-0" />}
+                      <span className="flex-1 text-xs text-yellow-300 font-semibold truncate text-left">{grp.name}</span>
+                    </button>
+                    <TrackBtn title="Delete Group" onClick={() => deleteGroup(grp.id)} danger>
+                      <Trash2 size={13} />
+                    </TrackBtn>
                   </div>
-                  <div className="flex-1 relative" style={{ background: 'rgb(17,24,39)', minWidth: totalWidth }} />
+                  <div className="flex-1 relative" style={{ background: 'rgb(17,24,39)', minWidth: totalWidth }}>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-xs text-yellow-900/60">drop layers here</span>
+                    </div>
+                  </div>
                 </div>
               )
             }
@@ -243,9 +284,9 @@ export default function Timeline() {
               <div
                 key={el.id}
                 draggable
-                onDragStart={(e) => onRowDragStart(e, idx)}
+                onDragStart={(e) => onRowDragStart(e, el.id)}
                 onDragOver={onRowDragOver}
-                onDrop={(e) => onRowDrop(e, idx)}
+                onDrop={(e) => { e.stopPropagation(); onRowDrop(e, el.id) }}
                 className="flex border-b border-gray-700"
                 style={{ minHeight: 38, userSelect: 'none', minWidth: totalWidth + 250 }}
               >

@@ -10,9 +10,9 @@ export default function AddElementsSection() {
   const { openModal } = useUiStore()
   const fileRef = useRef(null)
 
-  const onFileChange = (e) => {
-    const files = Array.from(e.target.files || [])
-    files.forEach((file) => {
+  const readFiles = (files) => {
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) return
       const reader = new FileReader()
       reader.onload = (ev) => {
         saveState()
@@ -20,7 +20,17 @@ export default function AddElementsSection() {
       }
       reader.readAsDataURL(file)
     })
+  }
+
+  const onFileChange = (e) => {
+    readFiles(e.target.files || [])
     e.target.value = ''
+  }
+
+  const onDragOver = (e) => { e.preventDefault(); e.stopPropagation() }
+  const onDrop = (e) => {
+    e.preventDefault(); e.stopPropagation()
+    readFiles(e.dataTransfer.files || [])
   }
 
   const addClickthrough = () => {
@@ -39,10 +49,12 @@ export default function AddElementsSection() {
       <div className="space-y-2">
         <div
           onClick={() => fileRef.current?.click()}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
           className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 transition-colors"
         >
           <Upload size={24} className="mx-auto text-gray-500 mb-1" />
-          <p className="text-xs text-gray-400">Upload Images</p>
+          <p className="text-xs text-gray-400">Upload or Drop Images</p>
           <p className="text-xs text-gray-500 mt-0.5">JPG, PNG, GIF, SVG, WEBP</p>
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp" multiple className="hidden" onChange={onFileChange} />
@@ -68,3 +80,4 @@ function AddBtn({ onClick, icon: Icon, className, children }) {
     </button>
   )
 }
+

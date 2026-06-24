@@ -150,16 +150,30 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
           pointerEvents: 'none',
         }} />
       )
-    case 'video':
-      return (
+    case 'video': {
+      const hasUrl = !!element.videoUrl
+      return hasUrl ? (
+        <video
+          src={element.videoUrl}
+          style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }}
+          muted={element.muted !== false}
+          controls={!!element.controls}
+          autoPlay={element.playTrigger === 'autoplay'}
+          loop
+          playsInline
+        />
+      ) : (
         <div style={{
           width: '100%', height: '100%', background: '#111',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, color: '#aaa',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, color: '#aaa', gap: 4,
         }}>
-          ▶ {element.videoName || 'Video'}
+          <span style={{ fontSize: 22 }}>▶</span>
+          <span>{element.videoName || 'Video'}</span>
+          <span style={{ fontSize: 9, color: '#666' }}>No URL set</span>
         </div>
       )
+    }
     default:
       return null
   }
