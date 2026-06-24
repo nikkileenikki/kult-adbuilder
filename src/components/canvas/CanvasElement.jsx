@@ -64,7 +64,7 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
   }
 
   return (
-    <div style={style} onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}>
+    <div id={element.id} style={style} onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}>
       <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
       {isSelected && !element.locked && (
         <ResizeHandles element={element} />

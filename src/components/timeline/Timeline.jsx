@@ -1,86 +1,182 @@
-import React, { useRef, useState } from 'react'
-import { Film, Play, Square, Eye, EyeOff, Lock, Unlock, Sparkles, Copy, X, GripVertical, FolderPlus } from 'lucide-react'
+import React, { useRef, useState, useCallback } from 'react'
+import { Film, Play, Square, Eye, EyeOff, Lock, Unlock, Sparkles, Copy, Trash2, GripVertical, FolderPlus } from 'lucide-react'
+import gsap from 'gsap'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 
-const DURATION = 5 // seconds
 const PX_PER_SEC = 60
-const RULER_MARKS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
 
 export default function Timeline() {
-  const { elements, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility, toggleLock, reorderElements } = useCanvasStore()
+  const { elements, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility, toggleLock, reorderElements, updateElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { openModal } = useUiStore()
   const [duration, setDuration] = useState(5)
   const [loop, setLoop] = useState(1)
-  const dragIdx = useRef(null)
+  const [playing, setPlaying] = useState(false)
+  const tlRef = useRef(null)
+  const rowDragIdx = useRef(null)
 
   const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex)
+  const rulerMarks = Array.from({ length: Math.floor(duration / 0.5) + 1 }, (_, i) => i * 0.5)
 
-  const onDragStart = (e, idx) => { dragIdx.current = idx }
-  const onDragOver = (e) => e.preventDefault()
-  const onDrop = (e, toIdx) => {
-    if (dragIdx.current === null || dragIdx.current === toIdx) return
-    const fromEl = sorted[dragIdx.current]
+  // ── Play / Stop ────────────────────────────────────────────────────────────
+  const play = useCallback(() => {
+    if (tlRef.current) tlRef.current.kill()
+
+    const tl = gsap.timeline({
+      repeat: loop - 1,
+      onComplete: () => setPlaying(false),
+    })
+
+    elements.forEach((el) => {
+      const dom = document.getElementById(el.id)
+      if (!dom) return
+      ;(el.animations || []).forEach((anim) => {
+        const start = anim.startTime || 0
+        const dur = anim.duration || 1
+        const ease = anim.ease || 'power1.out'
+
+        switch (anim.type) {
+          case 'fadeIn':
+            tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease }, start)
+            break
+          case 'fadeOut':
+            tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start)
+            break
+          case 'slideLeft':
+            tl.fromTo(dom, { x: -400 }, { x: 0, duration: dur, ease }, start)
+            break
+          case 'slideRight':
+            tl.fromTo(dom, { x: 400 }, { x: 0, duration: dur, ease }, start)
+            break
+          case 'slideUp':
+            tl.fromTo(dom, { y: -400 }, { y: 0, duration: dur, ease }, start)
+            break
+          case 'slideDown':
+            tl.fromTo(dom, { y: 400 }, { y: 0, duration: dur, ease }, start)
+            break
+          case 'slideToLeft':
+            tl.to(dom, { x: -400, duration: dur, ease }, start)
+            break
+          case 'slideToRight':
+            tl.to(dom, { x: 400, duration: dur, ease }, start)
+            break
+          case 'slideToUp':
+            tl.to(dom, { y: -400, duration: dur, ease }, start)
+            break
+          case 'slideToDown':
+            tl.to(dom, { y: 400, duration: dur, ease }, start)
+            break
+          case 'scaleIn':
+            tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease }, start)
+            break
+          case 'scaleOut':
+            tl.to(dom, { scale: 0, duration: dur, ease }, start)
+            break
+          case 'rotate90':
+            tl.to(dom, { rotation: 90, duration: dur, ease }, start)
+            break
+          case 'rotate180':
+            tl.to(dom, { rotation: 180, duration: dur, ease }, start)
+            break
+          case 'rotate270':
+            tl.to(dom, { rotation: 270, duration: dur, ease }, start)
+            break
+          case 'rotate360':
+            tl.to(dom, { rotation: 360, duration: dur, ease }, start)
+            break
+          default:
+            break
+        }
+      })
+    })
+
+    tlRef.current = tl
+    setPlaying(true)
+  }, [elements, loop])
+
+  const stop = useCallback(() => {
+    if (tlRef.current) {
+      tlRef.current.kill()
+      tlRef.current = null
+    }
+    // Reset all element transforms
+    elements.forEach((el) => {
+      const dom = document.getElementById(el.id)
+      if (dom) gsap.set(dom, { clearProps: 'all' })
+    })
+    setPlaying(false)
+  }, [elements])
+
+  // ── Row drag-to-reorder ────────────────────────────────────────────────────
+  const onRowDragStart = (e, idx) => { rowDragIdx.current = idx }
+  const onRowDragOver = (e) => e.preventDefault()
+  const onRowDrop = (e, toIdx) => {
+    if (rowDragIdx.current === null || rowDragIdx.current === toIdx) return
+    const fromEl = sorted[rowDragIdx.current]
     const toEl = sorted[toIdx]
     const fromReal = elements.findIndex((el) => el.id === fromEl.id)
     const toReal = elements.findIndex((el) => el.id === toEl.id)
     saveState()
     reorderElements(fromReal, toReal)
-    dragIdx.current = null
+    rowDragIdx.current = null
   }
 
   const onDelete = (id) => { saveState(); deleteElement(id) }
   const onDuplicate = (id) => { saveState(); duplicateElement(id) }
 
   return (
-    <div className="flex-shrink-0 bg-gray-800 border-t border-gray-700 p-3" style={{ scrollbarWidth: 'none' }}>
+    <div className="flex-shrink-0 bg-gray-800 border-t border-gray-700 p-3">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold flex items-center gap-2 text-white">
           <Film size={15} className="text-purple-400" /> Animation Timeline
         </h3>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-gray-800 rounded px-2 py-1">
+          <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
             <label className="text-xs text-gray-400">Duration:</label>
-            <input type="number" value={duration} step={0.5} min={1} max={30} onChange={(e) => setDuration(Number(e.target.value))}
+            <input type="number" value={duration} step={0.5} min={1} max={30}
+              onChange={(e) => setDuration(Number(e.target.value))}
               className="bg-gray-700 rounded px-2 py-0.5 text-sm w-14 text-white" />
           </div>
-          <div className="flex items-center gap-1 bg-gray-800 rounded px-2 py-1">
+          <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
             <label className="text-xs text-gray-400">Loop:</label>
-            <input type="number" value={loop} min={1} max={999} onChange={(e) => setLoop(Number(e.target.value))}
+            <input type="number" value={loop} min={1} max={999}
+              onChange={(e) => setLoop(Number(e.target.value))}
               className="bg-gray-700 rounded px-2 py-0.5 text-sm w-14 text-white" />
           </div>
-          <button className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"><Play size={11} /> Play</button>
-          <button className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"><Square size={11} /> Stop</button>
+          <button
+            onClick={playing ? stop : play}
+            className={`flex items-center gap-1 text-white px-3 py-1 rounded text-sm ${playing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+          >
+            {playing ? <><Square size={11} /> Stop</> : <><Play size={11} /> Play</>}
+          </button>
         </div>
       </div>
 
       {/* Timeline container */}
       <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ height: 215 }}>
-        {/* Header row: LAYER label + ruler */}
-        <div className="flex border-b border-gray-700 sticky top-0 bg-gray-900 z-10">
-          <div className="flex items-center justify-between px-2 py-1 bg-gray-800 border-r border-gray-700" style={{ width: 250, minWidth: 250 }}>
+        {/* Ruler row */}
+        <div className="flex border-b border-gray-700 bg-gray-900 z-10" style={{ position: 'sticky', top: 0 }}>
+          <div className="flex items-center justify-between px-2 py-1 bg-gray-800 border-r border-gray-700 shrink-0" style={{ width: 250 }}>
             <span className="text-xs text-gray-400 font-semibold">LAYER</span>
-            <button title="Create Empty Group" className="text-gray-600 hover:text-yellow-300 px-1 rounded transition-colors">
+            <button title="Create Empty Group" className="text-gray-600 hover:text-yellow-300 px-1 rounded">
               <FolderPlus size={13} />
             </button>
           </div>
-          <div className="flex-1 relative h-8">
-            <div className="absolute inset-0 flex">
-              {RULER_MARKS.map((t) => (
-                <div key={t} className="absolute" style={{ left: t * PX_PER_SEC }}>
-                  <div className="absolute top-0 bottom-0 w-px bg-gray-700" />
-                  <span className="absolute top-0.5 text-xs text-gray-400" style={{ transform: 'translateX(-50%)', fontSize: 10 }}>{t}s</span>
-                </div>
-              ))}
-            </div>
+          <div className="flex-1 relative h-8 overflow-hidden">
+            {rulerMarks.map((t) => (
+              <div key={t} className="absolute top-0 bottom-0" style={{ left: t * PX_PER_SEC }}>
+                <div className="absolute top-0 bottom-0 w-px bg-gray-700" />
+                <span className="absolute top-0.5 text-gray-400 select-none" style={{ fontSize: 10, transform: 'translateX(-50%)' }}>{t}s</span>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Tracks */}
-        <ul className="overflow-y-auto" style={{ maxHeight: 180, minHeight: 180, listStyle: 'none', padding: 0, margin: 0, scrollbarWidth: 'none' }}>
+        <ul style={{ maxHeight: 180, minHeight: 180, overflowY: 'auto', listStyle: 'none', padding: 0, margin: 0 }}>
           {sorted.length === 0 && (
             <li className="flex items-center justify-center text-gray-500 text-sm" style={{ height: 180 }}>
               Add elements and animations to see timeline
@@ -90,47 +186,57 @@ export default function Timeline() {
             <li
               key={el.id}
               draggable
-              onDragStart={(e) => onDragStart(e, idx)}
-              onDragOver={onDragOver}
-              onDrop={(e) => onDrop(e, idx)}
-              className={`flex border-b border-gray-700 ${selectedId === el.id ? 'selected' : ''}`}
-              style={{ minHeight: 38, cursor: 'move', userSelect: 'none' }}
+              onDragStart={(e) => onRowDragStart(e, idx)}
+              onDragOver={onRowDragOver}
+              onDrop={(e) => onRowDrop(e, idx)}
+              className="flex border-b border-gray-700"
+              style={{ minHeight: 38, userSelect: 'none' }}
             >
-              {/* Label column */}
+              {/* Label + controls */}
               <div
                 onClick={() => setSelected(el.id)}
-                className={`flex items-center justify-between gap-1 px-1 cursor-pointer transition-colors border-r border-gray-700 ${
+                className={`flex items-center gap-1 px-1 cursor-pointer border-r border-gray-700 transition-colors shrink-0 ${
                   selectedId === el.id ? 'bg-blue-500/20 border-r-blue-500' : 'bg-gray-800 hover:bg-blue-500/10'
                 } ${!el.visible ? 'opacity-50' : ''} ${el.locked ? 'is-locked' : ''}`}
-                style={{ width: 250, minWidth: 250, fontSize: 12, overflow: 'hidden' }}
+                style={{ width: 250 }}
               >
-                <span className="flex items-center gap-1 flex-1 min-w-0">
-                  <GripVertical size={11} className="text-gray-500 cursor-grab shrink-0" />
-                  <span className="truncate text-gray-200">{layerLabel(el)}</span>
-                </span>
+                <GripVertical size={12} className="text-gray-500 cursor-grab shrink-0" />
+                <span className="flex-1 truncate text-gray-200 text-xs">{layerLabel(el)}</span>
                 <div className="flex items-center gap-0.5 shrink-0">
                   <TrackBtn title={el.visible ? 'Hide' : 'Show'} onClick={(e) => { e.stopPropagation(); toggleVisibility(el.id) }}>
-                    {el.visible ? <Eye size={10} /> : <EyeOff size={10} />}
-                  </TrackBtn>
-                  <TrackBtn title={el.locked ? 'Unlock' : 'Lock'} onClick={(e) => { e.stopPropagation(); toggleLock(el.id) }}>
-                    {el.locked ? <Lock size={10} /> : <Unlock size={10} />}
+                    {el.visible ? <Eye size={13} /> : <EyeOff size={13} />}
                   </TrackBtn>
                   <TrackBtn title="Add Animation" onClick={(e) => { e.stopPropagation(); setSelected(el.id); openModal('animation') }}>
-                    <Sparkles size={10} />
+                    <Sparkles size={13} />
                   </TrackBtn>
                   <TrackBtn title="Duplicate" onClick={(e) => { e.stopPropagation(); onDuplicate(el.id) }}>
-                    <Copy size={10} />
+                    <Copy size={13} />
                   </TrackBtn>
-                  <TrackBtn title="Delete" onClick={(e) => { e.stopPropagation(); onDelete(el.id) }}>
-                    <X size={10} />
+                  <TrackBtn title="Delete" onClick={(e) => { e.stopPropagation(); onDelete(el.id) }} danger>
+                    <Trash2 size={13} />
                   </TrackBtn>
                 </div>
               </div>
 
-              {/* Track content */}
+              {/* Track content — draggable animation blocks */}
               <div className="flex-1 relative" style={{ background: 'rgb(17,24,39)' }}>
-                {(el.animations || []).map((anim, i) => (
-                  <AnimBlock key={i} anim={anim} />
+                {(el.animations || []).map((anim, animIdx) => (
+                  <DraggableAnimBlock
+                    key={animIdx}
+                    anim={anim}
+                    animIdx={animIdx}
+                    element={el}
+                    duration={duration}
+                    onUpdate={(newAnim) => {
+                      const anims = [...(el.animations || [])]
+                      anims[animIdx] = newAnim
+                      updateElement(el.id, { animations: anims })
+                    }}
+                    onDelete={() => {
+                      const anims = (el.animations || []).filter((_, i) => i !== animIdx)
+                      updateElement(el.id, { animations: anims })
+                    }}
+                  />
                 ))}
               </div>
             </li>
@@ -141,34 +247,74 @@ export default function Timeline() {
   )
 }
 
-function TrackBtn({ title, onClick, children }) {
+// ── Draggable animation block ────────────────────────────────────────────────
+function DraggableAnimBlock({ anim, onUpdate, onDelete, duration }) {
+  const blockRef = useRef(null)
+
+  const onMouseDown = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const origStart = anim.startTime || 0
+
+    const onMove = (mv) => {
+      const dx = mv.clientX - startX
+      const deltaSec = dx / PX_PER_SEC
+      const newStart = Math.max(0, Math.min(duration - (anim.duration || 1), origStart + deltaSec))
+      onUpdate({ ...anim, startTime: Math.round(newStart * 10) / 10 })
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const left = (anim.startTime || 0) * PX_PER_SEC
+  const width = Math.max((anim.duration || 1) * PX_PER_SEC, 24)
+
+  return (
+    <div
+      ref={blockRef}
+      onMouseDown={onMouseDown}
+      className="absolute top-1.5 flex items-center px-2 rounded select-none group"
+      style={{
+        left, width, height: 26, cursor: 'move',
+        background: 'linear-gradient(135deg,rgba(139,92,246,0.8),rgba(168,85,247,0.8))',
+        border: '1px solid rgba(139,92,246,1)',
+        fontSize: 10, fontWeight: 600, color: 'white', overflow: 'hidden', whiteSpace: 'nowrap',
+      }}
+      title={`${anim.type} | ${anim.startTime}s → ${(anim.startTime || 0) + (anim.duration || 1)}s`}
+    >
+      <span className="flex-1 truncate">{anim.type}</span>
+      <button
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onDelete() }}
+        className="hidden group-hover:flex items-center justify-center rounded-full ml-1 shrink-0"
+        style={{ width: 14, height: 14, background: 'rgba(239,68,68,0.9)', fontSize: 9 }}
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
+
+// ── Track button ─────────────────────────────────────────────────────────────
+function TrackBtn({ title, onClick, children, danger }) {
   return (
     <button
       title={title}
       onClick={onClick}
-      className="flex items-center justify-center rounded px-1 py-0.5 text-xs text-blue-400 hover:bg-blue-500/20 hover:text-white transition-all"
-      style={{ background: 'rgba(59,130,246,0.2)', border: 'none', minWidth: 22, fontSize: 11 }}
+      className={`flex items-center justify-center rounded transition-all ${
+        danger
+          ? 'text-gray-500 hover:bg-red-500/20 hover:text-red-400'
+          : 'text-blue-400 hover:bg-blue-500/20 hover:text-white'
+      }`}
+      style={{ width: 24, height: 24, background: danger ? 'transparent' : 'rgba(59,130,246,0.15)', border: 'none', flexShrink: 0 }}
     >
       {children}
     </button>
-  )
-}
-
-function AnimBlock({ anim }) {
-  const left = (anim.startTime || 0) * PX_PER_SEC
-  const width = Math.max((anim.duration || 1) * PX_PER_SEC, 20)
-  return (
-    <div
-      className="absolute top-1.5 flex items-center px-2 rounded overflow-hidden"
-      style={{
-        left, width, height: 26,
-        background: 'linear-gradient(135deg, rgba(139,92,246,0.8), rgba(168,85,247,0.8))',
-        border: '1px solid rgba(139,92,246,1)',
-        fontSize: 10, fontWeight: 600, color: 'white', whiteSpace: 'nowrap',
-      }}
-    >
-      {anim.type}
-    </div>
   )
 }
 
