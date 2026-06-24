@@ -9,6 +9,7 @@ import AddTextModal from './components/modals/AddTextModal.jsx'
 import AddShapeModal from './components/modals/AddShapeModal.jsx'
 import AddVideoModal from './components/modals/AddVideoModal.jsx'
 import AnimationModal from './components/modals/AnimationModal.jsx'
+import TemplateGallery from './components/modals/TemplateGallery.jsx'
 
 export default function App() {
   const { activeModal } = useUiStore()
@@ -38,6 +39,7 @@ export default function App() {
       {activeModal === 'addShape' && <AddShapeModal />}
       {activeModal === 'addVideo' && <AddVideoModal />}
       {activeModal === 'animation' && <AnimationModal />}
+      {activeModal === 'templates' && <TemplateGallery />}
     </div>
   )
 }

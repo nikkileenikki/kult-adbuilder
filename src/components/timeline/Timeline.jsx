@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react'
+import { Film, Play, Square, Eye, EyeOff, Lock, Unlock, Sparkles, Copy, X, GripVertical, FolderPlus } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
@@ -38,7 +39,7 @@ export default function Timeline() {
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold flex items-center gap-2 text-white">
-          <span className="text-purple-400">🎞</span> Animation Timeline
+          <Film size={15} className="text-purple-400" /> Animation Timeline
         </h3>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 bg-gray-800 rounded px-2 py-1">
@@ -51,8 +52,8 @@ export default function Timeline() {
             <input type="number" value={loop} min={1} max={999} onChange={(e) => setLoop(Number(e.target.value))}
               className="bg-gray-700 rounded px-2 py-0.5 text-sm w-14 text-white" />
           </div>
-          <button className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">▶ Play</button>
-          <button className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">■ Stop</button>
+          <button className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"><Play size={11} /> Play</button>
+          <button className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"><Square size={11} /> Stop</button>
         </div>
       </div>
 
@@ -62,6 +63,9 @@ export default function Timeline() {
         <div className="flex border-b border-gray-700 sticky top-0 bg-gray-900 z-10">
           <div className="flex items-center justify-between px-2 py-1 bg-gray-800 border-r border-gray-700" style={{ width: 250, minWidth: 250 }}>
             <span className="text-xs text-gray-400 font-semibold">LAYER</span>
+            <button title="Create Empty Group" className="text-gray-600 hover:text-yellow-300 px-1 rounded transition-colors">
+              <FolderPlus size={13} />
+            </button>
           </div>
           <div className="flex-1 relative h-8">
             <div className="absolute inset-0 flex">
@@ -101,21 +105,25 @@ export default function Timeline() {
                 style={{ width: 250, minWidth: 250, fontSize: 12, overflow: 'hidden' }}
               >
                 <span className="flex items-center gap-1 flex-1 min-w-0">
-                  <span className="text-gray-500 cursor-grab text-xs">⠿</span>
+                  <GripVertical size={11} className="text-gray-500 cursor-grab shrink-0" />
                   <span className="truncate text-gray-200">{layerLabel(el)}</span>
                 </span>
                 <div className="flex items-center gap-0.5 shrink-0">
                   <TrackBtn title={el.visible ? 'Hide' : 'Show'} onClick={(e) => { e.stopPropagation(); toggleVisibility(el.id) }}>
-                    {el.visible ? '👁' : '🙈'}
+                    {el.visible ? <Eye size={10} /> : <EyeOff size={10} />}
                   </TrackBtn>
                   <TrackBtn title={el.locked ? 'Unlock' : 'Lock'} onClick={(e) => { e.stopPropagation(); toggleLock(el.id) }}>
-                    {el.locked ? '🔒' : '🔓'}
+                    {el.locked ? <Lock size={10} /> : <Unlock size={10} />}
                   </TrackBtn>
                   <TrackBtn title="Add Animation" onClick={(e) => { e.stopPropagation(); setSelected(el.id); openModal('animation') }}>
-                    ✦
+                    <Sparkles size={10} />
                   </TrackBtn>
-                  <TrackBtn title="Duplicate" onClick={(e) => { e.stopPropagation(); onDuplicate(el.id) }}>⧉</TrackBtn>
-                  <TrackBtn title="Delete" onClick={(e) => { e.stopPropagation(); onDelete(el.id) }}>✕</TrackBtn>
+                  <TrackBtn title="Duplicate" onClick={(e) => { e.stopPropagation(); onDuplicate(el.id) }}>
+                    <Copy size={10} />
+                  </TrackBtn>
+                  <TrackBtn title="Delete" onClick={(e) => { e.stopPropagation(); onDelete(el.id) }}>
+                    <X size={10} />
+                  </TrackBtn>
                 </div>
               </div>
 

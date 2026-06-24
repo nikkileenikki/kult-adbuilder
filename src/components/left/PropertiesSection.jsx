@@ -1,4 +1,5 @@
 import React from 'react'
+import { Lock } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import TextProperties from '../properties/TextProperties.jsx'
@@ -23,7 +24,6 @@ export default function PropertiesSection() {
     <div className="mb-3 relative">
       <h2 className="text-base font-semibold mb-2 text-white">Properties</h2>
       <div className={`space-y-2 bg-gray-900 rounded-lg p-3 ${isLocked ? 'opacity-60 pointer-events-none' : ''}`}>
-        {/* Common transform */}
         <div className="grid grid-cols-2 gap-2 pb-2 border-b border-gray-700">
           <Field label="Width">
             <NumInput value={el.width} onChange={(v) => save({ width: Math.max(1, v) })} />
@@ -62,7 +62,7 @@ export default function PropertiesSection() {
       {isLocked && (
         <div className="absolute inset-0 flex items-center justify-center rounded-lg" style={{ background: 'rgba(17,24,39,0.62)', backdropFilter: 'blur(1px)' }}>
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm font-semibold text-gray-200 shadow-lg">
-            🔒 Locked layer
+            <Lock size={13} /> Locked layer
           </div>
         </div>
       )}

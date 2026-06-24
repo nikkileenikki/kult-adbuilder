@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
+import { X } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 
 export default function AddTextModal() {
-  const [text, setText] = useState('Your text here')
+  const [text, setText] = useState('')
   const [fontSize, setFontSize] = useState(24)
   const [color, setColor] = useState('#000000')
   const { addElement } = useCanvasStore()
@@ -13,7 +14,7 @@ export default function AddTextModal() {
 
   const onAdd = () => {
     saveState()
-    addElement({ type: 'text', text, fontSize, color, width: 200, height: 50 })
+    addElement({ type: 'text', text: text || 'Text', fontSize, color, width: 200, height: 50 })
     closeModal()
   }
 
@@ -22,7 +23,7 @@ export default function AddTextModal() {
       <div className="space-y-3 mb-4">
         <div>
           <label className="text-xs text-gray-400 block mb-1">Text content</label>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3}
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Enter text..."
             className="w-full px-2 py-1.5 text-sm bg-gray-700 rounded text-gray-200 resize-none" />
         </div>
         <div className="flex gap-3">
@@ -51,7 +52,7 @@ export function Modal({ title, onClose, children }) {
       <div className="bg-gray-800 rounded-lg p-4 w-96 shadow-xl text-gray-100" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-white">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={16} /></button>
         </div>
         {children}
       </div>
