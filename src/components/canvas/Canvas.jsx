@@ -3,7 +3,7 @@ import { useCanvasStore } from '../../store/canvasStore.js'
 import CanvasElement from './CanvasElement.jsx'
 
 export default function Canvas() {
-  const { elements, canvasWidth, canvasHeight, setSelected } = useCanvasStore()
+  const { elements, canvasWidth, canvasHeight, setSelected, snapLines } = useCanvasStore()
   const containerRef = useRef(null)
 
   const handleBgClick = useCallback((e) => {
@@ -49,6 +49,15 @@ export default function Canvas() {
           >
             {sorted.map((el) => (
               <CanvasElement key={el.id} element={el} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
+            ))}
+            {/* Snap guide lines */}
+            {snapLines.x.map((lx, i) => (
+              <div key={`sx${i}`} className="absolute top-0 bottom-0 pointer-events-none z-50"
+                style={{ left: lx - 0.5, width: 1, background: 'rgba(59,130,246,0.9)' }} />
+            ))}
+            {snapLines.y.map((ly, i) => (
+              <div key={`sy${i}`} className="absolute left-0 right-0 pointer-events-none z-50"
+                style={{ top: ly - 0.5, height: 1, background: 'rgba(59,130,246,0.9)' }} />
             ))}
           </div>
         </div>

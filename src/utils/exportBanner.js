@@ -149,13 +149,13 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   const animJS = buildAnimationJS(sorted)
   const manifestJS = buildManifestJS({ bannerName, canvasWidth, canvasHeight })
 
-  // Extract base64 images into assets/
+  // Extract base64 images into root folder
   const imageFiles = []
   elements.filter((el) => el.type === 'image' && el.src?.startsWith('data:')).forEach((el, i) => {
     const match = el.src.match(/^data:([^;]+);base64,(.+)$/)
     if (!match) return
     const ext = match[1].split('/')[1] || 'png'
-    const filename = `assets/img_${i}.${ext}`
+    const filename = el.filename || `img_${i}.${ext}`
     zip.file(filename, match[2], { base64: true })
     imageFiles.push({ src: el.src, filename })
   })

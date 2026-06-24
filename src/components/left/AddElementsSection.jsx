@@ -11,12 +11,21 @@ export default function AddElementsSection() {
   const fileRef = useRef(null)
 
   const readFiles = (files) => {
+    const { canvasWidth, canvasHeight } = useCanvasStore.getState()
     Array.from(files).forEach((file) => {
       if (!file.type.startsWith('image/')) return
       const reader = new FileReader()
       reader.onload = (ev) => {
-        saveState()
-        addElement({ type: 'image', src: ev.target.result, filename: file.name, width: 200, height: 150, borderRadius: 0 })
+        const src = ev.target.result
+        const img = new Image()
+        img.onload = () => {
+          const scale = Math.min(canvasWidth / img.naturalWidth, canvasHeight / img.naturalHeight)
+          const w = Math.round(img.naturalWidth * scale)
+          const h = Math.round(img.naturalHeight * scale)
+          saveState()
+          addElement({ type: 'image', src, filename: file.name, width: w, height: h, x: 0, y: 0, borderRadius: 0 })
+        }
+        img.src = src
       }
       reader.readAsDataURL(file)
     })

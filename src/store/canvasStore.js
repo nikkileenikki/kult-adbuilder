@@ -11,6 +11,9 @@ export const useCanvasStore = create((set, get) => ({
   selectedId: null,
   canvasWidth: 300,
   canvasHeight: 250,
+  snapLines: { x: [], y: [] },
+  setSnapLines: (lines) => set({ snapLines: lines }),
+  clearSnapLines: () => set({ snapLines: { x: [], y: [] } }),
 
   setCanvasSize: (w, h) => set({
     canvasWidth: clamp(w, 50, 2000),
