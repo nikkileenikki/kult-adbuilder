@@ -96,8 +96,8 @@ function buildAnimationJS(elements) {
         case 'slideToRight': lines.push(`tl.to(${t},{x:${ox},duration:${dur},ease:'${ease}'},${start});`); break
         case 'slideToUp':    lines.push(`tl.to(${t},{y:-${oy},duration:${dur},ease:'${ease}'},${start});`); break
         case 'slideToDown':  lines.push(`tl.to(${t},{y:${oy},duration:${dur},ease:'${ease}'},${start});`); break
-        case 'scaleFrom':    lines.push(`tl.fromTo(${t},{scale:${sp}},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'scaleTo':      lines.push(`tl.to(${t},{scale:${sp},duration:${dur},ease:'${ease}'},${start});`); break
+        case 'scaleFrom': { const origin = anim.transformOrigin || 'center center'; lines.push(`tl.set(${t},{transformOrigin:'${origin}'},${start});`); lines.push(`tl.fromTo(${t},{scale:${sp}},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break }
+        case 'scaleTo':   { const origin = anim.transformOrigin || 'center center'; lines.push(`tl.set(${t},{transformOrigin:'${origin}'},${start});`); lines.push(`tl.to(${t},{scale:${sp},duration:${dur},ease:'${ease}'},${start});`); break }
         case 'scaleIn':      lines.push(`tl.fromTo(${t},{scale:0},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break
         case 'scaleOut':     lines.push(`tl.to(${t},{scale:0,duration:${dur},ease:'${ease}'},${start});`); break
         case 'rotate90':     lines.push(`tl.to(${t},{rotation:90,duration:${dur},ease:'${ease}'},${start});`); break

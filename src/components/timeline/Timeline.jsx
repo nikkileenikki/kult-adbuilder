@@ -20,6 +20,7 @@ export default function Timeline() {
   const tlRef = useRef(null)
   const rafRef = useRef(null)
   const scrubTlRef = useRef(null)
+  const playheadRef = useRef(0)
   const rowDragIdx = useRef(null)
   const trackScrollRef = useRef(null)
   const rulerScrollRef = useRef(null)
@@ -41,7 +42,9 @@ export default function Timeline() {
   // Playhead RAF
   const tickPlayhead = useCallback(() => {
     if (!tlRef.current) return
-    setPlayhead(tlRef.current.time())
+    const t = tlRef.current.time()
+    playheadRef.current = t
+    setPlayhead(t)
     rafRef.current = requestAnimationFrame(tickPlayhead)
   }, [])
 
@@ -51,7 +54,7 @@ export default function Timeline() {
       const dom = document.getElementById(el.id)
       if (dom) {
         gsap.killTweensOf(dom)
-        gsap.set(dom, { clearProps: 'x,y,scale,rotation,opacity,visibility' })
+        gsap.set(dom, { clearProps: 'x,y,scale,rotation,opacity,visibility,transformOrigin' })
       }
     })
   }, [elements])
@@ -82,8 +85,18 @@ export default function Timeline() {
           case 'slideToUp':    tl.to(dom, { y: -oy, duration: dur, ease }, start); break
           case 'slideToDown':  tl.to(dom, { y: oy, duration: dur, ease }, start); break
           // new scale types
-          case 'scaleFrom':    tl.fromTo(dom, { scale: sp }, { scale: 1, duration: dur, ease, immediateRender: false }, start); break
-          case 'scaleTo':      tl.to(dom, { scale: sp, duration: dur, ease }, start); break
+          case 'scaleFrom': {
+            const origin = anim.transformOrigin || 'center center'
+            tl.set(dom, { transformOrigin: origin }, start)
+            tl.fromTo(dom, { scale: sp }, { scale: 1, duration: dur, ease, immediateRender: false }, start)
+            break
+          }
+          case 'scaleTo': {
+            const origin = anim.transformOrigin || 'center center'
+            tl.set(dom, { transformOrigin: origin }, start)
+            tl.to(dom, { scale: sp, duration: dur, ease }, start)
+            break
+          }
           // legacy
           case 'scaleIn':      tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease, immediateRender: false }, start); break
           case 'scaleOut':     tl.to(dom, { scale: 0, duration: dur, ease }, start); break
@@ -106,15 +119,20 @@ export default function Timeline() {
     cancelAnimationFrame(rafRef.current)
     clearGsapProps()
 
+    const startAt = playheadRef.current  // resume from scrub position if > 0
+
     const tl = buildTl({
       repeat: loop - 1,
       onComplete: () => {
         cancelAnimationFrame(rafRef.current)
         clearGsapProps()
         setPlaying(false)
+        playheadRef.current = 0
         setPlayhead(0)
       },
     })
+
+    if (startAt > 0) tl.seek(startAt, false)
 
     tlRef.current = tl
     setPlaying(true)
@@ -143,6 +161,7 @@ export default function Timeline() {
     }
     const seekTo = (clientX) => {
       const t = getTime(clientX)
+      playheadRef.current = t
       setPlayhead(t)
       if (tlRef.current) {
         tlRef.current.seek(t)
@@ -389,22 +408,21 @@ export default function Timeline() {
 
                 <div className="relative" style={{ minWidth: totalWidth, flexGrow: 1, background: 'rgb(17,24,39)' }}>
                   <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 z-20 pointer-events-none" style={{ left: playheadLeft }} />
-                  {(el.animations || []).map((anim, animIdx) => (
+                  {getAnimBatches(el.animations).map((batch) => (
                     <DraggableAnimBlock
-                      key={animIdx}
-                      anim={anim}
-                      animIdx={animIdx}
+                      key={batch.indices.join('-')}
+                      batch={batch}
                       elementId={el.id}
                       duration={duration}
                       pxPerSec={PX_PER_SEC}
-                      onUpdate={(newAnim) => {
+                      onUpdateTiming={({ startTime: st, duration: dur }) => {
                         const anims = [...(el.animations || [])]
-                        anims[animIdx] = newAnim
+                        batch.indices.forEach((i) => { anims[i] = { ...anims[i], startTime: st, duration: dur } })
                         updateElement(el.id, { animations: anims })
                       }}
                       onDelete={() => {
-                        const anims = (el.animations || []).filter((_, i) => i !== animIdx)
-                        updateElement(el.id, { animations: anims })
+                        const remove = new Set(batch.indices)
+                        updateElement(el.id, { animations: (el.animations || []).filter((_, i) => !remove.has(i)) })
                       }}
                     />
                   ))}
@@ -418,23 +436,50 @@ export default function Timeline() {
   )
 }
 
+// ── Group animations by batchId for display ─────────────────────────────────
+function getAnimBatches(animations) {
+  const batches = []
+  const batchMap = {}
+  ;(animations || []).forEach((anim, idx) => {
+    if (anim.batchId) {
+      if (!batchMap[anim.batchId]) {
+        batchMap[anim.batchId] = { batchId: anim.batchId, anims: [], indices: [] }
+        batches.push(batchMap[anim.batchId])
+      }
+      batchMap[anim.batchId].anims.push(anim)
+      batchMap[anim.batchId].indices.push(idx)
+    } else {
+      batches.push({ batchId: null, anims: [anim], indices: [idx] })
+    }
+  })
+  return batches
+}
+
 // ── Draggable animation block ────────────────────────────────────────────────
-function DraggableAnimBlock({ anim, animIdx, elementId, onUpdate, onDelete, duration, pxPerSec }) {
-  const blockRef = useRef(null)
+function DraggableAnimBlock({ batch, elementId, onUpdateTiming, onDelete, duration: totalDuration, pxPerSec }) {
   const { openModal } = useUiStore()
+  const anim = batch.anims[0]
+  const isBatch = batch.anims.length > 1
+  const label = batch.anims.map((a) => a.type).join(' + ')
 
   const onDoubleClick = (e) => {
     e.preventDefault(); e.stopPropagation()
-    openModal('animation', { elementId, animIdx, anim })
+    openModal('animation', {
+      elementId,
+      animIdx: batch.indices[0],
+      anim,
+      ...(isBatch ? { batchIndices: batch.indices, batchAnims: batch.anims } : {}),
+    })
   }
 
   const onBodyMouseDown = (e) => {
     e.preventDefault(); e.stopPropagation()
     const startX = e.clientX
     const origStart = anim.startTime || 0
+    const origDur = anim.duration || 1
     const onMove = (mv) => {
-      const newStart = Math.max(0, Math.min(duration - (anim.duration || 1), origStart + (mv.clientX - startX) / pxPerSec))
-      onUpdate({ ...anim, startTime: Math.round(newStart * 10) / 10 })
+      const newStart = Math.max(0, Math.min(totalDuration - origDur, origStart + (mv.clientX - startX) / pxPerSec))
+      onUpdateTiming({ startTime: Math.round(newStart * 10) / 10, duration: origDur })
     }
     const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
     window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
@@ -446,8 +491,8 @@ function DraggableAnimBlock({ anim, animIdx, elementId, onUpdate, onDelete, dura
     const origDur = anim.duration || 1
     const origStart = anim.startTime || 0
     const onMove = (mv) => {
-      const newDur = Math.max(0.1, Math.min(duration - origStart, origDur + (mv.clientX - startX) / pxPerSec))
-      onUpdate({ ...anim, duration: Math.round(newDur * 10) / 10 })
+      const newDur = Math.max(0.1, Math.min(totalDuration - origStart, origDur + (mv.clientX - startX) / pxPerSec))
+      onUpdateTiming({ startTime: origStart, duration: Math.round(newDur * 10) / 10 })
     }
     const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
     window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
@@ -458,19 +503,20 @@ function DraggableAnimBlock({ anim, animIdx, elementId, onUpdate, onDelete, dura
 
   return (
     <div
-      ref={blockRef}
       onMouseDown={onBodyMouseDown}
       onDoubleClick={onDoubleClick}
       className="absolute top-1.5 flex items-center rounded select-none group"
       style={{
         left, width, height: 26, cursor: 'move',
-        background: 'linear-gradient(135deg,rgba(139,92,246,0.8),rgba(168,85,247,0.8))',
-        border: '1px solid rgba(139,92,246,1)',
+        background: isBatch
+          ? 'linear-gradient(135deg,rgba(20,184,166,0.8),rgba(59,130,246,0.8))'
+          : 'linear-gradient(135deg,rgba(139,92,246,0.8),rgba(168,85,247,0.8))',
+        border: isBatch ? '1px solid rgba(20,184,166,1)' : '1px solid rgba(139,92,246,1)',
         fontSize: 10, fontWeight: 600, color: 'white', overflow: 'visible', whiteSpace: 'nowrap',
       }}
       title="Double-click to edit"
     >
-      <span className="flex-1 truncate pl-2 overflow-hidden">{anim.type}</span>
+      <span className="flex-1 truncate pl-2 overflow-hidden">{label}</span>
       <button
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onDelete() }}
