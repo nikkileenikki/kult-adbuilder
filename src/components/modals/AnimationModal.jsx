@@ -53,13 +53,17 @@ export default function AnimationModal() {
   const initType = initAnim.type === 'scaleIn' ? 'scaleFrom' : initAnim.type === 'scaleOut' ? 'scaleTo' : initAnim.type
 
   const [selected, setSelected] = useState(() => new Set([initType].filter(Boolean)))
-  const [slideOffset, setSlideOffset] = useState(String(initAnim.offset ?? 400))
+  const legacyOff = initAnim.offset ?? 400
+  const [offsetX, setOffsetX] = useState(String(initAnim.offsetX ?? legacyOff))
+  const [offsetY, setOffsetY] = useState(String(initAnim.offsetY ?? legacyOff))
   const [scaleValue, setScaleValue] = useState(String(initAnim.scaleParam ?? 0))
   const [startTime, setStartTime] = useState(initAnim.startTime ?? 0)
   const [duration, setDuration] = useState(initAnim.duration ?? 1)
   const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')
 
-  const hasSlide = [...selected].some((t) => SLIDE_TYPES.has(t))
+  const hasSlideX = [...selected].some((t) => ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(t))
+  const hasSlideY = [...selected].some((t) => ['slideUp','slideDown','slideToUp','slideToDown'].includes(t))
+  const hasSlide = hasSlideX || hasSlideY
   const hasScale = [...selected].some((t) => SCALE_TYPES.has(t))
 
   const toggle = (value) => {
@@ -75,8 +79,14 @@ export default function AnimationModal() {
   }
 
   const onSave = () => {
-    const parsedOffset = slideOffset === '' ? 400 : Math.max(1, Number(slideOffset))
+    const pOffX = offsetX === '' ? 400 : Math.max(1, Number(offsetX))
+    const pOffY = offsetY === '' ? 400 : Math.max(1, Number(offsetY))
     const parsedScale = scaleValue === '' ? 0 : Number(scaleValue)
+    const slideExtra = (type) => {
+      const usesX = ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(type)
+      const usesY = ['slideUp','slideDown','slideToUp','slideToDown'].includes(type)
+      return usesX ? { offsetX: pOffX } : usesY ? { offsetY: pOffY } : {}
+    }
     if (isEdit) {
       const el = elements.find((e) => e.id === modalData.elementId)
       if (!el) { closeModal(); return }
@@ -85,7 +95,7 @@ export default function AnimationModal() {
       const anims = [...(el.animations || [])]
       anims[modalData.animIdx] = {
         type, startTime, duration, ease,
-        ...(SLIDE_TYPES.has(type) ? { offset: parsedOffset } : {}),
+        ...slideExtra(type),
         ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale } : {}),
       }
       updateElement(modalData.elementId, { animations: anims })
@@ -95,7 +105,7 @@ export default function AnimationModal() {
       saveState()
       const newAnims = [...selected].map((type) => ({
         type, startTime, duration, ease,
-        ...(SLIDE_TYPES.has(type) ? { offset: parsedOffset } : {}),
+        ...slideExtra(type),
         ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale } : {}),
       }))
       updateElement(selectedId, { animations: [...(el.animations || []), ...newAnims] })
@@ -132,11 +142,19 @@ export default function AnimationModal() {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          {hasSlide && (
+          {hasSlideX && (
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Slide Offset (px)</label>
-              <input type="number" value={slideOffset} step={10} min={1}
-                onChange={(e) => setSlideOffset(e.target.value)}
+              <label className="text-xs text-gray-400 block mb-1">X Offset (px)</label>
+              <input type="number" value={offsetX} step={10} min={1}
+                onChange={(e) => setOffsetX(e.target.value)}
+                className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
+            </div>
+          )}
+          {hasSlideY && (
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Y Offset (px)</label>
+              <input type="number" value={offsetY} step={10} min={1}
+                onChange={(e) => setOffsetY(e.target.value)}
                 className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
             </div>
           )}

@@ -64,19 +64,21 @@ export default function Timeline() {
         const start = anim.startTime || 0
         const dur = Math.max(0.01, anim.duration || 1)
         const ease = anim.ease || 'power1.out'
-        const off = anim.offset ?? 400
+        const legOff = anim.offset ?? 400
+        const ox = anim.offsetX ?? legOff
+        const oy = anim.offsetY ?? legOff
         const sp = anim.scaleParam ?? 0
         switch (anim.type) {
           case 'fadeIn':       tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease, immediateRender: false }, start); break
           case 'fadeOut':      tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start); break
-          case 'slideLeft':    tl.fromTo(dom, { x: -off }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
-          case 'slideRight':   tl.fromTo(dom, { x: off }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
-          case 'slideUp':      tl.fromTo(dom, { y: -off }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
-          case 'slideDown':    tl.fromTo(dom, { y: off }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
-          case 'slideToLeft':  tl.to(dom, { x: -off, duration: dur, ease }, start); break
-          case 'slideToRight': tl.to(dom, { x: off, duration: dur, ease }, start); break
-          case 'slideToUp':    tl.to(dom, { y: -off, duration: dur, ease }, start); break
-          case 'slideToDown':  tl.to(dom, { y: off, duration: dur, ease }, start); break
+          case 'slideLeft':    tl.fromTo(dom, { x: -ox }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideRight':   tl.fromTo(dom, { x: ox }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideUp':      tl.fromTo(dom, { y: -oy }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideDown':    tl.fromTo(dom, { y: oy }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideToLeft':  tl.to(dom, { x: -ox, duration: dur, ease }, start); break
+          case 'slideToRight': tl.to(dom, { x: ox, duration: dur, ease }, start); break
+          case 'slideToUp':    tl.to(dom, { y: -oy, duration: dur, ease }, start); break
+          case 'slideToDown':  tl.to(dom, { y: oy, duration: dur, ease }, start); break
           // new scale types
           case 'scaleFrom':    tl.fromTo(dom, { scale: sp }, { scale: 1, duration: dur, ease, immediateRender: false }, start); break
           case 'scaleTo':      tl.to(dom, { scale: sp, duration: dur, ease }, start); break
