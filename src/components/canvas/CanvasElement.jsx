@@ -96,6 +96,10 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
 
   if (!element.visible) return null
 
+  const isOutOfBounds =
+    element.x + element.width <= 0 || element.x >= canvasWidth ||
+    element.y + element.height <= 0 || element.y >= canvasHeight
+
   // Selection border style matches original (blue solid for most, dashed for text)
   let selectionStyle = {}
   if (isSelected) {
@@ -111,9 +115,10 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
     width: element.width,
     height: element.height,
     transform: `rotate(${element.rotation}deg)`,
-    opacity: element.opacity,
+    opacity: isOutOfBounds ? Math.min(element.opacity, 0.3) : element.opacity,
     zIndex: element.zIndex,
     cursor: element.locked ? 'not-allowed' : 'move',
+    filter: isOutOfBounds ? 'grayscale(60%)' : undefined,
     ...selectionStyle,
   }
 
