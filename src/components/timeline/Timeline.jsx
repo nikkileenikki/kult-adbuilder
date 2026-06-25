@@ -19,6 +19,7 @@ export default function Timeline() {
   const [elementGroups, setElementGroups] = useState({}) // {elementId: groupId}
   const tlRef = useRef(null)
   const rafRef = useRef(null)
+  const snapshotsRef = useRef({})
   const rowDragIdx = useRef(null)
   const trackScrollRef = useRef(null)
   const rulerScrollRef = useRef(null)
@@ -48,14 +49,29 @@ export default function Timeline() {
     if (tlRef.current) tlRef.current.kill()
     cancelAnimationFrame(rafRef.current)
 
+    // Snapshot inline styles before animation so we can restore them exactly
+    const snapshots = {}
+    elements.forEach((el) => {
+      const dom = document.getElementById(el.id)
+      if (dom) snapshots[el.id] = dom.style.cssText
+    })
+    snapshotsRef.current = snapshots
+
+    const restoreSnapshots = () => {
+      elements.forEach((el) => {
+        const dom = document.getElementById(el.id)
+        if (dom) {
+          gsap.killTweensOf(dom)
+          dom.style.cssText = snapshotsRef.current[el.id] ?? ''
+        }
+      })
+    }
+
     const tl = gsap.timeline({
       repeat: loop - 1,
       onComplete: () => {
         cancelAnimationFrame(rafRef.current)
-        elements.forEach((el) => {
-          const dom = document.getElementById(el.id)
-          if (dom) gsap.set(dom, { clearProps: 'all' })
-        })
+        restoreSnapshots()
         setPlaying(false)
         setPlayhead(0)
       },
@@ -101,7 +117,10 @@ export default function Timeline() {
     cancelAnimationFrame(rafRef.current)
     elements.forEach((el) => {
       const dom = document.getElementById(el.id)
-      if (dom) gsap.set(dom, { clearProps: 'all' })
+      if (dom) {
+        gsap.killTweensOf(dom)
+        dom.style.cssText = snapshotsRef.current[el.id] ?? ''
+      }
     })
     setPlaying(false)
     setPlayhead(0)
