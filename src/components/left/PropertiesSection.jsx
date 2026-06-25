@@ -18,6 +18,17 @@ export default function PropertiesSection() {
   const save = (patch) => { saveState(); update(patch) }
 
   const isLocked = el.locked
+  const ratioLocked = el.type === 'image' && el.lockAspectRatio && el.width && el.height
+  const ratio = ratioLocked ? el.width / el.height : null
+
+  const saveWidth = (v) => {
+    const w = Math.max(1, v)
+    save(ratio ? { width: w, height: Math.round(w / ratio) } : { width: w })
+  }
+  const saveHeight = (v) => {
+    const h = Math.max(1, v)
+    save(ratio ? { height: h, width: Math.round(h * ratio) } : { height: h })
+  }
 
   return (
     <div className="mb-3 relative">
@@ -25,10 +36,10 @@ export default function PropertiesSection() {
       <div className={`space-y-2 bg-gray-900 rounded-lg p-3 ${isLocked ? 'opacity-60 pointer-events-none' : ''}`}>
         <div className="grid grid-cols-2 gap-2 pb-2 border-b border-gray-700">
           <Field label="Width">
-            <NumInput value={el.width} onChange={(v) => save({ width: Math.max(1, v) })} />
+            <NumInput value={el.width} onChange={saveWidth} />
           </Field>
-          <Field label="Height">
-            <NumInput value={el.height} onChange={(v) => save({ height: Math.max(1, v) })} />
+          <Field label={<span className="flex items-center gap-1">Height {ratioLocked && <i className="fa-solid fa-link text-blue-400" style={{ fontSize: 9 }} />}</span>}>
+            <NumInput value={el.height} onChange={saveHeight} />
           </Field>
           <Field label="X Position">
             <NumInput value={el.x} onChange={(v) => save({ x: v })} />
