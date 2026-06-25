@@ -96,9 +96,11 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
 
   if (!element.visible) return null
 
-  const isOutOfBounds =
-    element.x < 0 || element.x + element.width > canvasWidth ||
-    element.y < 0 || element.y + element.height > canvasHeight
+  const clipTop    = Math.max(0, -element.y)
+  const clipRight  = Math.max(0, element.x + element.width  - canvasWidth)
+  const clipBottom = Math.max(0, element.y + element.height - canvasHeight)
+  const clipLeft   = Math.max(0, -element.x)
+  const isOutOfBounds = clipTop > 0 || clipRight > 0 || clipBottom > 0 || clipLeft > 0
 
   // Selection border style matches original (blue solid for most, dashed for text)
   let selectionStyle = {}
@@ -115,19 +117,37 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
     width: element.width,
     height: element.height,
     transform: `rotate(${element.rotation}deg)`,
-    opacity: isOutOfBounds ? Math.min(element.opacity, 0.3) : element.opacity,
+    opacity: element.opacity,
     zIndex: element.zIndex,
     cursor: element.locked ? 'not-allowed' : 'move',
-    filter: isOutOfBounds ? 'grayscale(60%)' : undefined,
     ...selectionStyle,
   }
 
+  if (!isOutOfBounds) {
+    return (
+      <div id={element.id} style={style} onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}>
+        <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
+        {isSelected && !element.locked && <ResizeHandles element={element} />}
+      </div>
+    )
+  }
+
+  // Element overlaps canvas edge: render ghost (dimmed) + clipped full-opacity overlay
   return (
     <div id={element.id} style={style} onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}>
-      <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
-      {isSelected && !element.locked && (
-        <ResizeHandles element={element} />
-      )}
+      {/* Outside portion: dimmed */}
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.3 }}>
+        <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
+      </div>
+      {/* Inside portion: full opacity, clipped to canvas bounds */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        clipPath: `inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px)`,
+        pointerEvents: 'none',
+      }}>
+        <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
+      </div>
+      {isSelected && !element.locked && <ResizeHandles element={element} />}
     </div>
   )
 }
