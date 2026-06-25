@@ -27,6 +27,7 @@ export default function AnimationModal() {
   const [slide, setSlide] = useState(() => initType('slide'))
   const [scale, setScale] = useState(() => initType('scale'))
   const [rotate, setRotate] = useState(() => initType('rotate'))
+  const [slideOffset, setSlideOffset] = useState(initAnim.offset ?? 400)
   const [startTime, setStartTime] = useState(initAnim.startTime ?? 0)
   const [duration, setDuration] = useState(initAnim.duration ?? 1)
   const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')
@@ -37,10 +38,11 @@ export default function AnimationModal() {
       const el = elements.find((e) => e.id === modalData.elementId)
       if (!el) { closeModal(); return }
       const types = [fade, slide, scale, rotate].filter(Boolean)
-      const type = types[0] || initAnim.type  // keep old type if nothing selected
+      const type = types[0] || initAnim.type
       saveState()
       const anims = [...(el.animations || [])]
-      anims[modalData.animIdx] = { type, startTime, duration, ease }
+      const isSlide = type?.startsWith('slide')
+      anims[modalData.animIdx] = { type, startTime, duration, ease, ...(isSlide ? { offset: slideOffset } : {}) }
       updateElement(modalData.elementId, { animations: anims })
     } else {
       // Add mode: append one or more animations
@@ -49,7 +51,7 @@ export default function AnimationModal() {
       const types = [fade, slide, scale, rotate].filter(Boolean)
       if (!types.length) { closeModal(); return }
       saveState()
-      const newAnims = types.map((type) => ({ type, startTime, duration, ease }))
+      const newAnims = types.map((type) => ({ type, startTime, duration, ease, ...(type.startsWith('slide') ? { offset: slideOffset } : {}) }))
       updateElement(selectedId, { animations: [...(el.animations || []), ...newAnims] })
     }
     closeModal()
@@ -91,6 +93,14 @@ export default function AnimationModal() {
             </SelectGroup>
           </div>
         </div>
+        {slide && (
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Slide Offset (px)</label>
+            <input type="number" value={slideOffset} step={10} min={1}
+              onChange={(e) => setSlideOffset(Number(e.target.value))}
+              className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs text-gray-400 block mb-1">Start Time (s)</label>
