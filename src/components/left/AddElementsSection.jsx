@@ -70,7 +70,7 @@ export default function AddElementsSection() {
 
         <div className="grid grid-cols-2 gap-2">
           <AddBtn onClick={() => openModal('addText')} icon="fa-t" className="bg-blue-600 hover:bg-blue-700">Text</AddBtn>
-          <AddBtn onClick={() => openModal('addShape')} icon="fa-square" className="bg-teal-600 hover:bg-teal-700">Shape</AddBtn>
+          <AddBtn onClick={() => openModal('addShape')} icon="fa-shapes" className="bg-teal-600 hover:bg-teal-700">Shape</AddBtn>
         </div>
 
         <AddBtn onClick={() => openModal('addVideo')} icon="fa-film" className="bg-red-600 hover:bg-red-700 w-full">Add Video</AddBtn>
