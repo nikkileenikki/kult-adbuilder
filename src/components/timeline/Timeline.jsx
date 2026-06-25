@@ -15,6 +15,7 @@ export default function Timeline() {
   const [timeZoom, setTimeZoom] = useState(1)          // 0.5x … 4x
   const [groups, setGroups] = useState([])              // [{id, name, collapsed}]
   const [elementGroups, setElementGroups] = useState({}) // {elementId: groupId}
+  const [collapsed, setCollapsed] = useState(false)
   const tlRef = useRef(null)
   const rafRef = useRef(null)
   const scrubTlRef = useRef(null)
@@ -278,47 +279,82 @@ export default function Timeline() {
   })
 
   return (
-    <div className="flex-shrink-0 bg-gray-800 border-t border-gray-700 p-3">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-base font-semibold flex items-center gap-2 text-white">
-          <i className="fa-solid fa-film text-purple-400" style={{ fontSize: 15 }} /> Animation Timeline
-        </h3>
-        <div className="flex items-center gap-2">
-          {/* Timeline zoom */}
-          <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
-            <label className="text-xs text-gray-400">Timeline:</label>
-            <button onClick={() => setTimeZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))} className="text-gray-400 hover:text-white px-1" title="Zoom out timeline">
-              <i className="fa-solid fa-magnifying-glass-minus" style={{ fontSize: 12 }} />
-            </button>
-            <span className="text-xs text-gray-300 w-8 text-center">{Math.round(timeZoom * 100)}%</span>
-            <button onClick={() => setTimeZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))} className="text-gray-400 hover:text-white px-1" title="Zoom in timeline">
-              <i className="fa-solid fa-magnifying-glass-plus" style={{ fontSize: 12 }} />
-            </button>
+    <div className="flex-shrink-0 bg-gray-800 border-t border-gray-700">
+      {/* ── Collapsed mini-bar ─────────────────────────────────────────────── */}
+      {collapsed ? (
+        <div className="flex items-center gap-3 px-3 py-2">
+          <button onClick={() => setCollapsed(false)} title="Expand timeline"
+            className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 text-xs font-semibold">
+            <i className="fa-solid fa-film" style={{ fontSize: 13 }} />
+            <span>Animation Timeline</span>
+            <i className="fa-solid fa-chevron-up" style={{ fontSize: 10 }} />
+          </button>
+          <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden mx-2 cursor-col-resize relative" onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const t = Math.max(0, Math.min(duration, ((e.clientX - rect.left) / rect.width) * duration))
+            playheadRef.current = t; setPlayhead(t)
+            if (scrubTlRef.current) { scrubTlRef.current.seek(t) }
+            else { scrubTlRef.current = buildTl({ paused: true }); scrubTlRef.current.seek(t) }
+          }}>
+            <div className="h-full bg-purple-500/40 rounded-full" style={{ width: `${(playhead / duration) * 100}%` }} />
+            <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400" style={{ left: `${(playhead / duration) * 100}%` }} />
           </div>
-          <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
-            <label className="text-xs text-gray-400">Duration:</label>
-            <input type="number" value={duration} step={0.5} min={1} max={30}
-              onChange={(e) => setDuration(Number(e.target.value))}
-              className="bg-gray-700 rounded px-2 py-0.5 text-sm w-14 text-white" />
-          </div>
-          <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
-            <label className="text-xs text-gray-400">Loop:</label>
-            <input type="number" value={loop} min={1} max={999}
-              onChange={(e) => setLoop(Number(e.target.value))}
-              className="bg-gray-700 rounded px-2 py-0.5 text-sm w-14 text-white" />
-          </div>
+          <span className="text-xs text-gray-500 tabular-nums w-10 text-right">{playhead.toFixed(1)}s</span>
           <button
             onClick={playing ? stop : play}
-            className={`flex items-center gap-1 text-white px-3 py-1 rounded text-sm ${playing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+            className={`flex items-center gap-1 text-white px-3 py-1 rounded text-xs ${playing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
           >
-            {playing ? <><i className="fa-solid fa-stop" style={{ fontSize: 11 }} /> Stop</> : <><i className="fa-solid fa-play" style={{ fontSize: 11 }} /> Play</>}
+            {playing
+              ? <><i className="fa-solid fa-stop" style={{ fontSize: 10 }} /> Stop</>
+              : <><i className="fa-solid fa-play" style={{ fontSize: 10 }} /> Play</>}
           </button>
         </div>
-      </div>
+      ) : (
+        <div className="p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-semibold flex items-center gap-2 text-white">
+              <i className="fa-solid fa-film text-purple-400" style={{ fontSize: 15 }} />
+              Animation Timeline
+              <button onClick={() => setCollapsed(true)} title="Collapse timeline"
+                className="text-gray-400 hover:text-gray-200 ml-1">
+                <i className="fa-solid fa-chevron-down" style={{ fontSize: 11 }} />
+              </button>
+            </h3>
+            <div className="flex items-center gap-2">
+              {/* Timeline zoom */}
+              <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
+                <label className="text-xs text-gray-400">Timeline:</label>
+                <button onClick={() => setTimeZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))} className="text-gray-400 hover:text-white px-1" title="Zoom out timeline">
+                  <i className="fa-solid fa-magnifying-glass-minus" style={{ fontSize: 12 }} />
+                </button>
+                <span className="text-xs text-gray-300 w-8 text-center">{Math.round(timeZoom * 100)}%</span>
+                <button onClick={() => setTimeZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))} className="text-gray-400 hover:text-white px-1" title="Zoom in timeline">
+                  <i className="fa-solid fa-magnifying-glass-plus" style={{ fontSize: 12 }} />
+                </button>
+              </div>
+              <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
+                <label className="text-xs text-gray-400">Duration:</label>
+                <input type="number" value={duration} step={0.5} min={1} max={30}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className="bg-gray-700 rounded px-2 py-0.5 text-sm w-14 text-white" />
+              </div>
+              <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
+                <label className="text-xs text-gray-400">Loop:</label>
+                <input type="number" value={loop} min={1} max={999}
+                  onChange={(e) => setLoop(Number(e.target.value))}
+                  className="bg-gray-700 rounded px-2 py-0.5 text-sm w-14 text-white" />
+              </div>
+              <button
+                onClick={playing ? stop : play}
+                className={`flex items-center gap-1 text-white px-3 py-1 rounded text-sm ${playing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+              >
+                {playing ? <><i className="fa-solid fa-stop" style={{ fontSize: 11 }} /> Stop</> : <><i className="fa-solid fa-play" style={{ fontSize: 11 }} /> Play</>}
+              </button>
+            </div>
+          </div>
 
-      {/* Timeline container */}
-      <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ height: 215 }}>
+          {/* Timeline container */}
+          <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ height: 215 }}>
         {/* Ruler row */}
         <div className="flex border-b border-gray-700 bg-gray-900" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
           <div className="flex items-center justify-between px-2 py-1 bg-gray-800 border-r border-gray-700 shrink-0" style={{ width: 250 }}>
@@ -449,8 +485,10 @@ export default function Timeline() {
               </div>
             )
           })}
+          </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
