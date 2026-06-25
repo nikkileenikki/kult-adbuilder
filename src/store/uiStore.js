@@ -2,7 +2,9 @@ import { create } from 'zustand'
 
 export const useUiStore = create((set) => ({
   activeModal: null,
-  modalData: null,   // extra payload passed to the active modal
+  modalData: null,
+  canvasZoom: 100,
   openModal: (name, data = null) => set({ activeModal: name, modalData: data }),
   closeModal: () => set({ activeModal: null, modalData: null }),
+  setCanvasZoom: (zoom) => set({ canvasZoom: Math.min(200, Math.max(25, zoom)) }),
 }))

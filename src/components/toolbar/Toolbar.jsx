@@ -17,12 +17,11 @@ const PRESET_SIZES = [
 export default function Toolbar() {
   const { elements, canvasWidth, canvasHeight, setCanvasSize } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
-  const { openModal } = useUiStore()
+  const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom } = useUiStore()
   const [bannerName, setBannerName] = useState('ad-banner')
   const [sizeValue, setSizeValue] = useState('300x250')
   const [customW, setCustomW] = useState(300)
   const [customH, setCustomH] = useState(250)
-  const [zoom, setZoom] = useState(100)
   const [menuOpen, setMenuOpen] = useState(false)
   const [politeLoad, setPoliteLoad] = useState(true)
   const menuRef = useRef(null)
@@ -50,7 +49,7 @@ export default function Toolbar() {
     useCanvasStore.setState({ elements: [], selectedId: null })
   }
 
-  const changeZoom = (delta) => setZoom((z) => Math.min(200, Math.max(25, z + delta)))
+  const changeZoom = (delta) => setZoom(zoom + delta)
 
   const handleExportZip = async () => {
     setMenuOpen(false)

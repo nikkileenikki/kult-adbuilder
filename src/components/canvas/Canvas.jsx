@@ -1,10 +1,13 @@
 import React, { useRef, useCallback } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
+import { useUiStore } from '../../store/uiStore.js'
 import CanvasElement from './CanvasElement.jsx'
 
 export default function Canvas() {
   const { elements, canvasWidth, canvasHeight, setSelected, snapLines } = useCanvasStore()
+  const { canvasZoom } = useUiStore()
   const containerRef = useRef(null)
+  const scale = canvasZoom / 100
 
   const handleBgClick = useCallback((e) => {
     if (e.target === e.currentTarget) setSelected(null)
@@ -27,6 +30,8 @@ export default function Canvas() {
             width: canvasWidth,
             height: canvasHeight,
             flexShrink: 0,
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center',
             boxShadow: '0 0 0 2000px rgba(30,41,59,0.5), inset 0 0 0 1px rgba(255,255,255,0.1)',
           }}
         >
