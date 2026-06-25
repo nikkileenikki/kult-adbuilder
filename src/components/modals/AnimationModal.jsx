@@ -77,7 +77,7 @@ export default function AnimationModal() {
   const srcOffsetY = batchSlideYAnim ?? initAnim
   const srcScale   = batchScaleAnim  ?? initAnim
 
-  const [selected, setSelected] = useState(() => new Set([initType].filter(Boolean)))
+  const [selected, setSelected] = useState(() => new Set(isAddToBatch ? [] : [initType].filter(Boolean)))
   const legacyOff = srcOffsetX.offset ?? 400
   const [offsetX, setOffsetX] = useState(String(srcOffsetX.offsetX ?? legacyOff))
   const [offsetY, setOffsetY] = useState(String(srcOffsetY.offsetY ?? (srcOffsetY.offset ?? 400)))
