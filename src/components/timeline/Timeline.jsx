@@ -19,7 +19,6 @@ export default function Timeline() {
   const [elementGroups, setElementGroups] = useState({}) // {elementId: groupId}
   const tlRef = useRef(null)
   const rafRef = useRef(null)
-  const snapshotsRef = useRef({})
   const scrubTlRef = useRef(null)
   const rowDragIdx = useRef(null)
   const trackScrollRef = useRef(null)
@@ -46,11 +45,14 @@ export default function Timeline() {
     rafRef.current = requestAnimationFrame(tickPlayhead)
   }, [])
 
-  // ── Restore snapshots helper ─────────────────────────────────────────────────
-  const restoreSnapshots = useCallback(() => {
+  // ── Clear only GSAP-managed properties (never touches React inline styles) ───
+  const clearGsapProps = useCallback(() => {
     elements.forEach((el) => {
       const dom = document.getElementById(el.id)
-      if (dom) { gsap.killTweensOf(dom); dom.style.cssText = snapshotsRef.current[el.id] ?? '' }
+      if (dom) {
+        gsap.killTweensOf(dom)
+        gsap.set(dom, { clearProps: 'x,y,scale,rotation,opacity,visibility' })
+      }
     })
   }, [elements])
 
@@ -102,21 +104,13 @@ export default function Timeline() {
     if (tlRef.current) { tlRef.current.kill(); tlRef.current = null }
     if (scrubTlRef.current) { scrubTlRef.current.kill(); scrubTlRef.current = null }
     cancelAnimationFrame(rafRef.current)
-    restoreSnapshots()
-
-    // Snapshot the clean state
-    const snapshots = {}
-    elements.forEach((el) => {
-      const dom = document.getElementById(el.id)
-      if (dom) snapshots[el.id] = dom.style.cssText
-    })
-    snapshotsRef.current = snapshots
+    clearGsapProps()
 
     const tl = buildTl({
       repeat: loop - 1,
       onComplete: () => {
         cancelAnimationFrame(rafRef.current)
-        restoreSnapshots()
+        clearGsapProps()
         setPlaying(false)
         setPlayhead(0)
       },
@@ -125,16 +119,16 @@ export default function Timeline() {
     tlRef.current = tl
     setPlaying(true)
     rafRef.current = requestAnimationFrame(tickPlayhead)
-  }, [elements, loop, tickPlayhead, buildTl, restoreSnapshots])
+  }, [elements, loop, tickPlayhead, buildTl, clearGsapProps])
 
   const stop = useCallback(() => {
     if (tlRef.current) { tlRef.current.kill(); tlRef.current = null }
     if (scrubTlRef.current) { scrubTlRef.current.kill(); scrubTlRef.current = null }
     cancelAnimationFrame(rafRef.current)
-    restoreSnapshots()
+    clearGsapProps()
     setPlaying(false)
     setPlayhead(0)
-  }, [restoreSnapshots])
+  }, [clearGsapProps])
 
   // ── Ruler scrub ──────────────────────────────────────────────────────────────
   const onRulerMouseDown = useCallback((e) => {
@@ -155,15 +149,6 @@ export default function Timeline() {
       } else {
         // Build a paused scrub timeline if not already playing
         if (!scrubTlRef.current) {
-          // Snapshot clean state if not already captured
-          if (!Object.keys(snapshotsRef.current).length) {
-            const snapshots = {}
-            elements.forEach((el) => {
-              const dom = document.getElementById(el.id)
-              if (dom) snapshots[el.id] = dom.style.cssText
-            })
-            snapshotsRef.current = snapshots
-          }
           scrubTlRef.current = buildTl({ paused: true })
         }
         scrubTlRef.current.seek(t)
