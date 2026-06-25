@@ -81,17 +81,18 @@ function buildAnimationJS(elements) {
       const dur = anim.duration || 1
       const ease = anim.ease || 'power1.out'
       const op = el.opacity ?? 1
+      const off = anim.offset ?? 400
       switch (anim.type) {
         case 'fadeIn':       lines.push(`tl.fromTo(${t},{autoAlpha:0},{autoAlpha:${op},duration:${dur},ease:'${ease}'},${start});`); break
         case 'fadeOut':      lines.push(`tl.to(${t},{autoAlpha:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideLeft':    lines.push(`tl.fromTo(${t},{x:-400},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideRight':   lines.push(`tl.fromTo(${t},{x:400},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideUp':      lines.push(`tl.fromTo(${t},{y:-400},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideDown':    lines.push(`tl.fromTo(${t},{y:400},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToLeft':  lines.push(`tl.to(${t},{x:-400,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToRight': lines.push(`tl.to(${t},{x:400,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToUp':    lines.push(`tl.to(${t},{y:-400,duration:${dur},ease:'${ease}'},${start});`); break
-        case 'slideToDown':  lines.push(`tl.to(${t},{y:400,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideLeft':    lines.push(`tl.fromTo(${t},{x:-${off}},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideRight':   lines.push(`tl.fromTo(${t},{x:${off}},{x:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideUp':      lines.push(`tl.fromTo(${t},{y:-${off}},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideDown':    lines.push(`tl.fromTo(${t},{y:${off}},{y:0,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToLeft':  lines.push(`tl.to(${t},{x:-${off},duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToRight': lines.push(`tl.to(${t},{x:${off},duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToUp':    lines.push(`tl.to(${t},{y:-${off},duration:${dur},ease:'${ease}'},${start});`); break
+        case 'slideToDown':  lines.push(`tl.to(${t},{y:${off},duration:${dur},ease:'${ease}'},${start});`); break
         case 'scaleIn':      lines.push(`tl.fromTo(${t},{scale:0},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break
         case 'scaleOut':     lines.push(`tl.to(${t},{scale:0,duration:${dur},ease:'${ease}'},${start});`); break
         case 'rotate90':     lines.push(`tl.to(${t},{rotation:90,duration:${dur},ease:'${ease}'},${start});`); break

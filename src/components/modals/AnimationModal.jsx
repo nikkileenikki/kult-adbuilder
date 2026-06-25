@@ -27,12 +27,13 @@ export default function AnimationModal() {
   const [slide, setSlide] = useState(() => initType('slide'))
   const [scale, setScale] = useState(() => initType('scale'))
   const [rotate, setRotate] = useState(() => initType('rotate'))
-  const [slideOffset, setSlideOffset] = useState(initAnim.offset ?? 400)
+  const [slideOffset, setSlideOffset] = useState(String(initAnim.offset ?? 400))
   const [startTime, setStartTime] = useState(initAnim.startTime ?? 0)
   const [duration, setDuration] = useState(initAnim.duration ?? 1)
   const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')
 
   const onSave = () => {
+    const parsedOffset = slideOffset === '' ? 400 : Math.max(1, Number(slideOffset))
     if (isEdit) {
       // Edit mode: replace the single animation at animIdx
       const el = elements.find((e) => e.id === modalData.elementId)
@@ -42,7 +43,7 @@ export default function AnimationModal() {
       saveState()
       const anims = [...(el.animations || [])]
       const isSlide = type?.startsWith('slide')
-      anims[modalData.animIdx] = { type, startTime, duration, ease, ...(isSlide ? { offset: slideOffset } : {}) }
+      anims[modalData.animIdx] = { type, startTime, duration, ease, ...(isSlide ? { offset: parsedOffset } : {}) }
       updateElement(modalData.elementId, { animations: anims })
     } else {
       // Add mode: append one or more animations
@@ -51,7 +52,7 @@ export default function AnimationModal() {
       const types = [fade, slide, scale, rotate].filter(Boolean)
       if (!types.length) { closeModal(); return }
       saveState()
-      const newAnims = types.map((type) => ({ type, startTime, duration, ease, ...(type.startsWith('slide') ? { offset: slideOffset } : {}) }))
+      const newAnims = types.map((type) => ({ type, startTime, duration, ease, ...(type.startsWith('slide') ? { offset: parsedOffset } : {}) }))
       updateElement(selectedId, { animations: [...(el.animations || []), ...newAnims] })
     }
     closeModal()
@@ -97,7 +98,7 @@ export default function AnimationModal() {
           <div>
             <label className="text-xs text-gray-400 block mb-1">Slide Offset (px)</label>
             <input type="number" value={slideOffset} step={10} min={1}
-              onChange={(e) => setSlideOffset(Number(e.target.value))}
+              onChange={(e) => setSlideOffset(e.target.value)}
               className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
           </div>
         )}
