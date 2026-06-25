@@ -6,53 +6,87 @@ import { Modal } from './AddTextModal.jsx'
 
 const EASES = ['power1.out','power2.out','power3.out','power1.inOut','back.out','elastic.out','bounce.out','linear']
 
+const ANIM_GROUPS = [
+  { label: 'Fade', options: [
+    { value: 'fadeIn', label: 'Fade In' },
+    { value: 'fadeOut', label: 'Fade Out' },
+  ]},
+  { label: 'Slide In', options: [
+    { value: 'slideLeft', label: 'From Left' },
+    { value: 'slideRight', label: 'From Right' },
+    { value: 'slideUp', label: 'From Top' },
+    { value: 'slideDown', label: 'From Bottom' },
+  ]},
+  { label: 'Slide Out', options: [
+    { value: 'slideToLeft', label: 'To Left' },
+    { value: 'slideToRight', label: 'To Right' },
+    { value: 'slideToUp', label: 'To Top' },
+    { value: 'slideToDown', label: 'To Bottom' },
+  ]},
+  { label: 'Scale', options: [
+    { value: 'scaleIn', label: 'Scale In' },
+    { value: 'scaleOut', label: 'Scale Out' },
+  ]},
+  { label: 'Rotate', options: [
+    { value: 'rotate90', label: '90°' },
+    { value: 'rotate180', label: '180°' },
+    { value: 'rotate270', label: '270°' },
+    { value: 'rotate360', label: '360°' },
+  ]},
+]
+
+const SLIDE_TYPES = new Set([
+  'slideLeft','slideRight','slideUp','slideDown',
+  'slideToLeft','slideToRight','slideToUp','slideToDown',
+])
+
 export default function AnimationModal() {
   const { elements, selectedId, updateElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { closeModal, modalData } = useUiStore()
 
-  // modalData = { elementId, animIdx, anim } when editing, null when adding
   const isEdit = !!modalData
-
   const initAnim = modalData?.anim || {}
-  const initType = (t) => {
-    if (!isEdit) return ''
-    return t === 'fade' ? (['fadeIn','fadeOut'].includes(initAnim.type) ? initAnim.type : '') :
-           t === 'slide' ? (['slideLeft','slideRight','slideUp','slideDown','slideToLeft','slideToRight','slideToUp','slideToDown'].includes(initAnim.type) ? initAnim.type : '') :
-           t === 'scale' ? (['scaleIn','scaleOut'].includes(initAnim.type) ? initAnim.type : '') :
-           t === 'rotate' ? (['rotate90','rotate180','rotate270','rotate360'].includes(initAnim.type) ? initAnim.type : '') : ''
-  }
 
-  const [fade, setFade] = useState(() => initType('fade'))
-  const [slide, setSlide] = useState(() => initType('slide'))
-  const [scale, setScale] = useState(() => initType('scale'))
-  const [rotate, setRotate] = useState(() => initType('rotate'))
+  const [selected, setSelected] = useState(() => new Set([initAnim.type].filter(Boolean)))
   const [slideOffset, setSlideOffset] = useState(String(initAnim.offset ?? 400))
   const [startTime, setStartTime] = useState(initAnim.startTime ?? 0)
   const [duration, setDuration] = useState(initAnim.duration ?? 1)
   const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')
 
+  const hasSlide = [...selected].some((t) => SLIDE_TYPES.has(t))
+
+  const toggle = (value) => {
+    if (isEdit) {
+      // Edit mode: single-select (editing one block at a time)
+      setSelected(new Set([value]))
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev)
+        if (next.has(value)) next.delete(value); else next.add(value)
+        return next
+      })
+    }
+  }
+
   const onSave = () => {
     const parsedOffset = slideOffset === '' ? 400 : Math.max(1, Number(slideOffset))
     if (isEdit) {
-      // Edit mode: replace the single animation at animIdx
       const el = elements.find((e) => e.id === modalData.elementId)
       if (!el) { closeModal(); return }
-      const types = [fade, slide, scale, rotate].filter(Boolean)
-      const type = types[0] || initAnim.type
+      const type = [...selected][0] || initAnim.type
       saveState()
       const anims = [...(el.animations || [])]
-      const isSlide = type?.startsWith('slide')
-      anims[modalData.animIdx] = { type, startTime, duration, ease, ...(isSlide ? { offset: parsedOffset } : {}) }
+      anims[modalData.animIdx] = { type, startTime, duration, ease, ...(SLIDE_TYPES.has(type) ? { offset: parsedOffset } : {}) }
       updateElement(modalData.elementId, { animations: anims })
     } else {
-      // Add mode: append one or more animations
       const el = elements.find((e) => e.id === selectedId)
-      if (!el) { closeModal(); return }
-      const types = [fade, slide, scale, rotate].filter(Boolean)
-      if (!types.length) { closeModal(); return }
+      if (!el || !selected.size) { closeModal(); return }
       saveState()
-      const newAnims = types.map((type) => ({ type, startTime, duration, ease, ...(type.startsWith('slide') ? { offset: parsedOffset } : {}) }))
+      const newAnims = [...selected].map((type) => ({
+        type, startTime, duration, ease,
+        ...(SLIDE_TYPES.has(type) ? { offset: parsedOffset } : {}),
+      }))
       updateElement(selectedId, { animations: [...(el.animations || []), ...newAnims] })
     }
     closeModal()
@@ -62,39 +96,33 @@ export default function AnimationModal() {
     <Modal title={isEdit ? 'Edit Animation' : 'Add Animation'} onClose={closeModal}>
       <div className="space-y-3">
         <div>
-          <label className="text-xs text-gray-400 block mb-1">Animation Effects</label>
-          <div className="grid grid-cols-2 gap-2">
-            <SelectGroup label="Fade" value={fade} onChange={setFade}>
-              <option value="">None</option>
-              <option value="fadeIn">Fade In</option>
-              <option value="fadeOut">Fade Out</option>
-            </SelectGroup>
-            <SelectGroup label="Slide" value={slide} onChange={setSlide}>
-              <option value="">None</option>
-              <option value="slideLeft">From Left</option>
-              <option value="slideRight">From Right</option>
-              <option value="slideUp">From Top</option>
-              <option value="slideDown">From Bottom</option>
-              <option value="slideToLeft">To Left</option>
-              <option value="slideToRight">To Right</option>
-              <option value="slideToUp">To Top</option>
-              <option value="slideToDown">To Bottom</option>
-            </SelectGroup>
-            <SelectGroup label="Scale" value={scale} onChange={setScale}>
-              <option value="">None</option>
-              <option value="scaleIn">Scale In</option>
-              <option value="scaleOut">Scale Out</option>
-            </SelectGroup>
-            <SelectGroup label="Rotate" value={rotate} onChange={setRotate}>
-              <option value="">None</option>
-              <option value="rotate90">90°</option>
-              <option value="rotate180">180°</option>
-              <option value="rotate270">270°</option>
-              <option value="rotate360">360°</option>
-            </SelectGroup>
+          <label className="text-xs text-gray-400 block mb-1">
+            {isEdit ? 'Animation Type' : 'Animation Effects'}{!isEdit && selected.size > 0 && <span className="text-blue-400 ml-1">({selected.size} selected)</span>}
+          </label>
+          <div className="space-y-2">
+            {ANIM_GROUPS.map((group) => (
+              <div key={group.label}>
+                <div className="text-xs text-gray-500 mb-1">{group.label}</div>
+                <div className="flex flex-wrap gap-1">
+                  {group.options.map((opt) => {
+                    const active = selected.has(opt.value)
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => toggle(opt.value)}
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-        {slide && (
+
+        {hasSlide && (
           <div>
             <label className="text-xs text-gray-400 block mb-1">Slide Offset (px)</label>
             <input type="number" value={slideOffset} step={10} min={1}
@@ -102,6 +130,7 @@ export default function AnimationModal() {
               className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
           </div>
         )}
+
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs text-gray-400 block mb-1">Start Time (s)</label>
@@ -116,6 +145,7 @@ export default function AnimationModal() {
               className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
           </div>
         </div>
+
         <div>
           <label className="text-xs text-gray-400 block mb-1">Easing</label>
           <select value={ease} onChange={(e) => setEase(e.target.value)}
@@ -123,23 +153,12 @@ export default function AnimationModal() {
             {EASES.map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
         </div>
+
         <button onClick={onSave}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium text-white">
-          {isEdit ? 'Save Changes' : 'Add Animation'}
+          {isEdit ? 'Save Changes' : `Add Animation${selected.size > 1 ? ` (${selected.size})` : ''}`}
         </button>
       </div>
     </Modal>
-  )
-}
-
-function SelectGroup({ label, value, onChange, children }) {
-  return (
-    <div>
-      <label className="text-xs text-gray-400 block mb-1">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200">
-        {children}
-      </select>
-    </div>
   )
 }
