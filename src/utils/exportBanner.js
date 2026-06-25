@@ -183,7 +183,7 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   <script src="manifest.js"><\/script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff}
+    body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff;border:1px solid #000;box-sizing:border-box}
     #ad-container{position:relative;width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden}
   </style>
 </head>
