@@ -347,10 +347,33 @@ export default function Timeline() {
 }
 
 // ── Draggable animation block ────────────────────────────────────────────────
+const ANIM_TYPES = [
+  'fadeIn','fadeOut',
+  'slideLeft','slideRight','slideUp','slideDown',
+  'slideToLeft','slideToRight','slideToUp','slideToDown',
+  'scaleIn','scaleOut',
+  'rotate90','rotate180','rotate270','rotate360',
+]
+const EASES = ['power1.out','power2.out','power3.out','power1.inOut','back.out','elastic.out','bounce.out','linear']
+
 function DraggableAnimBlock({ anim, onUpdate, onDelete, duration, pxPerSec }) {
   const blockRef = useRef(null)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState({})
+
+  const openEdit = (e) => {
+    e.preventDefault(); e.stopPropagation()
+    setDraft({ type: anim.type, startTime: anim.startTime || 0, duration: anim.duration || 1, ease: anim.ease || 'power1.out' })
+    setEditing(true)
+  }
+
+  const saveEdit = () => {
+    onUpdate({ ...anim, ...draft, startTime: Number(draft.startTime), duration: Number(draft.duration) })
+    setEditing(false)
+  }
 
   const onBodyMouseDown = (e) => {
+    if (editing) return
     e.preventDefault(); e.stopPropagation()
     const startX = e.clientX
     const origStart = anim.startTime || 0
@@ -382,22 +405,25 @@ function DraggableAnimBlock({ anim, onUpdate, onDelete, duration, pxPerSec }) {
     <div
       ref={blockRef}
       onMouseDown={onBodyMouseDown}
+      onDoubleClick={openEdit}
       className="absolute top-1.5 flex items-center rounded select-none group"
       style={{
-        left, width, height: 26, cursor: 'move',
+        left, width, height: 26, cursor: editing ? 'default' : 'move',
         background: 'linear-gradient(135deg,rgba(139,92,246,0.8),rgba(168,85,247,0.8))',
-        border: '1px solid rgba(139,92,246,1)',
+        border: `1px solid ${editing ? 'rgba(251,191,36,1)' : 'rgba(139,92,246,1)'}`,
         fontSize: 10, fontWeight: 600, color: 'white', overflow: 'visible', whiteSpace: 'nowrap',
       }}
-      title={`${anim.type} | ${anim.startTime}s → ${(anim.startTime || 0) + (anim.duration || 1)}s`}
+      title="Double-click to edit"
     >
       <span className="flex-1 truncate pl-2 overflow-hidden">{anim.type}</span>
-      <button
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => { e.stopPropagation(); onDelete() }}
-        className="hidden group-hover:flex items-center justify-center rounded-full mx-1 shrink-0"
-        style={{ width: 14, height: 14, background: 'rgba(239,68,68,0.9)', fontSize: 9 }}
-      >✕</button>
+      {!editing && (
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          className="hidden group-hover:flex items-center justify-center rounded-full mx-1 shrink-0"
+          style={{ width: 14, height: 14, background: 'rgba(239,68,68,0.9)', fontSize: 9 }}
+        >✕</button>
+      )}
       <div
         onMouseDown={onResizeMouseDown}
         className="absolute top-0 bottom-0 flex items-center justify-center"
@@ -405,6 +431,58 @@ function DraggableAnimBlock({ anim, onUpdate, onDelete, duration, pxPerSec }) {
       >
         <div style={{ width: 3, height: 14, borderRadius: 2, background: 'rgba(255,255,255,0.7)' }} />
       </div>
+
+      {/* Inline edit popover */}
+      {editing && (
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="absolute z-50 bg-gray-800 border border-yellow-400 rounded-lg shadow-xl p-3"
+          style={{ top: 30, left: 0, minWidth: 240 }}
+        >
+          <div className="text-xs text-yellow-300 font-semibold mb-2">Edit Animation</div>
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs text-gray-400 block mb-0.5">Type</label>
+              <select value={draft.type} onChange={(e) => setDraft((d) => ({ ...d, type: e.target.value }))}
+                className="w-full bg-gray-700 rounded px-2 py-1 text-xs text-gray-200">
+                {ANIM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-400 block mb-0.5">Start (s)</label>
+                <input type="number" value={draft.startTime} step={0.1} min={0}
+                  onChange={(e) => setDraft((d) => ({ ...d, startTime: e.target.value }))}
+                  className="w-full bg-gray-700 rounded px-2 py-1 text-xs text-gray-200" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-0.5">Duration (s)</label>
+                <input type="number" value={draft.duration} step={0.1} min={0.1}
+                  onChange={(e) => setDraft((d) => ({ ...d, duration: e.target.value }))}
+                  className="w-full bg-gray-700 rounded px-2 py-1 text-xs text-gray-200" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 block mb-0.5">Ease</label>
+              <select value={draft.ease} onChange={(e) => setDraft((d) => ({ ...d, ease: e.target.value }))}
+                className="w-full bg-gray-700 rounded px-2 py-1 text-xs text-gray-200">
+                {EASES.map((e) => <option key={e} value={e}>{e}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={saveEdit}
+                className="flex-1 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium text-white">
+                Save
+              </button>
+              <button onClick={() => setEditing(false)}
+                className="flex-1 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-gray-200">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
