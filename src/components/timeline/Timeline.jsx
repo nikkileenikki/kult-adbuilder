@@ -21,6 +21,7 @@ export default function Timeline() {
   const rafRef = useRef(null)
   const scrubTlRef = useRef(null)
   const playheadRef = useRef(0)
+  const completedRef = useRef(false)
   const rowDragIdx = useRef(null)
   const trackScrollRef = useRef(null)
   const rulerScrollRef = useRef(null)
@@ -113,13 +114,14 @@ export default function Timeline() {
 
   // ── Play / Stop ─────────────────────────────────────────────────────────────
   const play = useCallback(() => {
-    // Kill any existing playback or scrub timeline and restore to clean state first
     if (tlRef.current) { tlRef.current.kill(); tlRef.current = null }
     if (scrubTlRef.current) { scrubTlRef.current.kill(); scrubTlRef.current = null }
     cancelAnimationFrame(rafRef.current)
     clearGsapProps()
 
-    const startAt = playheadRef.current  // resume from scrub position if > 0
+    // After natural completion, always restart from 0; otherwise resume from scrub position
+    const startAt = completedRef.current ? 0 : playheadRef.current
+    completedRef.current = false
 
     const tl = buildTl({
       repeat: loop - 1,
@@ -127,6 +129,7 @@ export default function Timeline() {
         cancelAnimationFrame(rafRef.current)
         // Pause at end so GSAP keeps owning DOM properties (prevents React re-render from reverting)
         if (tlRef.current) tlRef.current.pause(tlRef.current.totalDuration())
+        completedRef.current = true
         setPlaying(false)
       },
     })
@@ -144,6 +147,7 @@ export default function Timeline() {
     cancelAnimationFrame(rafRef.current)
     clearGsapProps()
     setPlaying(false)
+    completedRef.current = false
     playheadRef.current = 0
     setPlayhead(0)
   }, [clearGsapProps])
@@ -184,6 +188,19 @@ export default function Timeline() {
   }, [duration, PX_PER_SEC, elements, buildTl])
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
+
+  // ── Spacebar play/stop ───────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.code !== 'Space') return
+      const tag = document.activeElement?.tagName
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
+      e.preventDefault()
+      if (playing) stop(); else play()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [playing, play, stop])
 
   // ── Groups ──────────────────────────────────────────────────────────────────
   const createGroup = () => {
