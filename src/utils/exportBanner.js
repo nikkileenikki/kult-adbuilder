@@ -62,8 +62,14 @@ function buildElementHTML(el) {
       return `<img id="${id}" src="${el.src || ''}" alt="${escapeHtml(el.filename || '')}" style="${css};display:block;object-fit:fill;" />`
     case 'shape':
       return `<div id="${id}" style="${css}"></div>`
-    case 'clickthrough':
-      return `<a id="${id}" href="${escapeHtml(el.url || '#')}" target="${escapeHtml(el.target || '_blank')}" style="${css};display:flex;align-items:center;justify-content:center;text-decoration:none;"></a>`
+    case 'clickthrough': {
+      const url = el.url || ''
+      const idx = el.clickIndex || 1
+      const onclick = url
+        ? `if(window.myFT){myFT.clickTag(${idx},'${url}')}else{window.open('${url}','_blank')}`
+        : `if(window.myFT){myFT.clickTag(${idx})}`
+      return `<div id="${id}" class="click clickTag" onclick="${onclick}" style="${css};display:block;cursor:pointer;"></div>`
+    }
     case 'invisible':
       return `<div id="${id}" style="${css}"></div>`
     default:
