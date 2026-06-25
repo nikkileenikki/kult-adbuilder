@@ -1,5 +1,4 @@
 import React, { useRef } from 'react'
-import { Type, Square, Video, Eye, MousePointer, Upload } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
@@ -63,29 +62,29 @@ export default function AddElementsSection() {
           onDrop={onDrop}
           className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 transition-colors"
         >
-          <Upload size={24} className="mx-auto text-gray-500 mb-1" />
+          <i className="fa-solid fa-upload fa-xl mx-auto text-gray-500 mb-1 block" />
           <p className="text-xs text-gray-400">Upload or Drop Images</p>
           <p className="text-xs text-gray-500 mt-0.5">JPG, PNG, GIF, SVG, WEBP</p>
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp" multiple className="hidden" onChange={onFileChange} />
 
         <div className="grid grid-cols-2 gap-2">
-          <AddBtn onClick={() => openModal('addText')} icon={Type} className="bg-blue-600 hover:bg-blue-700">Text</AddBtn>
-          <AddBtn onClick={() => openModal('addShape')} icon={Square} className="bg-teal-600 hover:bg-teal-700">Shape</AddBtn>
+          <AddBtn onClick={() => openModal('addText')} icon="fa-t" className="bg-blue-600 hover:bg-blue-700">Text</AddBtn>
+          <AddBtn onClick={() => openModal('addShape')} icon="fa-square" className="bg-teal-600 hover:bg-teal-700">Shape</AddBtn>
         </div>
 
-        <AddBtn onClick={() => openModal('addVideo')} icon={Video} className="bg-red-600 hover:bg-red-700 w-full">Add Video</AddBtn>
-        <AddBtn onClick={addInvisible} icon={Eye} className="bg-gray-600 hover:bg-gray-700 w-full">Add Invisible Layer</AddBtn>
-        <AddBtn onClick={addClickthrough} icon={MousePointer} className="bg-purple-600 hover:bg-purple-700 w-full">Add Clickthrough</AddBtn>
+        <AddBtn onClick={() => openModal('addVideo')} icon="fa-film" className="bg-red-600 hover:bg-red-700 w-full">Add Video</AddBtn>
+        <AddBtn onClick={addInvisible} icon="fa-eye-slash" className="bg-gray-600 hover:bg-gray-700 w-full">Add Invisible Layer</AddBtn>
+        <AddBtn onClick={addClickthrough} icon="fa-arrow-pointer" className="bg-purple-600 hover:bg-purple-700 w-full">Add Clickthrough</AddBtn>
       </div>
     </div>
   )
 }
 
-function AddBtn({ onClick, icon: Icon, className, children }) {
+function AddBtn({ onClick, icon, className, children }) {
   return (
     <button onClick={onClick} className={`flex items-center justify-center gap-1.5 text-white py-2 rounded transition-colors text-sm ${className}`}>
-      <Icon size={13} />
+      <i className={`fa-solid ${icon}`} style={{ fontSize: 12 }} />
       {children}
     </button>
   )

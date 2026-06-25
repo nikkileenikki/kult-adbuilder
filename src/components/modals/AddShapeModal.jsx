@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react'
-import { Palette } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
@@ -59,7 +58,7 @@ export default function AddShapeModal() {
               title="Custom color"
               style={{ width: 24, height: 24, borderRadius: 4, border: '2px solid #444', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             >
-              <Palette size={13} className="text-gray-300" />
+              <i className="fa-solid fa-palette" style={{ fontSize: 11, color: '#d1d5db' }} />
             </button>
             <input ref={colorRef} type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)} className="hidden" />
           </div>

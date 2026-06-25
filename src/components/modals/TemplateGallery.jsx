@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { X, LayoutTemplate, Image, Type, Video, Link } from 'lucide-react'
 import { TEMPLATES } from '../../templates/index.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
@@ -12,11 +11,11 @@ const CATEGORY_LABELS = {
 }
 
 const VAR_TYPE_ICONS = {
-  image: Image,
-  text: Type,
-  video: Video,
-  url: Link,
-  landing_url: Link,
+  image: 'fa-image',
+  text: 'fa-t',
+  video: 'fa-film',
+  url: 'fa-link',
+  landing_url: 'fa-link',
   number: null,
 }
 
@@ -46,10 +45,10 @@ export default function TemplateGallery() {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <LayoutTemplate size={16} className="text-blue-400" />
+            <i className="fa-solid fa-table-columns text-blue-400" style={{ fontSize: 16 }} />
             Template Gallery
           </h2>
-          <button onClick={closeModal} className="text-gray-400 hover:text-white"><X size={16} /></button>
+          <button onClick={closeModal} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark" style={{ fontSize: 16 }} /></button>
         </div>
 
         {/* Grid */}
@@ -94,10 +93,10 @@ export default function TemplateGallery() {
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Template Variables</div>
                 <div className="grid grid-cols-2 gap-2">
                   {vars.map((v) => {
-                    const Icon = VAR_TYPE_ICONS[v.type] || LayoutTemplate
+                    const iconClass = VAR_TYPE_ICONS[v.type] || 'fa-table-columns'
                     return (
                       <div key={v.key} className="flex items-center gap-2 text-sm text-gray-300">
-                        {Icon && <Icon size={12} className="text-gray-500 shrink-0" />}
+                        {iconClass && <i className={`fa-solid ${iconClass} text-gray-500 shrink-0`} style={{ fontSize: 12 }} />}
                         <span className="truncate">{v.label}</span>
                         {v.required && <span className="text-red-400 text-xs ml-auto">required</span>}
                       </div>
@@ -126,7 +125,7 @@ export default function TemplateGallery() {
 }
 
 function TemplatePreview({ tpl, size }) {
-  if (!size) return <LayoutTemplate size={32} className="text-gray-600" />
+  if (!size) return <i className="fa-solid fa-table-columns text-gray-600" style={{ fontSize: 32 }} />
 
   const W = 100, H = 80
   const scaleX = W / size.width

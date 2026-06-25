@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Undo2, Redo2, Trash2, FileArchive, ZoomIn, ZoomOut, Minimize2, ChevronDown, Save, FolderOpen, Play, LayoutTemplate } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
@@ -113,31 +112,31 @@ export default function Toolbar() {
       <div className="flex items-center gap-1 border-l border-gray-600 pl-3">
         <label className="text-xs text-gray-400">Zoom:</label>
         <button onClick={() => changeZoom(-25)} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded" title="Zoom out">
-          <ZoomOut size={13} />
+          <i className="fa-solid fa-magnifying-glass-minus" style={{ fontSize: 13 }} />
         </button>
         <input type="number" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} min={25} max={200} step={25}
           className="bg-gray-700 text-white rounded px-2 py-1 text-sm w-14 text-center border border-gray-600 focus:border-blue-500 focus:outline-none" />
         <span className="text-xs text-gray-400">%</span>
         <button onClick={() => changeZoom(25)} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded" title="Zoom in">
-          <ZoomIn size={13} />
+          <i className="fa-solid fa-magnifying-glass-plus" style={{ fontSize: 13 }} />
         </button>
         <button onClick={() => setZoom(100)} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded" title="Reset zoom">
-          <Minimize2 size={13} />
+          <i className="fa-solid fa-compress" style={{ fontSize: 13 }} />
         </button>
       </div>
 
       <div className="ml-auto flex items-center gap-2">
         <button onClick={() => openModal('templates')} className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
-          <LayoutTemplate size={13} /> Templates
+          <i className="fa-solid fa-table-columns" style={{ fontSize: 13 }} /> Templates
         </button>
         <button onClick={undo} className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
-          <Undo2 size={13} /> Undo
+          <i className="fa-solid fa-rotate-left" style={{ fontSize: 13 }} /> Undo
         </button>
         <button onClick={redo} className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
-          <Redo2 size={13} /> Redo
+          <i className="fa-solid fa-rotate-right" style={{ fontSize: 13 }} /> Redo
         </button>
         <button onClick={clearAll} className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
-          <Trash2 size={13} /> Clear All
+          <i className="fa-solid fa-trash" style={{ fontSize: 13 }} /> Clear All
         </button>
 
         {/* Import/Export dropdown */}
@@ -146,14 +145,14 @@ export default function Toolbar() {
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
           >
-            <FileArchive size={13} />
+            <i className="fa-solid fa-file-zipper" style={{ fontSize: 13 }} />
             Import / Export
-            <ChevronDown size={11} />
+            <i className="fa-solid fa-chevron-down" style={{ fontSize: 11 }} />
           </button>
           {menuOpen && (
             <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-gray-800 text-sm">
-              <MenuItem icon={Save} iconClass="text-blue-500" label="Save Banner (.json)" onClick={handleSave} />
-              <MenuItem icon={FolderOpen} iconClass="text-indigo-500" label="Load Banner (.json)" onClick={handleLoad} />
+              <MenuItem icon="fa-floppy-disk" iconClass="text-blue-500" label="Save Banner (.json)" onClick={handleSave} />
+              <MenuItem icon="fa-folder-open" iconClass="text-indigo-500" label="Load Banner (.json)" onClick={handleLoad} />
               <div className="border-t border-gray-200 my-1" />
               <label
                 className="w-full flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer select-none"
@@ -168,8 +167,8 @@ export default function Toolbar() {
                 />
                 <span>Polite Load</span>
               </label>
-              <MenuItem icon={FileArchive} iconClass="text-green-500" label="Export as ZIP" onClick={handleExportZip} />
-              <MenuItem icon={Play} iconClass="text-purple-500" label="Preview Animation" onClick={() => { setMenuOpen(false); alert('Open the exported index.html in a browser to preview.') }} />
+              <MenuItem icon="fa-file-zipper" iconClass="text-green-500" label="Export as ZIP" onClick={handleExportZip} />
+              <MenuItem icon="fa-play" iconClass="text-purple-500" label="Preview Animation" onClick={() => { setMenuOpen(false); alert('Open the exported index.html in a browser to preview.') }} />
             </div>
           )}
         </div>
@@ -181,10 +180,10 @@ export default function Toolbar() {
   )
 }
 
-function MenuItem({ icon: Icon, iconClass, label, onClick }) {
+function MenuItem({ icon, iconClass, label, onClick }) {
   return (
     <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left">
-      <Icon size={14} className={iconClass} />
+      <i className={`fa-solid ${icon} ${iconClass}`} style={{ fontSize: 14, width: 14 }} />
       {label}
     </button>
   )

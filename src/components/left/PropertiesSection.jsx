@@ -1,5 +1,4 @@
 import React from 'react'
-import { Lock } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import TextProperties from '../properties/TextProperties.jsx'
@@ -62,7 +61,7 @@ export default function PropertiesSection() {
       {isLocked && (
         <div className="absolute inset-0 flex items-center justify-center rounded-lg" style={{ background: 'rgba(17,24,39,0.62)', backdropFilter: 'blur(1px)' }}>
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 border border-gray-600 text-sm font-semibold text-gray-200 shadow-lg">
-            <Lock size={13} /> Locked layer
+            <i className="fa-solid fa-lock" /> Locked layer
           </div>
         </div>
       )}

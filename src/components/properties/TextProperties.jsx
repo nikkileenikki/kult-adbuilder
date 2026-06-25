@@ -1,5 +1,4 @@
 import React from 'react'
-import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react'
 import { Field, NumInput, SelectInput } from '../left/PropertiesSection.jsx'
 
 const FONTS = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Courier New', 'Verdana', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black']
@@ -46,7 +45,7 @@ export default function TextProperties({ el, update, save }) {
             title="Custom color"
             style={{ width: 22, height: 22, borderRadius: 4, border: '2px solid #444', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           >
-            <Palette size={12} className="text-gray-300" />
+            <i className="fa-solid fa-palette" style={{ fontSize: 11, color: '#d1d5db' }} />
           </button>
           <input
             ref={colorInputRef}
@@ -59,16 +58,16 @@ export default function TextProperties({ el, update, save }) {
       </Field>
 
       <div className="flex gap-2 mt-0.5">
-        <StyleBtn icon={Bold} active={el.bold} onClick={() => save({ bold: !el.bold })} title="Bold" />
-        <StyleBtn icon={Italic} active={el.italic} onClick={() => save({ italic: !el.italic })} title="Italic" />
-        <StyleBtn icon={Underline} active={el.underline} onClick={() => save({ underline: !el.underline })} title="Underline" />
+        <StyleBtn icon="fa-bold" active={el.bold} onClick={() => save({ bold: !el.bold })} title="Bold" />
+        <StyleBtn icon="fa-italic" active={el.italic} onClick={() => save({ italic: !el.italic })} title="Italic" />
+        <StyleBtn icon="fa-underline" active={el.underline} onClick={() => save({ underline: !el.underline })} title="Underline" />
       </div>
 
       <Field label="Text Align">
         <div className="flex gap-2 mt-0.5">
-          <AlignBtn icon={AlignLeft}   value="left"   current={el.textAlign} onClick={() => save({ textAlign: 'left' })} />
-          <AlignBtn icon={AlignCenter} value="center" current={el.textAlign} onClick={() => save({ textAlign: 'center' })} />
-          <AlignBtn icon={AlignRight}  value="right"  current={el.textAlign} onClick={() => save({ textAlign: 'right' })} />
+          <AlignBtn icon="fa-align-left"   value="left"   current={el.textAlign} onClick={() => save({ textAlign: 'left' })} />
+          <AlignBtn icon="fa-align-center" value="center" current={el.textAlign} onClick={() => save({ textAlign: 'center' })} />
+          <AlignBtn icon="fa-align-right"  value="right"  current={el.textAlign} onClick={() => save({ textAlign: 'right' })} />
         </div>
       </Field>
 
@@ -82,26 +81,26 @@ export default function TextProperties({ el, update, save }) {
   )
 }
 
-function StyleBtn({ icon: Icon, active, onClick, title }) {
+function StyleBtn({ icon, active, onClick, title }) {
   return (
     <button
       onClick={onClick}
       title={title}
       className={`flex-1 flex items-center justify-center py-1.5 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
     >
-      <Icon size={13} />
+      <i className={`fa-solid ${icon}`} style={{ fontSize: 13 }} />
     </button>
   )
 }
 
-function AlignBtn({ icon: Icon, value, current, onClick }) {
+function AlignBtn({ icon, value, current, onClick }) {
   const active = current === value || (!current && value === 'left')
   return (
     <button
       onClick={onClick}
       className={`flex-1 flex items-center justify-center py-1.5 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
     >
-      <Icon size={13} />
+      <i className={`fa-solid ${icon}`} style={{ fontSize: 13 }} />
     </button>
   )
 }

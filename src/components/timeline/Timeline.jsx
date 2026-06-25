@@ -1,5 +1,4 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react'
-import { Film, Play, Square, Eye, EyeOff, Sparkles, Copy, Trash2, GripVertical, FolderPlus, ChevronRight, ChevronDown, ZoomIn, ZoomOut } from 'lucide-react'
 import gsap from 'gsap'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
@@ -183,18 +182,18 @@ export default function Timeline() {
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold flex items-center gap-2 text-white">
-          <Film size={15} className="text-purple-400" /> Animation Timeline
+          <i className="fa-solid fa-film text-purple-400" style={{ fontSize: 15 }} /> Animation Timeline
         </h3>
         <div className="flex items-center gap-2">
           {/* Timeline zoom */}
           <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
             <label className="text-xs text-gray-400">Timeline:</label>
             <button onClick={() => setTimeZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))} className="text-gray-400 hover:text-white px-1" title="Zoom out timeline">
-              <ZoomOut size={12} />
+              <i className="fa-solid fa-magnifying-glass-minus" style={{ fontSize: 12 }} />
             </button>
             <span className="text-xs text-gray-300 w-8 text-center">{Math.round(timeZoom * 100)}%</span>
             <button onClick={() => setTimeZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))} className="text-gray-400 hover:text-white px-1" title="Zoom in timeline">
-              <ZoomIn size={12} />
+              <i className="fa-solid fa-magnifying-glass-plus" style={{ fontSize: 12 }} />
             </button>
           </div>
           <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
@@ -213,7 +212,7 @@ export default function Timeline() {
             onClick={playing ? stop : play}
             className={`flex items-center gap-1 text-white px-3 py-1 rounded text-sm ${playing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
           >
-            {playing ? <><Square size={11} /> Stop</> : <><Play size={11} /> Play</>}
+            {playing ? <><i className="fa-solid fa-stop" style={{ fontSize: 11 }} /> Stop</> : <><i className="fa-solid fa-play" style={{ fontSize: 11 }} /> Play</>}
           </button>
         </div>
       </div>
@@ -225,7 +224,7 @@ export default function Timeline() {
           <div className="flex items-center justify-between px-2 py-1 bg-gray-800 border-r border-gray-700 shrink-0" style={{ width: 250 }}>
             <span className="text-xs text-gray-400 font-semibold">LAYER</span>
             <button title="Create Group" onClick={createGroup} className="text-gray-600 hover:text-yellow-300 px-1 rounded">
-              <FolderPlus size={13} />
+              <i className="fa-solid fa-folder-plus" style={{ fontSize: 13 }} />
             </button>
           </div>
           <div ref={rulerScrollRef} className="flex-1 overflow-hidden relative h-8" style={{ pointerEvents: 'none' }}>
@@ -263,11 +262,11 @@ export default function Timeline() {
                   <div className="flex items-center gap-1 px-2 bg-yellow-900/30 border-r border-gray-700 shrink-0 sticky left-0 z-10"
                     style={{ width: 250 }}>
                     <button onClick={() => toggleGroup(grp.id)} className="flex items-center gap-1 flex-1 min-w-0 cursor-pointer">
-                      {grp.collapsed ? <ChevronRight size={12} className="text-yellow-400 shrink-0" /> : <ChevronDown size={12} className="text-yellow-400 shrink-0" />}
+                      {grp.collapsed ? <i className="fa-solid fa-chevron-right text-yellow-400 shrink-0" style={{ fontSize: 12 }} /> : <i className="fa-solid fa-chevron-down text-yellow-400 shrink-0" style={{ fontSize: 12 }} />}
                       <span className="flex-1 text-xs text-yellow-300 font-semibold truncate text-left">{grp.name}</span>
                     </button>
                     <TrackBtn title="Delete Group" onClick={() => deleteGroup(grp.id)} danger>
-                      <Trash2 size={13} />
+                      <i className="fa-solid fa-trash" style={{ fontSize: 13 }} />
                     </TrackBtn>
                   </div>
                   <div className="flex-1 relative" style={{ background: 'rgb(17,24,39)', minWidth: totalWidth }}>
@@ -297,20 +296,20 @@ export default function Timeline() {
                   } ${!el.visible ? 'opacity-50' : ''}`}
                   style={{ width: 250, paddingLeft: inGroup ? 20 : 4 }}
                 >
-                  <GripVertical size={12} className="text-gray-500 cursor-grab shrink-0" />
+                  <i className="fa-solid fa-grip-vertical text-gray-500 cursor-grab shrink-0" style={{ fontSize: 12 }} />
                   <span className="flex-1 truncate text-gray-200 text-xs">{layerLabel(el)}</span>
                   <div className="flex items-center gap-0.5 shrink-0">
                     <TrackBtn title={el.visible ? 'Hide' : 'Show'} onClick={(e) => { e.stopPropagation(); toggleVisibility(el.id) }}>
-                      {el.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                      <i className={`fa-solid ${el.visible ? 'fa-eye' : 'fa-eye-slash'}`} style={{ fontSize: 13 }} />
                     </TrackBtn>
                     <TrackBtn title="Add Animation" onClick={(e) => { e.stopPropagation(); setSelected(el.id); openModal('animation') }}>
-                      <Sparkles size={13} />
+                      <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 13 }} />
                     </TrackBtn>
                     <TrackBtn title="Duplicate" onClick={(e) => { e.stopPropagation(); onDuplicate(el.id) }}>
-                      <Copy size={13} />
+                      <i className="fa-solid fa-copy" style={{ fontSize: 13 }} />
                     </TrackBtn>
                     <TrackBtn title="Delete" onClick={(e) => { e.stopPropagation(); onDelete(el.id) }} danger>
-                      <Trash2 size={13} />
+                      <i className="fa-solid fa-trash" style={{ fontSize: 13 }} />
                     </TrackBtn>
                   </div>
                 </div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
@@ -52,7 +51,7 @@ export function Modal({ title, onClose, children }) {
       <div className="bg-gray-800 rounded-lg p-4 w-96 shadow-xl text-gray-100" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-white">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={16} /></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark" /></button>
         </div>
         {children}
       </div>
