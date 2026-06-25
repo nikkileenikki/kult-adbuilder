@@ -77,7 +77,14 @@ export default function AnimationModal() {
   const srcOffsetY = batchSlideYAnim ?? initAnim
   const srcScale   = batchScaleAnim  ?? initAnim
 
-  const [selected, setSelected] = useState(() => new Set(isAddToBatch ? [] : [initType].filter(Boolean)))
+  const [selected, setSelected] = useState(() => {
+    if (isBatch) return new Set(batchAnims.map((a) => {
+      const t = a.type
+      return t === 'scaleIn' ? 'scaleFrom' : t === 'scaleOut' ? 'scaleTo' : t
+    }))
+    if (isAddToBatch) return new Set()
+    return new Set([initType].filter(Boolean))
+  })
   const legacyOff = srcOffsetX.offset ?? 400
   const [offsetX, setOffsetX] = useState(String(srcOffsetX.offsetX ?? legacyOff))
   const [offsetY, setOffsetY] = useState(String(srcOffsetY.offsetY ?? (srcOffsetY.offset ?? 400)))
@@ -87,19 +94,12 @@ export default function AnimationModal() {
   const [duration, setDuration] = useState(initAnim.duration ?? 1)
   const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')
 
-  // In batch mode derive hasSlide/hasScale from the actual batch anim types
-  const hasSlideX = isBatch
-    ? batchAnims.some((a) => ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(a.type))
-    : [...selected].some((t) => ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(t))
-  const hasSlideY = isBatch
-    ? batchAnims.some((a) => ['slideUp','slideDown','slideToUp','slideToDown'].includes(a.type))
-    : [...selected].some((t) => ['slideUp','slideDown','slideToUp','slideToDown'].includes(t))
-  const hasScale = isBatch
-    ? batchAnims.some((a) => SCALE_TYPES.has(a.type))
-    : [...selected].some((t) => SCALE_TYPES.has(t))
+  const hasSlideX = [...selected].some((t) => ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(t))
+  const hasSlideY = [...selected].some((t) => ['slideUp','slideDown','slideToUp','slideToDown'].includes(t))
+  const hasScale  = [...selected].some((t) => SCALE_TYPES.has(t))
 
   const toggle = (value) => {
-    if (isEdit) {
+    if (isEdit && !isBatch) {
       setSelected(new Set([value]))
     } else {
       setSelected((prev) => {
@@ -137,22 +137,30 @@ export default function AnimationModal() {
     }
 
     if (isBatch) {
-      // Batch edit: update timing/ease for all, keep per-type params
+      // Rebuild batch with potentially changed types
       const el = elements.find((e) => e.id === modalData.elementId)
-      if (!el) { closeModal(); return }
+      if (!el || !selected.size) { closeModal(); return }
       saveState()
-      const anims = [...(el.animations || [])]
+      const batchId = batchAnims[0]?.batchId
+      const allAnims = [...(el.animations || [])]
+      // Map normalised type → existing anim data to preserve per-type params
+      const existingByType = {}
       modalData.batchIndices.forEach((i) => {
-        const existing = anims[i]
-        const t = existing.type
-        anims[i] = {
-          ...existing,
-          startTime, duration, ease,
-          ...slideExtra(t),
-          ...(SCALE_TYPES.has(t) ? { scaleParam: parsedScale, transformOrigin } : {}),
-        }
+        const a = allAnims[i]
+        const norm = a.type === 'scaleIn' ? 'scaleFrom' : a.type === 'scaleOut' ? 'scaleTo' : a.type
+        existingByType[norm] = a
       })
-      updateElement(modalData.elementId, { animations: anims })
+      const newBatchAnims = [...selected].map((type) => ({
+        ...(existingByType[type] || {}),
+        batchId, type, startTime, duration, ease,
+        ...slideExtra(type),
+        ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale, transformOrigin } : {}),
+      }))
+      const batchIndexSet = new Set(modalData.batchIndices)
+      const insertAt = Math.min(...modalData.batchIndices)
+      const filteredAnims = allAnims.filter((_, i) => !batchIndexSet.has(i))
+      filteredAnims.splice(insertAt, 0, ...newBatchAnims)
+      updateElement(modalData.elementId, { animations: filteredAnims })
     } else if (isEdit) {
       const el = elements.find((e) => e.id === modalData.elementId)
       if (!el) { closeModal(); return }
@@ -186,13 +194,29 @@ export default function AnimationModal() {
       <div className="space-y-3">
         {isBatch ? (
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Animation Effects</label>
-            <div className="flex flex-wrap gap-1">
-              {batchAnims.map((a, i) => (
-                <span key={i} className="px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white">{a.type}</span>
+            <label className="text-xs text-gray-400 block mb-1">
+              Animation Effects
+              {selected.size > 0 && <span className="text-blue-400 ml-1">({selected.size} selected)</span>}
+            </label>
+            <p className="text-xs text-gray-500 mb-1">Toggle to add/remove effects from this group</p>
+            <div className="space-y-2">
+              {ANIM_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div className="text-xs text-gray-500 mb-1">{group.label}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {group.options.map((opt) => {
+                      const active = selected.has(opt.value)
+                      return (
+                        <button key={opt.value} onClick={() => toggle(opt.value)}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                          {opt.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Editing timing for all effects together</p>
           </div>
         ) : (
           <div>

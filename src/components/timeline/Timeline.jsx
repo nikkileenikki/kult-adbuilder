@@ -388,6 +388,9 @@ export default function Timeline() {
             }
 
             const { el, idx, inGroup } = row
+            const animBatches = getAnimBatches(el.animations)
+            const maxBatchRow = animBatches.reduce((m, b) => Math.max(m, b.row), 0)
+            const trackH = Math.max(38, (maxBatchRow + 1) * 30 + 8)
             return (
               <div
                 key={el.id}
@@ -396,14 +399,14 @@ export default function Timeline() {
                 onDragOver={onRowDragOver}
                 onDrop={(e) => { e.stopPropagation(); onRowDrop(e, el.id) }}
                 className="flex border-b border-gray-700"
-                style={{ minHeight: 38, userSelect: 'none', minWidth: totalWidth + 250 }}
+                style={{ minHeight: trackH, userSelect: 'none', minWidth: totalWidth + 250 }}
               >
                 <div
                   onClick={() => setSelected(el.id)}
                   className={`flex items-center gap-1 px-1 cursor-pointer border-r border-gray-700 transition-colors shrink-0 sticky left-0 z-10 ${
                     selectedId === el.id ? 'bg-blue-500/20 border-r-blue-500' : 'bg-gray-800 hover:bg-blue-500/10'
                   } ${!el.visible ? 'opacity-50' : ''}`}
-                  style={{ width: 250, paddingLeft: inGroup ? 20 : 4 }}
+                  style={{ width: 250, paddingLeft: inGroup ? 20 : 4, minHeight: trackH }}
                 >
                   <i className="fa-solid fa-grip-vertical text-gray-500 cursor-grab shrink-0" style={{ fontSize: 12 }} />
                   <span className="flex-1 truncate text-gray-200 text-xs">{layerLabel(el)}</span>
@@ -423,12 +426,13 @@ export default function Timeline() {
                   </div>
                 </div>
 
-                <div className="relative" style={{ minWidth: totalWidth, flexGrow: 1, background: 'rgb(17,24,39)' }}>
+                <div className="relative" style={{ minWidth: totalWidth, flexGrow: 1, background: 'rgb(17,24,39)', minHeight: trackH }}>
                   <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 z-20 pointer-events-none" style={{ left: playheadLeft }} />
-                  {getAnimBatches(el.animations).map((batch) => (
+                  {animBatches.map((batch) => (
                     <DraggableAnimBlock
                       key={batch.indices.join('-')}
                       batch={batch}
+                      row={batch.row}
                       elementId={el.id}
                       duration={duration}
                       pxPerSec={PX_PER_SEC}
@@ -453,7 +457,7 @@ export default function Timeline() {
   )
 }
 
-// ── Group animations by batchId for display ─────────────────────────────────
+// ── Group animations by batchId, then assign non-overlapping rows ────────────
 function getAnimBatches(animations) {
   const batches = []
   const batchMap = {}
@@ -469,11 +473,20 @@ function getAnimBatches(animations) {
       batches.push({ batchId: null, anims: [anim], indices: [idx] })
     }
   })
-  return batches
+  // Greedy row assignment: find lowest row where block doesn't overlap
+  const rowEnds = []
+  return batches.map((batch) => {
+    const start = batch.anims[0].startTime || 0
+    const end = start + (batch.anims[0].duration || 1)
+    let row = rowEnds.findIndex((rowEnd) => rowEnd <= start)
+    if (row === -1) row = rowEnds.length
+    rowEnds[row] = end
+    return { ...batch, row }
+  })
 }
 
 // ── Draggable animation block ────────────────────────────────────────────────
-function DraggableAnimBlock({ batch, elementId, onUpdateTiming, onDelete, duration: totalDuration, pxPerSec }) {
+function DraggableAnimBlock({ batch, elementId, onUpdateTiming, onDelete, duration: totalDuration, pxPerSec, row = 0 }) {
   const { openModal } = useUiStore()
   const anim = batch.anims[0]
   const isBatch = batch.anims.length > 1
@@ -517,14 +530,15 @@ function DraggableAnimBlock({ batch, elementId, onUpdateTiming, onDelete, durati
 
   const left = (anim.startTime || 0) * pxPerSec
   const width = Math.max((anim.duration || 1) * pxPerSec, 30)
+  const top = row * 30 + 4
 
   return (
     <div
       onMouseDown={onBodyMouseDown}
       onDoubleClick={onDoubleClick}
-      className="absolute top-1.5 flex items-center rounded select-none group"
+      className="absolute flex items-center rounded select-none group"
       style={{
-        left, width, height: 26, cursor: 'move',
+        left, top, width, height: 26, cursor: 'move',
         background: isBatch
           ? 'linear-gradient(135deg,rgba(20,184,166,0.8),rgba(59,130,246,0.8))'
           : 'linear-gradient(135deg,rgba(139,92,246,0.8),rgba(168,85,247,0.8))',
