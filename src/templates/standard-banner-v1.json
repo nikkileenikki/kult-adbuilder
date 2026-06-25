@@ -44,7 +44,7 @@
         },
         {
           "type": "clickthrough", "templateVar": "landing_url",
-          "url": "%%CLICK_URL_UNESC%%", "target": "_blank", "clickIndex": 1,
+          "url": "", "target": "_blank", "clickIndex": 1,
           "x": 0, "y": 0, "width": 300, "height": 250,
           "zIndex": 10, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
           "animations": []

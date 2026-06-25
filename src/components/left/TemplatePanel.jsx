@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 
@@ -95,19 +95,7 @@ function VarRow({ v, el, isSelected, onSelect, onImageUpload, onTextChange, onUr
 
       <div onClick={(e) => e.stopPropagation()}>
         {(v.type === 'image') && (
-          <div className="flex items-center gap-2">
-            {el?.src && (
-              <img src={el.src} alt="" className="w-10 h-8 object-cover rounded border border-gray-700 shrink-0" />
-            )}
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded px-2 py-1.5 text-left truncate"
-            >
-              {el?.filename || 'Upload image…'}
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onImageUpload(f); e.target.value = '' }} />
-          </div>
+          <ImageDropzone el={el} fileRef={fileRef} onImageUpload={onImageUpload} />
         )}
 
         {(v.type === 'text') && (
@@ -140,6 +128,42 @@ function VarRow({ v, el, isSelected, onSelect, onImageUpload, onTextChange, onUr
           />
         )}
       </div>
+    </div>
+  )
+}
+
+function ImageDropzone({ el, fileRef, onImageUpload }) {
+  const [dragging, setDragging] = useState(false)
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type.startsWith('image/')) onImageUpload(file)
+  }
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+      onClick={() => fileRef.current?.click()}
+      className={`flex items-center gap-2 rounded border cursor-pointer transition-colors ${
+        dragging
+          ? 'border-blue-400 bg-blue-500/20'
+          : 'border-dashed border-gray-600 hover:border-gray-400 hover:bg-gray-700/40'
+      } px-2 py-1.5`}
+    >
+      {el?.src ? (
+        <img src={el.src} alt="" className="w-10 h-8 object-cover rounded border border-gray-700 shrink-0" />
+      ) : (
+        <i className="fa-solid fa-image text-gray-600 shrink-0" style={{ fontSize: 18, width: 40, textAlign: 'center' }} />
+      )}
+      <span className="text-xs text-gray-400 truncate">
+        {el?.filename || (dragging ? 'Drop here' : 'Upload or drop image…')}
+      </span>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onImageUpload(f); e.target.value = '' }} />
     </div>
   )
 }
