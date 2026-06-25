@@ -97,8 +97,8 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
   if (!element.visible) return null
 
   const isOutOfBounds =
-    element.x + element.width <= 0 || element.x >= canvasWidth ||
-    element.y + element.height <= 0 || element.y >= canvasHeight
+    element.x < 0 || element.x + element.width > canvasWidth ||
+    element.y < 0 || element.y + element.height > canvasHeight
 
   // Selection border style matches original (blue solid for most, dashed for text)
   let selectionStyle = {}
