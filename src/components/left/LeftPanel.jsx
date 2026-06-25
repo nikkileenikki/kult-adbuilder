@@ -1,10 +1,11 @@
 import React from 'react'
 import AddElementsSection from './AddElementsSection.jsx'
 import PropertiesSection from './PropertiesSection.jsx'
+import TemplatePanel from './TemplatePanel.jsx'
 import { useCanvasStore } from '../../store/canvasStore.js'
 
 export default function LeftPanel() {
-  const { selectedId } = useCanvasStore()
+  const { selectedId, activeTemplate } = useCanvasStore()
 
   return (
     <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-y-auto max-h-screen">
@@ -13,6 +14,7 @@ export default function LeftPanel() {
           <i className="fa-solid fa-layer-group text-blue-400" />
           Ad Builder
         </h1>
+        {activeTemplate && <TemplatePanel />}
         <AddElementsSection />
         {selectedId && <PropertiesSection />}
       </div>

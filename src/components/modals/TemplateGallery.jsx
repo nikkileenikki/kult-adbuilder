@@ -31,7 +31,22 @@ export default function TemplateGallery() {
     const size = sizes[0]
     hist()
     setCanvasSize(size.width, size.height)
-    useCanvasStore.setState({ elements: [], selectedId: null })
+
+    // Stamp unique IDs onto template elements
+    let counter = Date.now()
+    const elements = (size.elements || []).map((el) => ({
+      ...el,
+      id: `${el.type}_${counter++}`,
+      folderId: null,
+    }))
+
+    useCanvasStore.setState({
+      elements,
+      selectedId: null,
+      activeTemplate: tpl,
+      animDuration: 5,
+      animLoop: 1,
+    })
     closeModal()
   }
 

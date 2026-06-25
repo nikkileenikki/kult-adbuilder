@@ -10,9 +10,9 @@
     "shuffle": false
   },
   "variables": [
-    { "key": "cta_default", "type": "image", "required": true, "label": "CTA Default Image" },
-    { "key": "cta_hover", "type": "image", "required": true, "label": "CTA Hover Image" },
-    { "key": "arrow_asset", "type": "image", "required": true, "label": "Arrow Asset" },
+    { "key": "cta_default",  "type": "image", "required": true,  "label": "CTA Default Image" },
+    { "key": "cta_hover",   "type": "image", "required": true,  "label": "CTA Hover Image" },
+    { "key": "arrow_asset", "type": "image", "required": true,  "label": "Arrow Asset" },
     {
       "key": "slides",
       "type": "repeater",
@@ -21,10 +21,10 @@
       "max": 4,
       "label": "Slides",
       "fields": [
-        { "key": "image", "type": "image", "required": true, "label": "Slide Image" },
-        { "key": "heading", "type": "text", "required": true, "label": "Heading" },
-        { "key": "body", "type": "text", "required": true, "label": "Body" },
-        { "key": "click_url", "type": "url", "required": true, "label": "Click URL" },
+        { "key": "image",       "type": "image",  "required": true, "label": "Slide Image" },
+        { "key": "heading",     "type": "text",   "required": true, "label": "Heading" },
+        { "key": "body",        "type": "text",   "required": true, "label": "Body" },
+        { "key": "click_url",   "type": "url",    "required": true, "label": "Click URL" },
         { "key": "click_index", "type": "number", "required": true, "label": "Click Index" }
       ]
     }
@@ -34,15 +34,40 @@
       "label": "300x250",
       "width": 300,
       "height": 250,
-      "layout": {
-        "width": 300,
-        "height": 250,
-        "slide_width": 300,
-        "slide_height": 250
-      },
-      "html": "sizes/300x250/template.html",
-      "css": "sizes/300x250/template.css",
-      "js": "sizes/300x250/template.js"
+      "elements": [
+        {
+          "type": "image", "templateVar": "cta_default",
+          "x": 100, "y": 210, "width": 100, "height": 30,
+          "zIndex": 5, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "filename": "cta_default.png"
+        },
+        {
+          "type": "image", "templateVar": "arrow_asset",
+          "x": 270, "y": 110, "width": 20, "height": 30,
+          "zIndex": 6, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "filename": "arrow_asset.png"
+        },
+        {
+          "type": "image", "templateVar": "slide_1_image",
+          "x": 0, "y": 0, "width": 300, "height": 200,
+          "zIndex": 1, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "filename": "slide_1_image.png"
+        },
+        {
+          "type": "text", "templateVar": "slide_1_heading",
+          "text": "Slide Heading",
+          "x": 12, "y": 10, "width": 200, "height": 36,
+          "zIndex": 3, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "fontSize": 20, "fontFamily": "Arial", "color": "#ffffff", "bold": true, "textAlign": "left"
+        },
+        {
+          "type": "text", "templateVar": "slide_1_body",
+          "text": "Slide body text here.",
+          "x": 12, "y": 50, "width": 200, "height": 50,
+          "zIndex": 3, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "fontSize": 14, "fontFamily": "Arial", "color": "#ffffff", "bold": false, "textAlign": "left"
+        }
+      ]
     }
   }
 }

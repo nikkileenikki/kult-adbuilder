@@ -2,27 +2,54 @@
   "id": "standard-banner-v1",
   "name": "Standard Banner",
   "category": "standard",
-  "defaults": {
-  },
+  "defaults": {},
   "variables": [
-    { "key": "landing_url", "type": "landing_url", "required": false, "label": "landing" },
-    { "key": "cta_text", "type": "text", "required": true, "label": "cta text" },
-    { "key": "background_image", "type": "image", "required": true, "label": "background image" },
-    { "key": "logo_image", "type": "image", "required": true, "label": "logo image" },
-    { "key": "product_image", "type": "image", "required": true, "label": "product image" }
+    { "key": "landing_url",       "type": "landing_url", "required": false, "label": "Landing URL" },
+    { "key": "background_image",  "type": "image",       "required": true,  "label": "Background Image" },
+    { "key": "logo_image",        "type": "image",       "required": true,  "label": "Logo" },
+    { "key": "product_image",     "type": "image",       "required": true,  "label": "Product Image" },
+    { "key": "cta_text",          "type": "text",        "required": true,  "label": "CTA Text" }
   ],
   "sizes": {
     "300x250": {
       "label": "300x250",
       "width": 300,
       "height": 250,
-      "layout": {
-        "width": 300,
-        "height": 250
-      },
-      "html": "sizes/300x250/template.html",
-      "css": "sizes/300x250/template.css",
-      "js": "sizes/300x250/template.js"
+      "elements": [
+        {
+          "type": "image", "templateVar": "background_image",
+          "x": 0, "y": 0, "width": 300, "height": 250,
+          "zIndex": 1, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "filename": "background_image.png"
+        },
+        {
+          "type": "image", "templateVar": "logo_image",
+          "x": 12, "y": 12, "width": 90, "height": 45,
+          "zIndex": 2, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "filename": "logo_image.png"
+        },
+        {
+          "type": "image", "templateVar": "product_image",
+          "x": 155, "y": 30, "width": 135, "height": 150,
+          "zIndex": 3, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [], "filename": "product_image.png"
+        },
+        {
+          "type": "text", "templateVar": "cta_text",
+          "text": "Shop Now",
+          "x": 12, "y": 195, "width": 130, "height": 38,
+          "zIndex": 4, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": [],
+          "fontSize": 18, "fontFamily": "Arial", "color": "#ffffff", "bold": true, "textAlign": "left"
+        },
+        {
+          "type": "clickthrough", "templateVar": "landing_url",
+          "url": "%%CLICK_URL_UNESC%%", "target": "_blank", "clickIndex": 1,
+          "x": 0, "y": 0, "width": 300, "height": 250,
+          "zIndex": 10, "visible": true, "locked": false, "rotation": 0, "opacity": 1,
+          "animations": []
+        }
+      ]
     }
   }
 }

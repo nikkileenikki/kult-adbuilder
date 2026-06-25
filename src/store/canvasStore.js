@@ -14,6 +14,8 @@ export const useCanvasStore = create((set, get) => ({
   animDuration: 5,
   animLoop: 1,
   snapLines: { x: [], y: [] },
+  activeTemplate: null,
+  setActiveTemplate: (tpl) => set({ activeTemplate: tpl }),
   setSnapLines: (lines) => set({ snapLines: lines }),
   clearSnapLines: () => set({ snapLines: { x: [], y: [] } }),
   setAnimDuration: (v) => set({ animDuration: Math.max(1, Math.min(60, v)) }),
