@@ -9,7 +9,7 @@ import ClickthroughProperties from '../properties/ClickthroughProperties.jsx'
 import AlignPad from '../properties/AlignPad.jsx'
 
 export default function PropertiesSection() {
-  const { elements, selectedId, updateElement } = useCanvasStore()
+  const { elements, selectedId, updateElement, canvasHeight, canvasWidth } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const el = elements.find((e) => e.id === selectedId)
   if (!el) return null
@@ -19,7 +19,8 @@ export default function PropertiesSection() {
 
   const isLocked = el.locked
   const ratioLocked = el.type === 'image' && el.lockAspectRatio && el.width && el.height
-  const ratio = ratioLocked ? el.width / el.height : null
+  const currentRatio = el.width && el.height ? el.width / el.height : 1
+  const ratio = ratioLocked ? currentRatio : null
 
   const saveWidth = (v) => {
     const w = Math.max(1, v)
@@ -30,17 +31,51 @@ export default function PropertiesSection() {
     save(ratio ? { height: h, width: Math.round(h * ratio) } : { height: h })
   }
 
+  // Fill canvas height while preserving current aspect ratio
+  const fillHeight = () => {
+    const r = currentRatio
+    save({ height: canvasHeight, width: Math.round(canvasHeight * r) })
+  }
+
   return (
     <div className="mb-3 relative">
       <h2 className="text-base font-semibold mb-2 text-white">Properties</h2>
       <div className={`space-y-2 bg-gray-900 rounded-lg p-3 ${isLocked ? 'opacity-60 pointer-events-none' : ''}`}>
         <div className="grid grid-cols-2 gap-2 pb-2 border-b border-gray-700">
-          <Field label="Width">
-            <NumInput value={el.width} onChange={saveWidth} />
-          </Field>
-          <Field label={<span className="flex items-center gap-1">Height {ratioLocked && <i className="fa-solid fa-link text-blue-400" style={{ fontSize: 9 }} />}</span>}>
-            <NumInput value={el.height} onChange={saveHeight} />
-          </Field>
+          {/* Width / Height with lock + fill-height */}
+          <div className="col-span-2">
+            <div className="flex items-end gap-1">
+              <div className="flex-1">
+                <label className="text-xs text-gray-400">Width</label>
+                <NumInput value={el.width} onChange={saveWidth} />
+              </div>
+              <div className="flex flex-col gap-1 pb-0.5">
+                <button
+                  onClick={() => save({ lockAspectRatio: !el.lockAspectRatio })}
+                  title={ratioLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                  className={`flex items-center justify-center rounded transition-colors ${ratioLocked ? 'text-blue-400' : 'text-gray-600 hover:text-gray-400'}`}
+                  style={{ width: 20, height: 20 }}
+                >
+                  <i className={`fa-solid ${ratioLocked ? 'fa-link' : 'fa-link'}`} style={{ fontSize: 10 }} />
+                </button>
+                {el.type === 'image' && (
+                  <button
+                    onClick={fillHeight}
+                    title="Fill canvas height keeping ratio"
+                    className="flex items-center justify-center rounded text-gray-600 hover:text-green-400 transition-colors"
+                    style={{ width: 20, height: 20 }}
+                  >
+                    <i className="fa-solid fa-arrows-up-down" style={{ fontSize: 10 }} />
+                  </button>
+                )}
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-gray-400">Height</label>
+                <NumInput value={el.height} onChange={saveHeight} />
+              </div>
+            </div>
+          </div>
+
           <Field label="X Position">
             <NumInput value={el.x} onChange={(v) => save({ x: v })} />
           </Field>
