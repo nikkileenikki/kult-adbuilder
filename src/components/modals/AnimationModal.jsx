@@ -68,12 +68,20 @@ export default function AnimationModal() {
   // Normalise legacy type names
   const initType = initAnim.type === 'scaleIn' ? 'scaleFrom' : initAnim.type === 'scaleOut' ? 'scaleTo' : initAnim.type
 
+  // For batch edits, find the right source anim for each param type
+  const batchSlideXAnim = batchAnims.find((a) => ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(a.type))
+  const batchSlideYAnim = batchAnims.find((a) => ['slideUp','slideDown','slideToUp','slideToDown'].includes(a.type))
+  const batchScaleAnim  = batchAnims.find((a) => SCALE_TYPES.has(a.type))
+  const srcOffsetX = batchSlideXAnim ?? initAnim
+  const srcOffsetY = batchSlideYAnim ?? initAnim
+  const srcScale   = batchScaleAnim  ?? initAnim
+
   const [selected, setSelected] = useState(() => new Set([initType].filter(Boolean)))
-  const legacyOff = initAnim.offset ?? 400
-  const [offsetX, setOffsetX] = useState(String(initAnim.offsetX ?? legacyOff))
-  const [offsetY, setOffsetY] = useState(String(initAnim.offsetY ?? legacyOff))
-  const [scaleValue, setScaleValue] = useState(String(initAnim.scaleParam ?? 0))
-  const [transformOrigin, setTransformOrigin] = useState(initAnim.transformOrigin ?? 'center center')
+  const legacyOff = srcOffsetX.offset ?? 400
+  const [offsetX, setOffsetX] = useState(String(srcOffsetX.offsetX ?? legacyOff))
+  const [offsetY, setOffsetY] = useState(String(srcOffsetY.offsetY ?? (srcOffsetY.offset ?? 400)))
+  const [scaleValue, setScaleValue] = useState(String(srcScale.scaleParam ?? 0))
+  const [transformOrigin, setTransformOrigin] = useState(srcScale.transformOrigin ?? 'center center')
   const [startTime, setStartTime] = useState(initAnim.startTime ?? 0)
   const [duration, setDuration] = useState(initAnim.duration ?? 1)
   const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')

@@ -125,10 +125,8 @@ export default function Timeline() {
       repeat: loop - 1,
       onComplete: () => {
         cancelAnimationFrame(rafRef.current)
-        clearGsapProps()
+        // Hold at end — don't clear props or reset playhead
         setPlaying(false)
-        playheadRef.current = 0
-        setPlayhead(0)
       },
     })
 
