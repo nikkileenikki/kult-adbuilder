@@ -75,7 +75,7 @@ export default function Timeline() {
         const oy = anim.offsetY ?? legOff
         const sp = anim.scaleParam ?? 0
         switch (anim.type) {
-          case 'fadeIn':       tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease, immediateRender: false }, start); break
+          case 'fadeIn':       tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease }, start); break
           case 'fadeOut':      tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start); break
           case 'slideLeft':    tl.fromTo(dom, { x: -ox }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
           case 'slideRight':   tl.fromTo(dom, { x: ox }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
