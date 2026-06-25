@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import TextProperties from '../properties/TextProperties.jsx'
@@ -51,6 +51,7 @@ export default function PropertiesSection() {
               </div>
               <div className="flex flex-col gap-1 pb-0.5">
                 <button
+                  tabIndex={-1}
                   onClick={() => save({ lockAspectRatio: !el.lockAspectRatio })}
                   title={ratioLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
                   className={`flex items-center justify-center rounded transition-colors ${ratioLocked ? 'text-blue-400' : 'text-gray-600 hover:text-gray-400'}`}
@@ -60,6 +61,7 @@ export default function PropertiesSection() {
                 </button>
                 {el.type === 'image' && (
                   <button
+                    tabIndex={-1}
                     onClick={fillHeight}
                     title="Fill canvas height keeping ratio"
                     className="flex items-center justify-center rounded text-gray-600 hover:text-green-400 transition-colors"
@@ -125,10 +127,19 @@ export function Field({ label, children }) {
 }
 
 export function NumInput({ value, onChange, min, max, placeholder }) {
+  const [local, setLocal] = useState(String(value ?? ''))
+
+  useEffect(() => { setLocal(String(value ?? '')) }, [value])
+
   return (
     <input
-      type="number" value={value} min={min} max={max} placeholder={placeholder}
-      onChange={(e) => onChange(Number(e.target.value))}
+      type="number" value={local} min={min} max={max} placeholder={placeholder}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => {
+        const n = parseFloat(local)
+        if (!isNaN(n)) onChange(n)
+        else setLocal(String(value ?? ''))
+      }}
       className="w-full bg-gray-800 rounded px-2 py-1.5 text-sm text-gray-100"
     />
   )

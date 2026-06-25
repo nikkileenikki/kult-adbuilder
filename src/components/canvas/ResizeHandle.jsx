@@ -7,6 +7,8 @@ export default function ResizeHandle({ handle, element, onResize }) {
     const start = { x: e.clientX, y: e.clientY }
     const orig = { x: element.x, y: element.y, w: element.width, h: element.height }
 
+    const ratio = element.lockAspectRatio && orig.h ? orig.w / orig.h : null
+
     const onMove = (mv) => {
       const dx = mv.clientX - start.x
       const dy = mv.clientY - start.y
@@ -16,6 +18,18 @@ export default function ResizeHandle({ handle, element, onResize }) {
       if (handle.id.includes('s')) h = Math.max(10, orig.h + dy)
       if (handle.id.includes('w')) { w = Math.max(10, orig.w - dx); x = orig.x + orig.w - w }
       if (handle.id.includes('n')) { h = Math.max(10, orig.h - dy); y = orig.y + orig.h - h }
+
+      if (ratio) {
+        // Determine dominant axis from handle and apply ratio to the other
+        const changedW = handle.id.includes('e') || handle.id.includes('w')
+        const changedH = handle.id.includes('n') || handle.id.includes('s')
+        if (changedW && !changedH) {
+          h = Math.round(w / ratio)
+        } else {
+          w = Math.round(h * ratio)
+          if (handle.id.includes('w')) x = orig.x + orig.w - w
+        }
+      }
 
       onResize(element.id, { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) })
     }
