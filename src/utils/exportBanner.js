@@ -82,6 +82,7 @@ function buildAnimationJS(elements) {
       const ease = anim.ease || 'power1.out'
       const op = el.opacity ?? 1
       const off = anim.offset ?? 400
+      const sp = anim.scaleParam ?? 0
       switch (anim.type) {
         case 'fadeIn':       lines.push(`tl.fromTo(${t},{autoAlpha:0},{autoAlpha:${op},duration:${dur},ease:'${ease}'},${start});`); break
         case 'fadeOut':      lines.push(`tl.to(${t},{autoAlpha:0,duration:${dur},ease:'${ease}'},${start});`); break
@@ -93,6 +94,8 @@ function buildAnimationJS(elements) {
         case 'slideToRight': lines.push(`tl.to(${t},{x:${off},duration:${dur},ease:'${ease}'},${start});`); break
         case 'slideToUp':    lines.push(`tl.to(${t},{y:-${off},duration:${dur},ease:'${ease}'},${start});`); break
         case 'slideToDown':  lines.push(`tl.to(${t},{y:${off},duration:${dur},ease:'${ease}'},${start});`); break
+        case 'scaleFrom':    lines.push(`tl.fromTo(${t},{scale:${sp}},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break
+        case 'scaleTo':      lines.push(`tl.to(${t},{scale:${sp},duration:${dur},ease:'${ease}'},${start});`); break
         case 'scaleIn':      lines.push(`tl.fromTo(${t},{scale:0},{scale:1,duration:${dur},ease:'${ease}'},${start});`); break
         case 'scaleOut':     lines.push(`tl.to(${t},{scale:0,duration:${dur},ease:'${ease}'},${start});`); break
         case 'rotate90':     lines.push(`tl.to(${t},{rotation:90,duration:${dur},ease:'${ease}'},${start});`); break

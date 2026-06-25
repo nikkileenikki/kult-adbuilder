@@ -20,9 +20,11 @@ export default function Timeline() {
   const tlRef = useRef(null)
   const rafRef = useRef(null)
   const snapshotsRef = useRef({})
+  const scrubTlRef = useRef(null)
   const rowDragIdx = useRef(null)
   const trackScrollRef = useRef(null)
   const rulerScrollRef = useRef(null)
+  const rulerAreaRef = useRef(null)
 
   const PX_PER_SEC = BASE_PX_PER_SEC * timeZoom
   const totalWidth = duration * PX_PER_SEC + 120
@@ -44,12 +46,63 @@ export default function Timeline() {
     rafRef.current = requestAnimationFrame(tickPlayhead)
   }, [])
 
+  // ── Restore snapshots helper ─────────────────────────────────────────────────
+  const restoreSnapshots = useCallback(() => {
+    elements.forEach((el) => {
+      const dom = document.getElementById(el.id)
+      if (dom) { gsap.killTweensOf(dom); dom.style.cssText = snapshotsRef.current[el.id] ?? '' }
+    })
+  }, [elements])
+
+  // ── Build GSAP timeline from element animations ───────────────────────────
+  const buildTl = useCallback((opts = {}) => {
+    const tl = gsap.timeline({ defaults: { overwrite: 'auto' }, ...opts })
+    elements.forEach((el) => {
+      const dom = document.getElementById(el.id)
+      if (!dom) return
+      ;(el.animations || []).forEach((anim) => {
+        const start = anim.startTime || 0
+        const dur = Math.max(0.01, anim.duration || 1)
+        const ease = anim.ease || 'power1.out'
+        const off = anim.offset ?? 400
+        const sp = anim.scaleParam ?? 0
+        switch (anim.type) {
+          case 'fadeIn':       tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease, immediateRender: false }, start); break
+          case 'fadeOut':      tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start); break
+          case 'slideLeft':    tl.fromTo(dom, { x: -off }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideRight':   tl.fromTo(dom, { x: off }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideUp':      tl.fromTo(dom, { y: -off }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideDown':    tl.fromTo(dom, { y: off }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
+          case 'slideToLeft':  tl.to(dom, { x: -off, duration: dur, ease }, start); break
+          case 'slideToRight': tl.to(dom, { x: off, duration: dur, ease }, start); break
+          case 'slideToUp':    tl.to(dom, { y: -off, duration: dur, ease }, start); break
+          case 'slideToDown':  tl.to(dom, { y: off, duration: dur, ease }, start); break
+          // new scale types
+          case 'scaleFrom':    tl.fromTo(dom, { scale: sp }, { scale: 1, duration: dur, ease, immediateRender: false }, start); break
+          case 'scaleTo':      tl.to(dom, { scale: sp, duration: dur, ease }, start); break
+          // legacy
+          case 'scaleIn':      tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease, immediateRender: false }, start); break
+          case 'scaleOut':     tl.to(dom, { scale: 0, duration: dur, ease }, start); break
+          case 'rotate90':     tl.to(dom, { rotation: 90,  duration: dur, ease }, start); break
+          case 'rotate180':    tl.to(dom, { rotation: 180, duration: dur, ease }, start); break
+          case 'rotate270':    tl.to(dom, { rotation: 270, duration: dur, ease }, start); break
+          case 'rotate360':    tl.to(dom, { rotation: 360, duration: dur, ease }, start); break
+          default: break
+        }
+      })
+    })
+    return tl
+  }, [elements])
+
   // ── Play / Stop ─────────────────────────────────────────────────────────────
   const play = useCallback(() => {
-    if (tlRef.current) tlRef.current.kill()
+    // Kill any existing playback or scrub timeline and restore to clean state first
+    if (tlRef.current) { tlRef.current.kill(); tlRef.current = null }
+    if (scrubTlRef.current) { scrubTlRef.current.kill(); scrubTlRef.current = null }
     cancelAnimationFrame(rafRef.current)
+    restoreSnapshots()
 
-    // Snapshot inline styles before animation so we can restore them exactly
+    // Snapshot the clean state
     const snapshots = {}
     elements.forEach((el) => {
       const dom = document.getElementById(el.id)
@@ -57,17 +110,7 @@ export default function Timeline() {
     })
     snapshotsRef.current = snapshots
 
-    const restoreSnapshots = () => {
-      elements.forEach((el) => {
-        const dom = document.getElementById(el.id)
-        if (dom) {
-          gsap.killTweensOf(dom)
-          dom.style.cssText = snapshotsRef.current[el.id] ?? ''
-        }
-      })
-    }
-
-    const tl = gsap.timeline({
+    const tl = buildTl({
       repeat: loop - 1,
       onComplete: () => {
         cancelAnimationFrame(rafRef.current)
@@ -77,54 +120,62 @@ export default function Timeline() {
       },
     })
 
-    elements.forEach((el) => {
-      const dom = document.getElementById(el.id)
-      if (!dom) return
-      ;(el.animations || []).forEach((anim) => {
-        const start = anim.startTime || 0
-        const dur = anim.duration || 1
-        const ease = anim.ease || 'power1.out'
-        const off = anim.offset ?? 400
-        switch (anim.type) {
-          case 'fadeIn':       tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease }, start); break
-          case 'fadeOut':      tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start); break
-          case 'slideLeft':    tl.fromTo(dom, { x: -off }, { x: 0, duration: dur, ease }, start); break
-          case 'slideRight':   tl.fromTo(dom, { x: off }, { x: 0, duration: dur, ease }, start); break
-          case 'slideUp':      tl.fromTo(dom, { y: -off }, { y: 0, duration: dur, ease }, start); break
-          case 'slideDown':    tl.fromTo(dom, { y: off }, { y: 0, duration: dur, ease }, start); break
-          case 'slideToLeft':  tl.to(dom, { x: -off, duration: dur, ease }, start); break
-          case 'slideToRight': tl.to(dom, { x: off, duration: dur, ease }, start); break
-          case 'slideToUp':    tl.to(dom, { y: -off, duration: dur, ease }, start); break
-          case 'slideToDown':  tl.to(dom, { y: off, duration: dur, ease }, start); break
-          case 'scaleIn':      tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease }, start); break
-          case 'scaleOut':     tl.to(dom, { scale: 0, duration: dur, ease }, start); break
-          case 'rotate90':     tl.to(dom, { rotation: 90, duration: dur, ease }, start); break
-          case 'rotate180':    tl.to(dom, { rotation: 180, duration: dur, ease }, start); break
-          case 'rotate270':    tl.to(dom, { rotation: 270, duration: dur, ease }, start); break
-          case 'rotate360':    tl.to(dom, { rotation: 360, duration: dur, ease }, start); break
-          default: break
-        }
-      })
-    })
-
     tlRef.current = tl
     setPlaying(true)
     rafRef.current = requestAnimationFrame(tickPlayhead)
-  }, [elements, loop, tickPlayhead])
+  }, [elements, loop, tickPlayhead, buildTl, restoreSnapshots])
 
   const stop = useCallback(() => {
     if (tlRef.current) { tlRef.current.kill(); tlRef.current = null }
+    if (scrubTlRef.current) { scrubTlRef.current.kill(); scrubTlRef.current = null }
     cancelAnimationFrame(rafRef.current)
-    elements.forEach((el) => {
-      const dom = document.getElementById(el.id)
-      if (dom) {
-        gsap.killTweensOf(dom)
-        dom.style.cssText = snapshotsRef.current[el.id] ?? ''
-      }
-    })
+    restoreSnapshots()
     setPlaying(false)
     setPlayhead(0)
-  }, [elements])
+  }, [restoreSnapshots])
+
+  // ── Ruler scrub ──────────────────────────────────────────────────────────────
+  const onRulerMouseDown = useCallback((e) => {
+    e.preventDefault()
+    const el = rulerAreaRef.current
+    if (!el) return
+    const getTime = (clientX) => {
+      const rect = el.getBoundingClientRect()
+      const scrollLeft = rulerScrollRef.current?.scrollLeft || 0
+      const x = clientX - rect.left + scrollLeft
+      return Math.max(0, Math.min(duration, x / PX_PER_SEC))
+    }
+    const seekTo = (clientX) => {
+      const t = getTime(clientX)
+      setPlayhead(t)
+      if (tlRef.current) {
+        tlRef.current.seek(t)
+      } else {
+        // Build a paused scrub timeline if not already playing
+        if (!scrubTlRef.current) {
+          // Snapshot clean state if not already captured
+          if (!Object.keys(snapshotsRef.current).length) {
+            const snapshots = {}
+            elements.forEach((el) => {
+              const dom = document.getElementById(el.id)
+              if (dom) snapshots[el.id] = dom.style.cssText
+            })
+            snapshotsRef.current = snapshots
+          }
+          scrubTlRef.current = buildTl({ paused: true })
+        }
+        scrubTlRef.current.seek(t)
+      }
+    }
+    seekTo(e.clientX)
+    const onMove = (mv) => seekTo(mv.clientX)
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [duration, PX_PER_SEC, elements, buildTl])
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
@@ -255,17 +306,24 @@ export default function Timeline() {
               <i className="fa-solid fa-folder-plus" style={{ fontSize: 13 }} />
             </button>
           </div>
-          <div ref={rulerScrollRef} className="flex-1 overflow-hidden relative h-8" style={{ pointerEvents: 'none' }}>
-            <div className="relative h-full" style={{ width: totalWidth, minWidth: '100%' }}>
+          <div ref={rulerScrollRef} className="flex-1 overflow-hidden relative h-8">
+            <div
+              ref={rulerAreaRef}
+              onMouseDown={onRulerMouseDown}
+              className="relative h-full cursor-col-resize select-none"
+              style={{ width: totalWidth, minWidth: '100%' }}
+            >
               {rulerMarks.map((t) => (
                 <div key={t} className="absolute top-0 bottom-0" style={{ left: t * PX_PER_SEC }}>
                   <div className="absolute top-0 bottom-0 w-px bg-gray-700" />
                   <span className="absolute top-0.5 text-gray-400 select-none" style={{ fontSize: 10, left: 3 }}>{t}s</span>
                 </div>
               ))}
-              {(playing || playhead > 0) && (
-                <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 z-20" style={{ left: playheadLeft }} />
-              )}
+              {/* Always-visible playhead pin */}
+              <div className="absolute top-0 bottom-0 z-20 pointer-events-none" style={{ left: playheadLeft }}>
+                <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400" />
+                <div className="absolute" style={{ top: 0, left: -5, width: 11, height: 10, background: '#facc15', clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)', transform: 'rotate(180deg)' }} />
+              </div>
             </div>
           </div>
         </div>
@@ -343,9 +401,7 @@ export default function Timeline() {
                 </div>
 
                 <div className="relative" style={{ minWidth: totalWidth, flexGrow: 1, background: 'rgb(17,24,39)' }}>
-                  {(playing || playhead > 0) && (
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 z-20 pointer-events-none" style={{ left: playheadLeft }} />
-                  )}
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 z-20 pointer-events-none" style={{ left: playheadLeft }} />
                   {(el.animations || []).map((anim, animIdx) => (
                     <DraggableAnimBlock
                       key={animIdx}
