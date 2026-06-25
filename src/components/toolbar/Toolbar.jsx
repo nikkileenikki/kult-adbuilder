@@ -126,12 +126,8 @@ export default function Toolbar() {
           className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
           <i className="fa-solid fa-minus" style={{ fontSize: 10 }} />
         </button>
-        <div className="relative">
-          <input type="number" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} min={25} max={200} step={25}
-            className="bg-gray-800 text-white rounded px-1 py-1 text-xs w-14 text-center border border-gray-700 focus:border-blue-500 focus:outline-none"
-            style={{ paddingRight: 16 }} />
-          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">%</span>
-        </div>
+        <span className="bg-gray-800 text-gray-100 rounded border border-gray-700 text-xs tabular-nums text-center select-none"
+          style={{ minWidth: 46, padding: '4px 6px' }}>{zoom}%</span>
         <button onClick={() => setZoom(zoom + 25)} title="Zoom in"
           className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
           <i className="fa-solid fa-plus" style={{ fontSize: 10 }} />
