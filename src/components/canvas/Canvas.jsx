@@ -55,14 +55,16 @@ export default function Canvas() {
             {sorted.map((el) => (
               <CanvasElement key={el.id} element={el} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
             ))}
+            {/* Outside-canvas overlay: dims overflowing elements via box-shadow spread */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 9000, boxShadow: '0 0 0 2000px rgba(30,41,59,0.5)' }} />
             {/* Snap guide lines */}
             {snapLines.x.map((lx, i) => (
-              <div key={`sx${i}`} className="absolute top-0 bottom-0 pointer-events-none z-50"
-                style={{ left: lx - 0.5, width: 1, background: 'rgba(59,130,246,0.9)' }} />
+              <div key={`sx${i}`} className="absolute top-0 bottom-0 pointer-events-none"
+                style={{ left: lx - 0.5, width: 1, background: 'rgba(59,130,246,0.9)', zIndex: 9100 }} />
             ))}
             {snapLines.y.map((ly, i) => (
-              <div key={`sy${i}`} className="absolute left-0 right-0 pointer-events-none z-50"
-                style={{ top: ly - 0.5, height: 1, background: 'rgba(59,130,246,0.9)' }} />
+              <div key={`sy${i}`} className="absolute left-0 right-0 pointer-events-none"
+                style={{ top: ly - 0.5, height: 1, background: 'rgba(59,130,246,0.9)', zIndex: 9100 }} />
             ))}
           </div>
         </div>

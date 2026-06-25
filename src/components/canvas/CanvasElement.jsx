@@ -96,12 +96,6 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
 
   if (!element.visible) return null
 
-  const clipTop    = Math.max(0, -element.y)
-  const clipRight  = Math.max(0, element.x + element.width  - canvasWidth)
-  const clipBottom = Math.max(0, element.y + element.height - canvasHeight)
-  const clipLeft   = Math.max(0, -element.x)
-  const isOutOfBounds = clipTop > 0 || clipRight > 0 || clipBottom > 0 || clipLeft > 0
-
   // Selection border style matches original (blue solid for most, dashed for text)
   let selectionStyle = {}
   if (isSelected) {
@@ -123,31 +117,12 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
     ...selectionStyle,
   }
 
-  if (!isOutOfBounds) {
-    return (
-      <div id={element.id} style={style} onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}>
-        <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
-        {isSelected && !element.locked && <ResizeHandles element={element} />}
-      </div>
-    )
-  }
-
-  // Element overlaps canvas edge: render ghost (dimmed) + clipped full-opacity overlay
   return (
     <div id={element.id} style={style} onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}>
-      {/* Outside portion: dimmed */}
-      <div style={{ position: 'absolute', inset: 0, opacity: 0.3 }}>
-        <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
-      </div>
-      {/* Inside portion: full opacity, clipped to canvas bounds */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        clipPath: `inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px)`,
-        pointerEvents: 'none',
-      }}>
-        <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
-      </div>
-      {isSelected && !element.locked && <ResizeHandles element={element} />}
+      <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
+      {isSelected && !element.locked && (
+        <ResizeHandles element={element} />
+      )}
     </div>
   )
 }
