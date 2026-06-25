@@ -1,21 +1,5 @@
 import JSZip from 'jszip'
 
-// Fetch the GSAP bundle text so we can inline it into the ZIP
-async function fetchGsapSource() {
-  try {
-    // Try to get the local Vite-bundled GSAP module source
-    const mod = await import('gsap/dist/gsap.min.js?url')
-    const res = await fetch(mod.default)
-    if (res.ok) return res.text()
-  } catch (_) { /* fall through */ }
-  // Fallback: fetch from CDN
-  try {
-    const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js')
-    if (res.ok) return res.text()
-  } catch (_) { /* fall through */ }
-  return null
-}
-
 function buildElementCSS(el) {
   const styles = [
     `position:absolute`,
@@ -160,38 +144,25 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
     imageFiles.push({ src: el.src, filename })
   })
 
-  // Attempt to fetch GSAP source to bundle locally
-  let gsapScript = null
-  try {
-    // Use the already-loaded GSAP — get it from the CDN as a local file
-    const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js')
-    if (res.ok) gsapScript = await res.text()
-  } catch (_) { /* network blocked — will fall back to CDN src */ }
-
-  const gsapTag = gsapScript
-    ? `<script src="gsap.min.js"><\/script>`
-    : `<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>`
-
-  if (gsapScript) zip.file('gsap.min.js', gsapScript)
-
+  // Attempt to fetch GSAP source to bundle locally — no longer needed, always use CDN
   let html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="ad.size" content="width=${canvasWidth},height=${canvasHeight}" />
   <title>${escapeHtml(bannerName)}</title>
-  <script src="manifest.js"><\/script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff;border:1px solid #000;box-sizing:border-box}
-    #ad-container{position:relative;width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden}
+    #ad-container{position:relative;width:100%;height:100%;overflow:hidden}
   </style>
 </head>
 <body>
+  <script src="https://cdn.flashtalking.com/frameworks/js/api/2/10/html5API.js"><\/script>
   <div id="ad-container">
     ${elementsHTML}
   </div>
-  ${gsapTag}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
   <script>
     ${politeLoad ? 'window.addEventListener("load", function() {' : '(function() {'}
     ${animJS}

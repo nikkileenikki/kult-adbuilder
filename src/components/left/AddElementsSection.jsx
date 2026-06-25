@@ -44,7 +44,8 @@ export default function AddElementsSection() {
 
   const addClickthrough = () => {
     saveState()
-    addElement({ type: 'clickthrough', width: 300, height: 250, url: '', clickIndex: 1, target: '_blank' })
+    const { canvasWidth, canvasHeight } = useCanvasStore.getState()
+    addElement({ type: 'clickthrough', x: 0, y: 0, width: canvasWidth, height: canvasHeight, url: '', clickIndex: 1, target: '_blank' })
   }
 
   const addInvisible = () => {
