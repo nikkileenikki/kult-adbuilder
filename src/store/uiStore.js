@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 
 export const useUiStore = create((set) => ({
-  activeModal: null,   // 'addText' | 'addShape' | 'addVideo' | 'animation' | 'publish' | 'templates'
-  openModal: (name) => set({ activeModal: name }),
-  closeModal: () => set({ activeModal: null }),
+  activeModal: null,
+  modalData: null,   // extra payload passed to the active modal
+  openModal: (name, data = null) => set({ activeModal: name, modalData: data }),
+  closeModal: () => set({ activeModal: null, modalData: null }),
 }))

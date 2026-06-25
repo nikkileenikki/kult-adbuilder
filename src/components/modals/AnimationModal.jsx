@@ -4,35 +4,62 @@ import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 import { Modal } from './AddTextModal.jsx'
 
+const EASES = ['power1.out','power2.out','power3.out','power1.inOut','back.out','elastic.out','bounce.out','linear']
+
 export default function AnimationModal() {
   const { elements, selectedId, updateElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
-  const { closeModal } = useUiStore()
+  const { closeModal, modalData } = useUiStore()
 
-  const [fade, setFade] = useState('')
-  const [slide, setSlide] = useState('')
-  const [scale, setScale] = useState('')
-  const [rotate, setRotate] = useState('')
-  const [startTime, setStartTime] = useState(0)
-  const [duration, setDuration] = useState(1)
-  const [ease, setEase] = useState('power1.out')
+  // modalData = { elementId, animIdx, anim } when editing, null when adding
+  const isEdit = !!modalData
 
-  const onAdd = () => {
-    const el = elements.find((e) => e.id === selectedId)
-    if (!el) return
-    const types = [fade, slide, scale, rotate].filter(Boolean)
-    if (!types.length) { closeModal(); return }
-    saveState()
-    const newAnims = types.map((type) => ({ type, startTime, duration, ease }))
-    updateElement(selectedId, { animations: [...(el.animations || []), ...newAnims] })
+  const initAnim = modalData?.anim || {}
+  const initType = (t) => {
+    if (!isEdit) return ''
+    return t === 'fade' ? (['fadeIn','fadeOut'].includes(initAnim.type) ? initAnim.type : '') :
+           t === 'slide' ? (['slideLeft','slideRight','slideUp','slideDown','slideToLeft','slideToRight','slideToUp','slideToDown'].includes(initAnim.type) ? initAnim.type : '') :
+           t === 'scale' ? (['scaleIn','scaleOut'].includes(initAnim.type) ? initAnim.type : '') :
+           t === 'rotate' ? (['rotate90','rotate180','rotate270','rotate360'].includes(initAnim.type) ? initAnim.type : '') : ''
+  }
+
+  const [fade, setFade] = useState(() => initType('fade'))
+  const [slide, setSlide] = useState(() => initType('slide'))
+  const [scale, setScale] = useState(() => initType('scale'))
+  const [rotate, setRotate] = useState(() => initType('rotate'))
+  const [startTime, setStartTime] = useState(initAnim.startTime ?? 0)
+  const [duration, setDuration] = useState(initAnim.duration ?? 1)
+  const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')
+
+  const onSave = () => {
+    if (isEdit) {
+      // Edit mode: replace the single animation at animIdx
+      const el = elements.find((e) => e.id === modalData.elementId)
+      if (!el) { closeModal(); return }
+      const types = [fade, slide, scale, rotate].filter(Boolean)
+      const type = types[0] || initAnim.type  // keep old type if nothing selected
+      saveState()
+      const anims = [...(el.animations || [])]
+      anims[modalData.animIdx] = { type, startTime, duration, ease }
+      updateElement(modalData.elementId, { animations: anims })
+    } else {
+      // Add mode: append one or more animations
+      const el = elements.find((e) => e.id === selectedId)
+      if (!el) { closeModal(); return }
+      const types = [fade, slide, scale, rotate].filter(Boolean)
+      if (!types.length) { closeModal(); return }
+      saveState()
+      const newAnims = types.map((type) => ({ type, startTime, duration, ease }))
+      updateElement(selectedId, { animations: [...(el.animations || []), ...newAnims] })
+    }
     closeModal()
   }
 
   return (
-    <Modal title="Add Animation" onClose={closeModal}>
+    <Modal title={isEdit ? 'Edit Animation' : 'Add Animation'} onClose={closeModal}>
       <div className="space-y-3">
         <div>
-          <label className="text-xs text-gray-400 block mb-1">Select Animation Effects</label>
+          <label className="text-xs text-gray-400 block mb-1">Animation Effects</label>
           <div className="grid grid-cols-2 gap-2">
             <SelectGroup label="Fade" value={fade} onChange={setFade}>
               <option value="">None</option>
@@ -67,12 +94,14 @@ export default function AnimationModal() {
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs text-gray-400 block mb-1">Start Time (s)</label>
-            <input type="number" value={startTime} step={0.1} min={0} onChange={(e) => setStartTime(Number(e.target.value))}
+            <input type="number" value={startTime} step={0.1} min={0}
+              onChange={(e) => setStartTime(Number(e.target.value))}
               className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
           </div>
           <div>
             <label className="text-xs text-gray-400 block mb-1">Duration (s)</label>
-            <input type="number" value={duration} step={0.1} min={0.1} onChange={(e) => setDuration(Number(e.target.value))}
+            <input type="number" value={duration} step={0.1} min={0.1}
+              onChange={(e) => setDuration(Number(e.target.value))}
               className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200" />
           </div>
         </div>
@@ -80,18 +109,12 @@ export default function AnimationModal() {
           <label className="text-xs text-gray-400 block mb-1">Easing</label>
           <select value={ease} onChange={(e) => setEase(e.target.value)}
             className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200">
-            <option value="power1.out">Power1 Out</option>
-            <option value="power2.out">Power2 Out</option>
-            <option value="power3.out">Power3 Out</option>
-            <option value="power1.inOut">Power1 InOut</option>
-            <option value="back.out">Back Out</option>
-            <option value="elastic.out">Elastic Out</option>
-            <option value="bounce.out">Bounce Out</option>
-            <option value="linear">Linear</option>
+            {EASES.map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
         </div>
-        <button onClick={onAdd} className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium text-white">
-          Add Animation
+        <button onClick={onSave}
+          className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium text-white">
+          {isEdit ? 'Save Changes' : 'Add Animation'}
         </button>
       </div>
     </Modal>
