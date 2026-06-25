@@ -125,7 +125,8 @@ export default function Timeline() {
       repeat: loop - 1,
       onComplete: () => {
         cancelAnimationFrame(rafRef.current)
-        // Hold at end — don't clear props or reset playhead
+        // Pause at end so GSAP keeps owning DOM properties (prevents React re-render from reverting)
+        if (tlRef.current) tlRef.current.pause(tlRef.current.totalDuration())
         setPlaying(false)
       },
     })
@@ -143,6 +144,7 @@ export default function Timeline() {
     cancelAnimationFrame(rafRef.current)
     clearGsapProps()
     setPlaying(false)
+    playheadRef.current = 0
     setPlayhead(0)
   }, [clearGsapProps])
 
@@ -515,6 +517,15 @@ function DraggableAnimBlock({ batch, elementId, onUpdateTiming, onDelete, durati
       title="Double-click to edit"
     >
       <span className="flex-1 truncate pl-2 overflow-hidden">{label}</span>
+      {isBatch && (
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); openModal('animation', { addToBatch: true, batchId: batch.batchId, elementId, anim }) }}
+          className="hidden group-hover:flex items-center justify-center rounded-full shrink-0"
+          style={{ width: 14, height: 14, background: 'rgba(16,185,129,0.9)', fontSize: 10, marginLeft: 2 }}
+          title="Add animation to group"
+        >+</button>
+      )}
       <button
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onDelete() }}

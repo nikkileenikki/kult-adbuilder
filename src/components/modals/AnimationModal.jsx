@@ -58,7 +58,8 @@ export default function AnimationModal() {
   const { saveState } = useHistoryStore()
   const { closeModal, modalData } = useUiStore()
 
-  const isEdit = !!modalData
+  const isEdit = !!modalData && !modalData?.addToBatch
+  const isAddToBatch = !!modalData?.addToBatch
   const initAnim = modalData?.anim || {}
 
   // Batch edit: multiple animations edited together (timing/ease only)
@@ -119,6 +120,22 @@ export default function AnimationModal() {
       return usesX ? { offsetX: pOffX } : usesY ? { offsetY: pOffY } : {}
     }
 
+    if (isAddToBatch) {
+      // Add new animations to existing combined batch
+      const el = elements.find((e) => e.id === modalData.elementId)
+      if (!el || !selected.size) { closeModal(); return }
+      saveState()
+      const newAnims = [...selected].map((type) => ({
+        batchId: modalData.batchId,
+        type, startTime, duration, ease,
+        ...slideExtra(type),
+        ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale, transformOrigin } : {}),
+      }))
+      updateElement(modalData.elementId, { animations: [...(el.animations || []), ...newAnims] })
+      closeModal()
+      return
+    }
+
     if (isBatch) {
       // Batch edit: update timing/ease for all, keep per-type params
       const el = elements.find((e) => e.id === modalData.elementId)
@@ -165,7 +182,7 @@ export default function AnimationModal() {
   }
 
   return (
-    <Modal title={isBatch ? 'Edit Combined Animation' : isEdit ? 'Edit Animation' : 'Add Animation'} onClose={closeModal}>
+    <Modal title={isBatch ? 'Edit Combined Animation' : isAddToBatch ? 'Add to Combined Animation' : isEdit ? 'Edit Animation' : 'Add Animation'} onClose={closeModal}>
       <div className="space-y-3">
         {isBatch ? (
           <div>
@@ -180,8 +197,8 @@ export default function AnimationModal() {
         ) : (
           <div>
             <label className="text-xs text-gray-400 block mb-1">
-              {isEdit ? 'Animation Type' : 'Animation Effects'}
-              {!isEdit && selected.size > 0 && <span className="text-blue-400 ml-1">({selected.size} selected)</span>}
+              {isEdit && !isAddToBatch ? 'Animation Type' : 'Animation Effects'}
+              {(!isEdit || isAddToBatch) && selected.size > 0 && <span className="text-blue-400 ml-1">({selected.size} selected)</span>}
             </label>
             <div className="space-y-2">
               {ANIM_GROUPS.map((group) => (
@@ -266,7 +283,7 @@ export default function AnimationModal() {
 
         <button onClick={onSave}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium text-white">
-          {isBatch ? 'Save Changes' : isEdit ? 'Save Changes' : `Add Animation${selected.size > 1 ? ` (${selected.size})` : ''}`}
+          {isBatch ? 'Save Changes' : isEdit ? 'Save Changes' : isAddToBatch ? `Add to Group${selected.size > 1 ? ` (${selected.size})` : ''}` : `Add Animation${selected.size > 1 ? ` (${selected.size})` : ''}`}
         </button>
       </div>
     </Modal>
