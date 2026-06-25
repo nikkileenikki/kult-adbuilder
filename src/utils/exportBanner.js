@@ -137,7 +137,7 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
-export async function exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad }) {
+export async function exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
   const zip = new JSZip()
 
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
@@ -156,7 +156,29 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
     imageFiles.push({ src: el.src, filename })
   })
 
-  // Attempt to fetch GSAP source to bundle locally — no longer needed, always use CDN
+  // Fetch and embed template CSS if a template is active
+  let templateCssTag = ''
+  if (activeTemplate) {
+    const sizeKey = `${canvasWidth}x${canvasHeight}`
+    const size = activeTemplate.sizes?.[sizeKey] || Object.values(activeTemplate.sizes || {})[0]
+    if (size?.css) {
+      const cssUrl = `/js/template-library/${activeTemplate.id}/${size.css}`
+      try {
+        const res = await fetch(cssUrl)
+        if (res.ok) {
+          let css = await res.text()
+          // Substitute {{layout.*}} variables
+          const layout = size.layout || { width: canvasWidth, height: canvasHeight }
+          css = css.replace(/\{\{layout\.(\w+)\}\}/g, (_, key) => layout[key] ?? '')
+          // Substitute image filename references
+          imageFiles.forEach(({ src, filename }) => { css = css.replaceAll(src, filename) })
+          zip.file('template.css', css)
+          templateCssTag = '\n  <link rel="stylesheet" href="template.css" />'
+        }
+      } catch (_) { /* skip if fetch fails */ }
+    }
+  }
+
   let html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -167,7 +189,7 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
     *{margin:0;padding:0;box-sizing:border-box}
     body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff;border:1px solid #000;box-sizing:border-box}
     #ad-container{position:relative;width:100%;height:100%;overflow:hidden}
-  </style>
+  </style>${templateCssTag}
 </head>
 <body>
   <script src="https://cdn.flashtalking.com/frameworks/js/api/2/10/html5API.js"><\/script>

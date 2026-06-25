@@ -15,7 +15,7 @@ const PRESET_SIZES = [
 ]
 
 export default function Toolbar() {
-  const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop } = useCanvasStore()
+  const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
   const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom } = useUiStore()
   const [bannerName, setBannerName] = useState('ad-banner')
@@ -51,7 +51,7 @@ export default function Toolbar() {
 
   const handleExportZip = async () => {
     setMenuOpen(false)
-    await exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad })
+    await exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
   }
 
   const handleSave = () => {
