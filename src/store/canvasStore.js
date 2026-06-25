@@ -11,9 +11,13 @@ export const useCanvasStore = create((set, get) => ({
   selectedId: null,
   canvasWidth: 300,
   canvasHeight: 250,
+  animDuration: 5,
+  animLoop: 1,
   snapLines: { x: [], y: [] },
   setSnapLines: (lines) => set({ snapLines: lines }),
   clearSnapLines: () => set({ snapLines: { x: [], y: [] } }),
+  setAnimDuration: (v) => set({ animDuration: Math.max(1, Math.min(60, v)) }),
+  setAnimLoop: (v) => set({ animLoop: Math.max(1, Math.min(999, v)) }),
 
   setCanvasSize: (w, h) => set({
     canvasWidth: clamp(w, 50, 2000),

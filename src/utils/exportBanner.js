@@ -194,8 +194,8 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   URL.revokeObjectURL(url)
 }
 
-export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName }) {
-  const data = JSON.stringify({ version: 1, bannerName, canvasWidth, canvasHeight, elements }, null, 2)
+export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop }) {
+  const data = JSON.stringify({ version: 1, bannerName, canvasWidth, canvasHeight, animDuration, animLoop, elements }, null, 2)
   const blob = new Blob([data], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

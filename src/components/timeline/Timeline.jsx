@@ -7,11 +7,9 @@ import { useUiStore } from '../../store/uiStore.js'
 const BASE_PX_PER_SEC = 80
 
 export default function Timeline() {
-  const { elements, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility, reorderElements, updateElement } = useCanvasStore()
+  const { elements, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility, reorderElements, updateElement, animDuration: duration, animLoop: loop, setAnimDuration: setDuration, setAnimLoop: setLoop } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { openModal } = useUiStore()
-  const [duration, setDuration] = useState(5)
-  const [loop, setLoop] = useState(1)
   const [playing, setPlaying] = useState(false)
   const [playhead, setPlayhead] = useState(0)
   const [timeZoom, setTimeZoom] = useState(1)          // 0.5x … 4x
