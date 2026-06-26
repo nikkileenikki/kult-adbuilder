@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
+import { useUiStore } from '../../store/uiStore.js'
 import ResizeHandle from './ResizeHandle.jsx'
 
 const SNAP_THRESHOLD = 6
@@ -15,6 +16,8 @@ function computeSnap(val, candidates) {
 export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
   const { selectedId, setSelected, updateElement, elements, setSnapLines, clearSnapLines } = useCanvasStore()
   const { saveState } = useHistoryStore()
+  const scaleRef = useRef(1)
+  scaleRef.current = useUiStore((s) => s.canvasZoom / 100)
   const isSelected = selectedId === element.id
   const dragState = useRef(null)
   const [editingText, setEditingText] = useState(false)
@@ -29,8 +32,8 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
     dragState.current = { startX: e.clientX, startY: e.clientY, origX: element.x, origY: element.y }
 
     const onMove = (mv) => {
-      const dx = mv.clientX - dragState.current.startX
-      const dy = mv.clientY - dragState.current.startY
+      const dx = (mv.clientX - dragState.current.startX) / scaleRef.current
+      const dy = (mv.clientY - dragState.current.startY) / scaleRef.current
       let rawX = dragState.current.origX + dx
       let rawY = dragState.current.origY + dy
       const w = element.width, h = element.height

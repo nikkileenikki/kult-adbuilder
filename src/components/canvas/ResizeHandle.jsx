@@ -1,6 +1,9 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
+import { useUiStore } from '../../store/uiStore.js'
 
 export default function ResizeHandle({ handle, element, onResize }) {
+  const scaleRef = useRef(1)
+  scaleRef.current = useUiStore((s) => s.canvasZoom / 100)
   const onMouseDown = useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -10,8 +13,8 @@ export default function ResizeHandle({ handle, element, onResize }) {
     const ratio = element.lockAspectRatio && orig.h ? orig.w / orig.h : null
 
     const onMove = (mv) => {
-      const dx = mv.clientX - start.x
-      const dy = mv.clientY - start.y
+      const dx = (mv.clientX - start.x) / scaleRef.current
+      const dy = (mv.clientY - start.y) / scaleRef.current
       let { x, y, w, h } = orig
 
       if (handle.id.includes('e')) w = Math.max(10, orig.w + dx)
