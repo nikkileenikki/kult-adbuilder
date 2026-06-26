@@ -183,6 +183,16 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
     }
   }
 
+  const politeLoadFn = politeLoad ? `function politeLoad(callback) {
+    if (document.readyState === "complete") { callback(); }
+    else { window.addEventListener("load", callback); }
+  }
+
+  ` : ''
+  const windowOnload = politeLoad
+    ? `window.onload = function() { politeLoad(init); };`
+    : `window.onload = function() { init(); };`
+
   let html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -191,39 +201,40 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   <title>${escapeHtml(bannerName)}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff;border:1px solid #000;box-sizing:border-box}
-    #ad-container{position:relative;width:100%;height:100%;overflow:hidden}
+    body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff;border:1px solid #000;box-sizing:border-box;position:relative}
+    #container{position:relative;width:100%;height:100%;overflow:hidden;opacity:0}
+    .loader{position:absolute;width:15px;height:15px;border-radius:50%;left:calc(50% - 7px);top:calc(50% - 7px);animation:l5 1s infinite linear alternate}
+    @keyframes l5{
+      0%  {box-shadow:20px 0 #fff,-20px 0 rgba(255,255,255,0.1);background:#fff}
+      33% {box-shadow:20px 0 #fff,-20px 0 rgba(255,255,255,0.1);background:rgba(255,255,255,0.1)}
+      66% {box-shadow:20px 0 rgba(255,255,255,0.1),-20px 0 #fff;background:rgba(255,255,255,0.1)}
+      100%{box-shadow:20px 0 rgba(255,255,255,0.1),-20px 0 #fff;background:#fff}
+    }
   </style>${templateCssTag}
 </head>
 <body>
   <script src="https://cdn.flashtalking.com/frameworks/js/api/2/10/html5API.js"><\/script>
-  <div id="ad-container">
+  <div class="loader"></div>
+  <div id="container">
     ${elementsHTML}
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
   <script>
-    ${politeLoad ? `function politeLoad(callback) {
-      if (document.readyState === "complete") { callback(); }
-      else { window.addEventListener("load", callback); }
-    }
+  ${politeLoadFn}function init() {
+    addEvent();
+  }
 
-    function init() {
-      addEvent();
-      animate();
-    }
-
-    function addEvent() {
+  function addEvent() {
 ${clickTagJS}
-    }
+    animate();
+  }
 
-    function animate() {
-      ${animJS}
-    }
+  function animate() {
+    gsap.set('#container', { opacity: 1 });
+    ${animJS}
+  }
 
-    politeLoad(init);` : `(function() {
-${clickTagJS}
-      ${animJS}
-    })();`}
+  ${windowOnload}
   <\/script>
 </body>
 </html>`
