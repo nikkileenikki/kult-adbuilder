@@ -18,6 +18,7 @@ export default function Canvas() {
   return (
     <div
       ref={containerRef}
+      id="canvas-viewport"
       className="flex-1 overflow-auto bg-gray-900"
       style={{ background: 'rgba(30,41,59,0.7)' }}
     >

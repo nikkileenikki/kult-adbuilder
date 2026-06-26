@@ -33,14 +33,30 @@ export default function Toolbar() {
     return () => document.removeEventListener('mousedown', close)
   }, [])
 
+  const fitZoom = (w, h) => {
+    const vp = document.getElementById('canvas-viewport')
+    if (!vp) return
+    const { clientWidth, clientHeight } = vp
+    const padding = 80 // 40px each side (p-10)
+    const scale = Math.min((clientWidth - padding) / w, (clientHeight - padding) / h)
+    setZoom(Math.max(25, Math.min(200, Math.floor(scale * 100 / 25) * 25)))
+  }
+
   const onSizeChange = (e) => {
     const val = e.target.value
     setSizeValue(val)
     const preset = PRESET_SIZES.find((p) => p.value === val)
-    if (preset && preset.w) setCanvasSize(preset.w, preset.h)
+    if (preset && preset.w) {
+      setCanvasSize(preset.w, preset.h)
+      // defer until after the canvas re-renders with the new size
+      requestAnimationFrame(() => fitZoom(preset.w, preset.h))
+    }
   }
 
-  const applyCustom = () => setCanvasSize(customW, customH)
+  const applyCustom = () => {
+    setCanvasSize(customW, customH)
+    requestAnimationFrame(() => fitZoom(customW, customH))
+  }
 
   const clearAll = () => {
     if (!elements.length) return
@@ -132,7 +148,7 @@ export default function Toolbar() {
           className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
           <i className="fa-solid fa-plus" style={{ fontSize: 10 }} />
         </button>
-        <button onClick={() => setZoom(100)} title="Reset zoom (100%)"
+        <button onClick={() => fitZoom(canvasWidth, canvasHeight)} title="Fit canvas to screen"
           className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-400 rounded border border-gray-700">
           <i className="fa-solid fa-compress" style={{ fontSize: 11 }} />
         </button>
