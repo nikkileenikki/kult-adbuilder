@@ -39,7 +39,7 @@ export default function Toolbar() {
     const { clientWidth, clientHeight } = vp
     const padding = 80 // 40px each side (p-10)
     const scale = Math.min((clientWidth - padding) / w, (clientHeight - padding) / h)
-    setZoom(Math.max(25, Math.min(200, Math.floor(scale * 100 / 25) * 25)))
+    setZoom(Math.max(25, Math.min(200, Math.round(scale * 100 / 5) * 5)))
   }
 
   const onSizeChange = (e) => {
