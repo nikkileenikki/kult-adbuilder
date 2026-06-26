@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-let nextId = 1
+let nextId = Date.now()
 const uid = (type) => `${type}_${nextId++}`
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
