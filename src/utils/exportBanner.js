@@ -117,16 +117,25 @@ function buildAnimationJS(elements) {
   return lines.join('\n')
 }
 
-function buildManifestJS({ bannerName, canvasWidth, canvasHeight }) {
-  return `var FT_manifest = {
-  "version": "3.0",
-  "name": ${JSON.stringify(bannerName)},
+function buildManifestJS({ canvasWidth, canvasHeight }) {
+  return `FT.manifest({
+  "filename": "index.html",
   "width": ${canvasWidth},
   "height": ${canvasHeight},
-  "clickTags": [
-    { "id": "clickTag1", "name": "Default Click" }
+  "clickTagCount": 1,
+  "hideBrowsers": ["ie8"],
+  "expand": {
+    "fullscreen": false,
+    "width": ${canvasWidth},
+    "height": ${canvasHeight},
+    "indentAcross": 0,
+    "indentDown": 0
+  },
+  "trackingEvents": [
+    {"name": "close", "type": "standard"},
+    {"name": "frame1_click", "type": "standard"}
   ]
-};`
+});`
 }
 
 function escapeHtml(str) {
@@ -143,7 +152,7 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
   const animJS = buildAnimationJS(sorted)
-  const manifestJS = buildManifestJS({ bannerName, canvasWidth, canvasHeight })
+  const manifestJS = buildManifestJS({ canvasWidth, canvasHeight })
 
   // Extract base64 images into root folder
   const imageFiles = []
