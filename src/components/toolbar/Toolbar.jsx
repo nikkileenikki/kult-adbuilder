@@ -86,7 +86,15 @@ export default function Toolbar() {
     loadBannerJSON(file, (err, data) => {
       if (err) { alert('Failed to load banner file'); return }
       saveState()
-      if (data.canvasWidth && data.canvasHeight) setCanvasSize(data.canvasWidth, data.canvasHeight)
+      const w = data.canvasWidth
+      const h = data.canvasHeight
+      if (w && h) {
+        setCanvasSize(w, h)
+        const match = PRESET_SIZES.find((p) => p.w === w && p.h === h)
+        setSizeValue(match ? match.value : 'custom')
+        if (!match) { setCustomW(w); setCustomH(h) }
+        requestAnimationFrame(() => fitZoom(w, h))
+      }
       if (data.bannerName) setBannerName(data.bannerName)
       if (data.animDuration) setAnimDuration(data.animDuration)
       if (data.animLoop) setAnimLoop(data.animLoop)
@@ -142,8 +150,7 @@ export default function Toolbar() {
           className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
           <i className="fa-solid fa-minus" style={{ fontSize: 10 }} />
         </button>
-        <span className="bg-gray-800 text-gray-100 rounded border border-gray-700 text-xs tabular-nums text-center select-none"
-          style={{ minWidth: 46, padding: '4px 6px' }}>{zoom}%</span>
+        <ZoomInput zoom={zoom} setZoom={setZoom} />
         <button onClick={() => setZoom(zoom + 25)} title="Zoom in"
           className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
           <i className="fa-solid fa-plus" style={{ fontSize: 10 }} />
@@ -212,6 +219,26 @@ export default function Toolbar() {
       {/* Hidden file input for load */}
       <input ref={loadInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadFile} />
     </div>
+  )
+}
+
+function ZoomInput({ zoom, setZoom }) {
+  const [local, setLocal] = useState(String(zoom))
+  useEffect(() => { setLocal(String(zoom)) }, [zoom])
+  return (
+    <input
+      type="number"
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => {
+        const n = parseInt(local, 10)
+        if (!isNaN(n)) setZoom(Math.max(25, Math.min(200, n)))
+        else setLocal(String(zoom))
+      }}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+      className="bg-gray-800 text-gray-100 rounded border border-gray-700 text-xs tabular-nums text-center"
+      style={{ minWidth: 46, width: 46, padding: '4px 2px', MozAppearance: 'textfield' }}
+    />
   )
 }
 

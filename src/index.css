@@ -28,6 +28,10 @@ input, select, button, textarea, label { font-size: 12px !important; }
 ::-webkit-scrollbar { width: 0; height: 0; background: transparent; }
 * { scrollbar-width: none; -ms-overflow-style: none; }
 
+/* Hide number input spin buttons */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
 /* Layer locked hatching */
 .is-locked {
   background-image: linear-gradient(135deg, rgba(255,255,255,0.03) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.03) 75%, transparent 75%, transparent);
