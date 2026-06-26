@@ -123,18 +123,7 @@ function buildManifestJS({ canvasWidth, canvasHeight }) {
   "width": ${canvasWidth},
   "height": ${canvasHeight},
   "clickTagCount": 1,
-  "hideBrowsers": ["ie8"],
-  "expand": {
-    "fullscreen": false,
-    "width": ${canvasWidth},
-    "height": ${canvasHeight},
-    "indentAcross": 0,
-    "indentDown": 0
-  },
-  "trackingEvents": [
-    {"name": "close", "type": "standard"},
-    {"name": "frame1_click", "type": "standard"}
-  ]
+  "hideBrowsers": ["ie8"]
 });`
 }
 
