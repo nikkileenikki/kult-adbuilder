@@ -62,14 +62,8 @@ function buildElementHTML(el) {
       return `<img id="${id}" src="${el.src || ''}" alt="${escapeHtml(el.filename || '')}" style="${css};display:block;object-fit:fill;" />`
     case 'shape':
       return `<div id="${id}" style="${css}"></div>`
-    case 'clickthrough': {
-      const url = el.url || ''
-      const idx = el.clickIndex || 1
-      const onclick = url
-        ? `if(window.myFT){myFT.clickTag(${idx},'${url}')}else{window.open('${url}','_blank')}`
-        : `if(window.myFT){myFT.clickTag(${idx})}`
-      return `<div id="${id}" class="click clickTag" onclick="${onclick}" style="${css};display:block;cursor:pointer;"></div>`
-    }
+    case 'clickthrough':
+      return `<div id="${id}" class="click clickTag" style="${css};display:block;cursor:pointer;"></div>`
     case 'invisible':
       return `<div id="${id}" style="${css}"></div>`
     default:
@@ -117,6 +111,17 @@ function buildAnimationJS(elements) {
   return lines.join('\n')
 }
 
+function buildClickTagJS(elements) {
+  const clicks = elements.filter((el) => el.visible && el.type === 'clickthrough')
+  if (!clicks.length) return ''
+  const lines = clicks.map((el) => {
+    const idx = el.clickIndex || 1
+    const url = el.url || ''
+    return `  document.getElementById('${el.id}').addEventListener('click', function() { myFT.clickTag(${idx}${url ? `, '${url}'` : ''}); });`
+  })
+  return lines.join('\n')
+}
+
 function buildManifestJS({ canvasWidth, canvasHeight }) {
   return `FT.manifest({
   "filename": "index.html",
@@ -141,6 +146,7 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
   const animJS = buildAnimationJS(sorted)
+  const clickTagJS = buildClickTagJS(sorted)
   const manifestJS = buildManifestJS({ canvasWidth, canvasHeight })
 
   // Extract base64 images into root folder
@@ -196,9 +202,28 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
   <script>
-    ${politeLoad ? 'window.addEventListener("load", function() {' : '(function() {'}
-    ${animJS}
-    ${politeLoad ? '});' : '})();'}
+    ${politeLoad ? `function politeLoad(callback) {
+      if (document.readyState === "complete") { callback(); }
+      else { window.addEventListener("load", callback); }
+    }
+
+    function init() {
+      addEvent();
+      animate();
+    }
+
+    function addEvent() {
+${clickTagJS}
+    }
+
+    function animate() {
+      ${animJS}
+    }
+
+    politeLoad(init);` : `(function() {
+${clickTagJS}
+      ${animJS}
+    })();`}
   <\/script>
 </body>
 </html>`
