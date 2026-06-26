@@ -23,6 +23,8 @@ export default function Canvas() {
       style={{ background: 'rgba(30,41,59,0.7)' }}
     >
       <div className="min-w-full min-h-full flex items-center justify-center p-10" style={{ boxSizing: 'border-box' }}>
+        {/* Outer div matches the visually-scaled size so transform doesn't cause layout overflow */}
+        <div style={{ width: canvasWidth * scale, height: canvasHeight * scale, flexShrink: 0, position: 'relative' }}>
         {/* Canvas wrapper — dark overlay outside via box-shadow */}
         <div
           id="canvasWrapper"
@@ -30,9 +32,11 @@ export default function Canvas() {
           style={{
             width: canvasWidth,
             height: canvasHeight,
-            flexShrink: 0,
+            position: 'absolute',
+            top: 0,
+            left: 0,
             transform: `scale(${scale})`,
-            transformOrigin: 'center center',
+            transformOrigin: 'top left',
             boxShadow: '0 0 0 2000px rgba(30,41,59,0.5), inset 0 0 0 1px rgba(255,255,255,0.1)',
           }}
         >
@@ -68,6 +72,7 @@ export default function Canvas() {
                 style={{ top: ly - 0.5, height: 1, background: 'rgba(59,130,246,0.9)', zIndex: 9100 }} />
             ))}
           </div>
+        </div>
         </div>
       </div>
     </div>
