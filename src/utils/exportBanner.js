@@ -203,12 +203,12 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
     *{margin:0;padding:0;box-sizing:border-box}
     body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff;border:1px solid #000;box-sizing:border-box;position:relative}
     #container{position:relative;width:100%;height:100%;overflow:hidden;opacity:0}
-    .loader{position:absolute;width:15px;height:15px;border-radius:50%;left:calc(50% - 7px);top:calc(50% - 7px);animation:l5 1s infinite linear alternate}
+    .loader{position:absolute;width:15px;height:15px;border-radius:50%;left:calc(50% - 7px);top:calc(50% - 7px);animation:l5 1s infinite linear alternate;z-index:9999}
     @keyframes l5{
-      0%  {box-shadow:20px 0 #fff,-20px 0 rgba(255,255,255,0.1);background:#fff}
-      33% {box-shadow:20px 0 #fff,-20px 0 rgba(255,255,255,0.1);background:rgba(255,255,255,0.1)}
-      66% {box-shadow:20px 0 rgba(255,255,255,0.1),-20px 0 #fff;background:rgba(255,255,255,0.1)}
-      100%{box-shadow:20px 0 rgba(255,255,255,0.1),-20px 0 #fff;background:#fff}
+      0%  {box-shadow:20px 0 #333,-20px 0 rgba(0,0,0,0.1);background:#333}
+      33% {box-shadow:20px 0 #333,-20px 0 rgba(0,0,0,0.1);background:rgba(0,0,0,0.1)}
+      66% {box-shadow:20px 0 rgba(0,0,0,0.1),-20px 0 #333;background:rgba(0,0,0,0.1)}
+      100%{box-shadow:20px 0 rgba(0,0,0,0.1),-20px 0 #333;background:#333}
     }
   </style>${templateCssTag}
 </head>
@@ -230,6 +230,8 @@ ${clickTagJS}
   }
 
   function animate() {
+    var loader = document.querySelector('.loader');
+    if (loader) loader.style.display = 'none';
     gsap.set('#container', { opacity: 1 });
     ${animJS}
   }
