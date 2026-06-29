@@ -1,14 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 
-function Modal({ onClose, children }) {
-  const innerRef = useRef(null)
+function Modal({ children }) {
   return (
-    <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-      onMouseDown={(e) => { if (!innerRef.current?.contains(e.target)) onClose() }}
-    >
-      <div ref={innerRef} className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
         {children}
       </div>
     </div>
@@ -16,12 +12,13 @@ function Modal({ onClose, children }) {
 }
 
 export default function UserManagementPage({ onClose }) {
-  const { token } = useAuthStore()
+  const { token, user: currentUser } = useAuthStore()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [changePwUser, setChangePwUser] = useState(null)
+  const [showSelfPw, setShowSelfPw] = useState(false)
 
   const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
@@ -78,6 +75,12 @@ export default function UserManagementPage({ onClose }) {
         <div className="w-px h-5 bg-gray-700" />
         <span className="text-gray-200 text-sm font-medium">User Management</span>
         <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setShowSelfPw(true)}
+            className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs border border-gray-700"
+          >
+            <i className="fa-solid fa-key" style={{ fontSize: 12 }} /> Change My Password
+          </button>
           <button
             onClick={() => setShowAdd(true)}
             className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded text-xs font-medium"
@@ -180,6 +183,15 @@ export default function UserManagementPage({ onClose }) {
           targetUser={changePwUser}
           isSelf={false}
           onClose={() => setChangePwUser(null)}
+        />
+      )}
+
+      {showSelfPw && (
+        <ChangePasswordModal
+          authHeaders={authHeaders}
+          targetUser={currentUser}
+          isSelf={true}
+          onClose={() => setShowSelfPw(false)}
         />
       )}
     </div>
