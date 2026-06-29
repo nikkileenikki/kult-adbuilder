@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
+
+function Modal({ onClose, children }) {
+  const innerRef = useRef(null)
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+      onMouseDown={(e) => { if (!innerRef.current?.contains(e.target)) onClose() }}
+    >
+      <div ref={innerRef} className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+        {children}
+      </div>
+    </div>
+  )
+}
 
 export default function UserManagementPage({ onClose }) {
   const { token } = useAuthStore()
@@ -7,6 +21,7 @@ export default function UserManagementPage({ onClose }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [changePwUser, setChangePwUser] = useState(null)
 
   const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
@@ -83,7 +98,7 @@ export default function UserManagementPage({ onClose }) {
         {loading && <p className="text-gray-500 text-sm">Loading…</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
         {!loading && !error && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-400 border-b border-gray-700">
@@ -120,6 +135,13 @@ export default function UserManagementPage({ onClose }) {
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          onClick={() => setChangePwUser(u)}
+                          title="Set password"
+                          className="px-2.5 py-1 rounded text-xs border border-gray-700 text-gray-400 hover:bg-gray-800 transition-colors"
+                        >
+                          Set Password
+                        </button>
+                        <button
                           onClick={() => toggleDisabled(u)}
                           title={u.disabled ? 'Enable user' : 'Disable user'}
                           className={`px-2.5 py-1 rounded text-xs border transition-colors ${u.disabled ? 'border-green-700 text-green-400 hover:bg-green-900/30' : 'border-yellow-700 text-yellow-400 hover:bg-yellow-900/30'}`}
@@ -144,7 +166,22 @@ export default function UserManagementPage({ onClose }) {
         )}
       </div>
 
-      {showAdd && <AddUserModal authHeaders={authHeaders} onClose={() => setShowAdd(false)} onCreated={(u) => { setUsers((prev) => [...prev, u]); setShowAdd(false) }} />}
+      {showAdd && (
+        <AddUserModal
+          authHeaders={authHeaders}
+          onClose={() => setShowAdd(false)}
+          onCreated={(u) => { setUsers((prev) => [...prev, u]); setShowAdd(false) }}
+        />
+      )}
+
+      {changePwUser && (
+        <ChangePasswordModal
+          authHeaders={authHeaders}
+          targetUser={changePwUser}
+          isSelf={false}
+          onClose={() => setChangePwUser(null)}
+        />
+      )}
     </div>
   )
 }
@@ -177,31 +214,106 @@ function AddUserModal({ authHeaders, onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-white font-semibold text-base mb-4">Add User</h2>
+    <Modal onClose={onClose}>
+      <h2 className="text-white font-semibold text-base mb-4">Add User</h2>
+      <form onSubmit={submit} className="space-y-3">
+        {[
+          { label: 'Username', key: 'username', type: 'text' },
+          { label: 'Display Name', key: 'display_name', type: 'text' },
+          { label: 'Email', key: 'email', type: 'email' },
+          { label: 'Password', key: 'password', type: 'password' },
+        ].map(({ label, key, type }) => (
+          <div key={key}>
+            <label className="block text-xs text-gray-400 mb-1">{label}</label>
+            <input
+              type={type} value={form[key]} onChange={set(key)} required
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+            />
+          </div>
+        ))}
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Role</label>
+          <select value={form.role} onChange={set('role')}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        {error && <p className="text-red-400 text-xs">{error}</p>}
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={onClose}
+            className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg py-2 text-sm border border-gray-700">
+            Cancel
+          </button>
+          <button type="submit" disabled={loading}
+            className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium">
+            {loading ? 'Creating…' : 'Create'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+export function ChangePasswordModal({ authHeaders, targetUser, isSelf, onClose }) {
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (newPw !== confirmPw) { setError('Passwords do not match'); return }
+    setError('')
+    setLoading(true)
+    try {
+      const body = { new_password: newPw }
+      if (isSelf) body.current_password = currentPw
+      else body.id = targetUser.id
+
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Failed'); return }
+      setSuccess(true)
+      setTimeout(onClose, 1200)
+    } catch {
+      setError('Network error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const title = isSelf ? 'Change Password' : `Set Password — ${targetUser?.username}`
+
+  return (
+    <Modal onClose={onClose}>
+      <h2 className="text-white font-semibold text-base mb-4">{title}</h2>
+      {success ? (
+        <p className="text-green-400 text-sm text-center py-4">Password updated!</p>
+      ) : (
         <form onSubmit={submit} className="space-y-3">
-          {[
-            { label: 'Username', key: 'username', type: 'text' },
-            { label: 'Display Name', key: 'display_name', type: 'text' },
-            { label: 'Email', key: 'email', type: 'email' },
-            { label: 'Password', key: 'password', type: 'password' },
-          ].map(({ label, key, type }) => (
-            <div key={key}>
-              <label className="block text-xs text-gray-400 mb-1">{label}</label>
-              <input
-                type={type} value={form[key]} onChange={set(key)} required
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
-              />
+          {isSelf && (
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Current Password</label>
+              <input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} required
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500" />
             </div>
-          ))}
+          )}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Role</label>
-            <select value={form.role} onChange={set('role')}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
-              <option value="user">user</option>
-              <option value="admin">admin</option>
-            </select>
+            <label className="block text-xs text-gray-400 mb-1">New Password</label>
+            <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Confirm New Password</label>
+            <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} required
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500" />
           </div>
           {error && <p className="text-red-400 text-xs">{error}</p>}
           <div className="flex gap-2 pt-1">
@@ -211,11 +323,11 @@ function AddUserModal({ authHeaders, onClose, onCreated }) {
             </button>
             <button type="submit" disabled={loading}
               className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium">
-              {loading ? 'Creating…' : 'Create'}
+              {loading ? 'Saving…' : 'Save'}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      )}
+    </Modal>
   )
 }
