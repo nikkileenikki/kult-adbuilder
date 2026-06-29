@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useUiStore } from '../../store/uiStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
+import { useAuthStore } from '../../store/authStore.js'
 import { exportBannerZip, saveBannerJSON, loadBannerJSON } from '../../utils/exportBanner.js'
 
 const PRESET_SIZES = [
@@ -18,6 +19,12 @@ export default function Toolbar() {
   const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
   const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom } = useUiStore()
+  const { user, token, clearAuth } = useAuthStore()
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    clearAuth()
+  }
 
   const [bannerName, setBannerName] = useState('ad-banner')
   const [sizeValue, setSizeValue] = useState('300x250')
@@ -215,6 +222,19 @@ export default function Toolbar() {
             </div>
           )}
         </div>
+
+        <div className="w-px h-5 bg-gray-700" />
+
+        {/* User */}
+        {user && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 hidden sm:block">{user.display_name}</span>
+            <button onClick={handleLogout} title="Sign out"
+              className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-red-400 rounded border border-gray-700 transition-colors">
+              <i className="fa-solid fa-right-from-bracket" style={{ fontSize: 13 }} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Hidden file input for load */}
