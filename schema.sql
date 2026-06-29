@@ -1,12 +1,13 @@
 -- Users
 CREATE TABLE IF NOT EXISTS users (
-  id          TEXT PRIMARY KEY,          -- UUID generated server-side
-  username    TEXT UNIQUE NOT NULL,
-  display_name TEXT NOT NULL,
+  id            TEXT PRIMARY KEY,        -- UUID generated server-side
+  username      TEXT UNIQUE NOT NULL,
+  display_name  TEXT NOT NULL,
+  email         TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,           -- bcrypt / argon2 hash
-  role        TEXT NOT NULL DEFAULT 'user', -- 'admin' | 'user'
-  created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+  role          TEXT NOT NULL DEFAULT 'user', -- 'admin' | 'user'
+  created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at    INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 -- Banners
