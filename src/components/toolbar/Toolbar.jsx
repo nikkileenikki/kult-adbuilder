@@ -4,6 +4,7 @@ import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useAuthStore } from '../../store/authStore.js'
 import { exportBannerZip, saveBannerJSON, loadBannerJSON } from '../../utils/exportBanner.js'
+import { ChangePasswordModal } from '../auth/UserManagementPage.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -20,6 +21,8 @@ export default function Toolbar({ onOpenUsers }) {
   const { saveState, undo, redo } = useHistoryStore()
   const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom } = useUiStore()
   const { user, token, clearAuth } = useAuthStore()
+  const [showChangePw, setShowChangePw] = useState(false)
+  const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
@@ -229,6 +232,10 @@ export default function Toolbar({ onOpenUsers }) {
         {user && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 hidden sm:block">{user.display_name}</span>
+            <button onClick={() => setShowChangePw(true)} title="Change password"
+              className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-blue-400 rounded border border-gray-700 transition-colors">
+              <i className="fa-solid fa-key" style={{ fontSize: 13 }} />
+            </button>
             {onOpenUsers && (
               <button onClick={onOpenUsers} title="User management"
                 className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-purple-400 rounded border border-gray-700 transition-colors">
@@ -240,6 +247,14 @@ export default function Toolbar({ onOpenUsers }) {
               <i className="fa-solid fa-right-from-bracket" style={{ fontSize: 13 }} />
             </button>
           </div>
+        )}
+        {showChangePw && (
+          <ChangePasswordModal
+            authHeaders={authHeaders}
+            targetUser={user}
+            isSelf={true}
+            onClose={() => setShowChangePw(false)}
+          />
         )}
       </div>
 
