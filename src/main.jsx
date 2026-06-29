@@ -1,13 +1,15 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import LoginPage from './components/auth/LoginPage.jsx'
+import UserManagementPage from './components/auth/UserManagementPage.jsx'
 import { useAuthStore } from './store/authStore.js'
 import './index.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 
 function Root() {
   const { user, token, loading, setAuth, clearAuth, setLoading } = useAuthStore()
+  const [showUsers, setShowUsers] = useState(false)
 
   useEffect(() => {
     if (!token) { setLoading(false); return }
@@ -28,7 +30,13 @@ function Root() {
     )
   }
 
-  return user ? <App /> : <LoginPage />
+  if (!user) return <LoginPage />
+
+  if (showUsers && user.role === 'admin') {
+    return <UserManagementPage onClose={() => setShowUsers(false)} />
+  }
+
+  return <App onOpenUsers={user.role === 'admin' ? () => setShowUsers(true) : null} />
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

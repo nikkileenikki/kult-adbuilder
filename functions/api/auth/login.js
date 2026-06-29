@@ -6,13 +6,15 @@ export async function onRequestPost({ request, env }) {
     }
 
     const user = await env.DB.prepare(
-      'SELECT id, username, display_name, email, role, password_hash FROM users WHERE username = ?'
+      'SELECT id, username, display_name, email, role, disabled, password_hash FROM users WHERE username = ?'
     ).bind(username).first()
 
     if (!user) return json({ error: 'Invalid credentials' }, 401)
 
     const valid = await verifyPassword(password, user.password_hash)
     if (!valid) return json({ error: 'Invalid credentials' }, 401)
+
+    if (user.disabled) return json({ error: 'Account is disabled' }, 403)
 
     // Create session token
     const token = crypto.randomUUID() + '-' + crypto.randomUUID()

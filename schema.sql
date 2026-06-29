@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   email         TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,           -- bcrypt / argon2 hash
   role          TEXT NOT NULL DEFAULT 'user', -- 'admin' | 'user'
+  disabled      INTEGER NOT NULL DEFAULT 0,   -- 0 = active, 1 = disabled
   created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at    INTEGER NOT NULL DEFAULT (unixepoch())
 );
