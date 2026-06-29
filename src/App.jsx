@@ -12,7 +12,7 @@ import AddVideoModal from './components/modals/AddVideoModal.jsx'
 import AnimationModal from './components/modals/AnimationModal.jsx'
 import TemplateGallery from './components/modals/TemplateGallery.jsx'
 
-export default function App() {
+export default function App({ onOpenUsers }) {
   const { activeModal } = useUiStore()
   const { undo, redo } = useHistoryStore()
   const { selectedId, deleteElement } = useCanvasStore()
@@ -41,7 +41,7 @@ export default function App() {
     <div className="flex h-screen bg-gray-900 text-gray-100 select-none overflow-hidden">
       <LeftPanel />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Toolbar />
+        <Toolbar onOpenUsers={onOpenUsers} />
         <Canvas />
         <Timeline />
       </div>

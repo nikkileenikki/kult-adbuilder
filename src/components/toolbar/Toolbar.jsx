@@ -15,7 +15,7 @@ const PRESET_SIZES = [
   { value: 'custom',  label: 'Custom',  w: null, h: null },
 ]
 
-export default function Toolbar() {
+export default function Toolbar({ onOpenUsers }) {
   const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
   const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom } = useUiStore()
@@ -229,6 +229,12 @@ export default function Toolbar() {
         {user && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 hidden sm:block">{user.display_name}</span>
+            {onOpenUsers && (
+              <button onClick={onOpenUsers} title="User management"
+                className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-purple-400 rounded border border-gray-700 transition-colors">
+                <i className="fa-solid fa-users" style={{ fontSize: 13 }} />
+              </button>
+            )}
             <button onClick={handleLogout} title="Sign out"
               className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-red-400 rounded border border-gray-700 transition-colors">
               <i className="fa-solid fa-right-from-bracket" style={{ fontSize: 13 }} />
