@@ -3,7 +3,7 @@ import { useAuthStore } from '../../store/authStore.js'
 
 export default function LoginPage() {
   const { setAuth } = useAuthStore()
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,7 +16,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Login failed'); return }
@@ -40,15 +40,15 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-6 space-y-4">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Username</label>
+            <label className="block text-xs text-gray-400 mb-1">Email</label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               required
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
-              placeholder="Enter username"
+              placeholder="Enter email"
             />
           </div>
 

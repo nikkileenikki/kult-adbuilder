@@ -13,7 +13,7 @@ export async function onRequestPatch({ request, env }) {
   ).bind(session.user_id).first()
   if (!caller || caller.role !== 'admin') return json({ error: 'Forbidden' }, 403)
 
-  const { id, disabled, role } = await request.json()
+  const { id, disabled, role, display_name, email } = await request.json()
   if (!id) return json({ error: 'id is required' }, 400)
 
   // Prevent admin from disabling themselves
@@ -26,6 +26,8 @@ export async function onRequestPatch({ request, env }) {
 
   if (disabled !== undefined) { fields.push('disabled = ?'); values.push(disabled ? 1 : 0) }
   if (role !== undefined) { fields.push('role = ?'); values.push(role) }
+  if (display_name !== undefined) { fields.push('display_name = ?'); values.push(display_name) }
+  if (email !== undefined) { fields.push('email = ?'); values.push(email) }
   if (!fields.length) return json({ error: 'Nothing to update' }, 400)
 
   fields.push('updated_at = ?')

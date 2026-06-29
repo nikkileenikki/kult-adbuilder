@@ -15,11 +15,13 @@ export async function onRequestPost({ request, env }) {
   ).bind(session.user_id).first()
   if (!caller || caller.role !== 'admin') return json({ error: 'Forbidden' }, 403)
 
-  const { username, display_name, email, password, role = 'user' } = await request.json()
-  if (!username || !display_name || !email || !password) {
-    return json({ error: 'username, display_name, email and password are required' }, 400)
+  const { display_name, email, password, role = 'user' } = await request.json()
+  if (!display_name || !email || !password) {
+    return json({ error: 'display_name, email and password are required' }, 400)
   }
 
+  // username derived from email prefix for internal uniqueness
+  const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_') + '_' + Date.now()
   const password_hash = await hashPassword(password)
   const id = crypto.randomUUID()
 
@@ -28,7 +30,7 @@ export async function onRequestPost({ request, env }) {
       'INSERT INTO users (id, username, display_name, email, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(id, username, display_name, email, password_hash, role).run()
   } catch (err) {
-    if (err.message?.includes('UNIQUE')) return json({ error: 'Username or email already exists' }, 409)
+    if (err.message?.includes('UNIQUE')) return json({ error: 'Email already exists' }, 409)
     return json({ error: 'Server error' }, 500)
   }
 

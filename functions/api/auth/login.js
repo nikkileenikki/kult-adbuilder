@@ -1,13 +1,13 @@
 export async function onRequestPost({ request, env }) {
   try {
-    const { username, password } = await request.json()
-    if (!username || !password) {
-      return json({ error: 'Username and password required' }, 400)
+    const { email, password } = await request.json()
+    if (!email || !password) {
+      return json({ error: 'Email and password required' }, 400)
     }
 
     const user = await env.DB.prepare(
-      'SELECT id, username, display_name, email, role, disabled, password_hash FROM users WHERE username = ?'
-    ).bind(username).first()
+      'SELECT id, username, display_name, email, role, disabled, password_hash FROM users WHERE email = ?'
+    ).bind(email).first()
 
     if (!user) return json({ error: 'Invalid credentials' }, 401)
 
