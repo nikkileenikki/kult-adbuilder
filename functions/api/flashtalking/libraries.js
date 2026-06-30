@@ -5,19 +5,20 @@ export async function onRequestGet({ request, env }) {
   if (!session) return json({ error: 'Unauthorized' }, 401)
 
   const creds = await env.DB.prepare(
-    'SELECT api_token FROM flashtalking_credentials WHERE user_id = ?'
+    'SELECT ft_email, ft_password FROM flashtalking_credentials WHERE user_id = ?'
   ).bind(session.user_id).first()
 
   if (!creds) return json({ error: 'No Flashtalking credentials configured' }, 400)
 
-  // Fetch all pages
+  const basic = btoa(`${creds.ft_email}:${creds.ft_password}`)
+
   const items = []
   let page = 1
   let totalPages = 1
 
   while (page <= totalPages) {
     const res = await fetch(`${FT_BASE}/creative-libraries?page=${page}&rpp=100&sort=name:asc`, {
-      headers: { Authorization: `ApiToken ${creds.api_token}` },
+      headers: { Authorization: `Basic ${basic}` },
     })
     if (!res.ok) {
       const text = await res.text()

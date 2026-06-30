@@ -5,10 +5,14 @@ export async function onRequestPost({ request, env }) {
   if (!session) return json({ error: 'Unauthorized' }, 401)
 
   const creds = await env.DB.prepare(
-    'SELECT api_token, library_id FROM flashtalking_credentials WHERE user_id = ?'
+    'SELECT ft_email, ft_password, library_id FROM flashtalking_credentials WHERE user_id = ?'
   ).bind(session.user_id).first()
 
   if (!creds) return json({ error: 'No Flashtalking credentials configured' }, 400)
+  if (!creds.library_id) return json({ error: 'No Creative Library selected' }, 400)
+
+  const basic = btoa(`${creds.ft_email}:${creds.ft_password}`)
+  const { library_id } = creds
 
   const formData = await request.formData()
   const file = formData.get('file')
@@ -16,12 +20,10 @@ export async function onRequestPost({ request, env }) {
 
   if (!file) return json({ error: 'file is required' }, 400)
 
-  const { api_token, library_id } = creds
-
-  // Check if a creative with this filename already exists
+  // Check if creative with this filename already exists
   const searchUrl = `${FT_BASE}/creative-libraries/${library_id}/creatives?advancedFilter=in(filename,${encodeURIComponent(filename)})`
   const searchRes = await fetch(searchUrl, {
-    headers: { Authorization: `ApiToken ${api_token}` },
+    headers: { Authorization: `Basic ${basic}` },
   })
 
   if (!searchRes.ok) {
@@ -32,22 +34,16 @@ export async function onRequestPost({ request, env }) {
   const searchData = await searchRes.json()
   const existing = searchData.items?.[0]
 
-  // Build multipart form for Flashtalking
   const ftForm = new FormData()
   ftForm.append('file', file, filename)
 
-  let ftUrl, method
-  if (existing) {
-    ftUrl = `${FT_BASE}/creative-libraries/${library_id}/creatives/overwrite/${existing.id}`
-    method = 'POST'
-  } else {
-    ftUrl = `${FT_BASE}/creative-libraries/${library_id}/creatives/import`
-    method = 'POST'
-  }
+  const ftUrl = existing
+    ? `${FT_BASE}/creative-libraries/${library_id}/creatives/overwrite/${existing.id}`
+    : `${FT_BASE}/creative-libraries/${library_id}/creatives/import`
 
   const ftRes = await fetch(ftUrl, {
-    method,
-    headers: { Authorization: `ApiToken ${api_token}` },
+    method: 'POST',
+    headers: { Authorization: `Basic ${basic}` },
     body: ftForm,
   })
 
