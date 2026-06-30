@@ -56,36 +56,24 @@ export default function VideoProperties({ el, update, save }) {
     setUploadStatus({ type: 'info', message: 'Uploading video…' })
 
     try {
-      // Phase 1: get S3 upload slot from FT via our Worker
+      // Phase 1: upload file directly to FT
       const form = new FormData()
       form.append('file', file, file.name)
       form.append('filename', file.name)
       form.append('library_id', String(ftLibrary.id))
 
-      const slotRes = await fetch('/api/flashtalking/video-upload', {
+      const uploadRes = await fetch('/api/flashtalking/video-upload', {
         method: 'POST',
         headers: authHeader,
         body: form,
       })
-      const slotData = await slotRes.json()
-      console.log('[FT] Step 1 — upload slot response:', slotData)
-      if (!slotRes.ok) throw new Error(slotData.error || 'Upload slot request failed')
-
-      // 1 second pause, then PUT binary directly to S3
-      await new Promise((r) => setTimeout(r, 1000))
-      setUploadStatus({ type: 'info', message: 'Uploading to S3…' })
-      console.log('[FT] Step 2 — PUT to S3 URL:', slotData.uploadUrl)
-      const s3Res = await fetch(slotData.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': slotData.contentType },
-        body: file,
-      })
-      console.log('[FT] Step 2 — S3 PUT response status:', s3Res.status)
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`)
+      const uploadData = await uploadRes.json()
+      console.log('[FT] Step 1 — upload response:', uploadData)
+      if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
 
       // Phase 1 poll: wait for FT to confirm upload job
       setUploadStatus({ type: 'info', message: 'Processing upload…' })
-      const uploadResult = await pollJob(slotData.jobId)
+      const uploadResult = await pollJob(uploadData.jobId)
       console.log('[FT] Step 1 poll complete:', uploadResult)
 
       // Phase 2: kick off encode
