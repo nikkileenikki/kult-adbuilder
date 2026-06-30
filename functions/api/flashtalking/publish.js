@@ -4,24 +4,22 @@ export async function onRequestPost({ request, env }) {
   const session = await getSession(request, env)
   if (!session) return json({ error: 'Unauthorized' }, 401)
 
-  const creds = await env.DB.prepare(
-    'SELECT ft_email, ft_password, library_id FROM flashtalking_credentials WHERE user_id = ?'
-  ).bind(session.user_id).first()
-
-  if (!creds) return json({ error: 'No Flashtalking credentials configured' }, 400)
-  if (!creds.library_id) return json({ error: 'No Creative Library selected' }, 400)
-
-  const basic = btoa(`${creds.ft_email}:${creds.ft_password}`)
-  const { library_id } = creds
+  if (!env.FT_EMAIL || !env.FT_PASSWORD) {
+    return json({ error: 'Flashtalking credentials not configured' }, 500)
+  }
 
   const formData = await request.formData()
   const file = formData.get('file')
   const filename = formData.get('filename') || 'banner.zip'
+  const libraryId = formData.get('library_id')
 
   if (!file) return json({ error: 'file is required' }, 400)
+  if (!libraryId) return json({ error: 'library_id is required' }, 400)
+
+  const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
 
   // Check if creative with this filename already exists
-  const searchUrl = `${FT_BASE}/creative-libraries/${library_id}/creatives?advancedFilter=in(filename,${encodeURIComponent(filename)})`
+  const searchUrl = `${FT_BASE}/creative-libraries/${libraryId}/creatives?advancedFilter=in(filename,${encodeURIComponent(filename)})`
   const searchRes = await fetch(searchUrl, {
     headers: { Authorization: `Basic ${basic}` },
   })
@@ -38,8 +36,8 @@ export async function onRequestPost({ request, env }) {
   ftForm.append('file', file, filename)
 
   const ftUrl = existing
-    ? `${FT_BASE}/creative-libraries/${library_id}/creatives/overwrite/${existing.id}`
-    : `${FT_BASE}/creative-libraries/${library_id}/creatives/import`
+    ? `${FT_BASE}/creative-libraries/${libraryId}/creatives/overwrite/${existing.id}`
+    : `${FT_BASE}/creative-libraries/${libraryId}/creatives/import`
 
   const ftRes = await fetch(ftUrl, {
     method: 'POST',
