@@ -26,7 +26,6 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
   const [loadingLibraries, setLoadingLibraries] = useState(false)
 
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [status, setStatus] = useState(null)
 
@@ -60,23 +59,30 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const fetchLibraries = async () => {
+  const handleLoadLibraries = async () => {
     if (!ftEmail.trim() || !ftPassword.trim()) {
       setStatus({ type: 'error', message: 'Enter your Flashtalking email and password first' })
       return
     }
     setLoadingLibraries(true)
     setStatus(null)
-
-    // Save credentials first (which fetches the token), then load libraries
     try {
+      // Save credentials first so the libraries endpoint can use them
       const saveRes = await fetch('/api/flashtalking/credentials', {
         method: 'POST',
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ft_email: ftEmail.trim(), ft_password: ftPassword.trim(), library_id: selectedLibrary?.id || '', library_name: selectedLibrary?.name || '', library_advertiser: selectedLibrary?.advertiserName || '' }),
+        body: JSON.stringify({
+          ft_email: ftEmail.trim(),
+          ft_password: ftPassword.trim(),
+          library_id: selectedLibrary?.id || '',
+          library_name: selectedLibrary?.name || '',
+          library_advertiser: selectedLibrary?.advertiserName || '',
+        }),
       })
-      const saveData = await saveRes.json()
-      if (!saveRes.ok) throw new Error(saveData.error || 'Authentication failed')
+      if (!saveRes.ok) {
+        const d = await saveRes.json()
+        throw new Error(d.error || 'Failed to save credentials')
+      }
 
       const res = await fetch('/api/flashtalking/libraries', { headers: authHeaders })
       const data = await res.json()
@@ -84,7 +90,6 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
       setLibraries(data.items || [])
       setShowLibraryList(true)
       setLibrarySearch('')
-      setStatus({ type: 'success', message: 'Authenticated successfully' })
     } catch (err) {
       setStatus({ type: 'error', message: err.message })
     } finally {
@@ -92,42 +97,31 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
     }
   }
 
-  const handleSaveCredentials = async () => {
-    if (!ftEmail.trim() || !ftPassword.trim()) {
-      setStatus({ type: 'error', message: 'Email and password are required' })
-      return
-    }
-    if (!selectedLibrary) {
-      setStatus({ type: 'error', message: 'Select a Creative Library' })
-      return
-    }
-    setSaving(true)
-    setStatus(null)
+  const handleSelectLibrary = async (lib) => {
+    setSelectedLibrary(lib)
+    setShowLibraryList(false)
+    // Save with updated library selection
     try {
-      const res = await fetch('/api/flashtalking/credentials', {
+      await fetch('/api/flashtalking/credentials', {
         method: 'POST',
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ft_email: ftEmail.trim(),
           ft_password: ftPassword.trim(),
-          library_id: String(selectedLibrary.id),
-          library_name: selectedLibrary.name,
-          library_advertiser: selectedLibrary.advertiserName,
+          library_id: String(lib.id),
+          library_name: lib.name,
+          library_advertiser: lib.advertiserName,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to save')
-      setStatus({ type: 'success', message: 'Credentials saved' })
-    } catch (err) {
-      setStatus({ type: 'error', message: err.message })
-    } finally {
-      setSaving(false)
+      setStatus({ type: 'success', message: `Library saved: ${lib.name}` })
+    } catch {
+      setStatus({ type: 'error', message: 'Failed to save library selection' })
     }
   }
 
   const handlePublish = async () => {
     if (!selectedLibrary) {
-      setStatus({ type: 'error', message: 'Save your credentials first' })
+      setStatus({ type: 'error', message: 'Select a Creative Library first' })
       return
     }
     setPublishing(true)
@@ -177,7 +171,6 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
         <p className="text-gray-400 text-sm text-center py-4">Loading…</p>
       ) : (
         <div className="space-y-4">
-          {/* Email */}
           <div>
             <label className="block text-xs text-gray-400 mb-1">Flashtalking Email</label>
             <input
@@ -189,7 +182,6 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
             />
           </div>
 
-          {/* Password */}
           <div>
             <label className="block text-xs text-gray-400 mb-1">Flashtalking Password</label>
             <input
@@ -201,27 +193,24 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
             />
           </div>
 
-          {/* Creative Library picker */}
           <div>
             <label className="block text-xs text-gray-400 mb-1">Creative Library</label>
             <div className="relative" ref={listRef}>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={fetchLibraries}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-left focus:outline-none focus:border-purple-500 flex items-center justify-between hover:border-gray-500 transition-colors"
-                >
-                  {selectedLibrary ? (
-                    <span className="text-white truncate">{selectedLibrary.name}</span>
-                  ) : (
-                    <span className="text-gray-500">Select a library…</span>
-                  )}
-                  {loadingLibraries
-                    ? <i className="fa-solid fa-spinner fa-spin text-gray-400 ml-2 shrink-0" style={{ fontSize: 11 }} />
-                    : <i className="fa-solid fa-chevron-down text-gray-400 ml-2 shrink-0" style={{ fontSize: 10 }} />
-                  }
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleLoadLibraries}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-left flex items-center justify-between hover:border-gray-500 transition-colors focus:outline-none focus:border-purple-500"
+              >
+                {selectedLibrary ? (
+                  <span className="text-white truncate">{selectedLibrary.name}</span>
+                ) : (
+                  <span className="text-gray-500">Click to load libraries…</span>
+                )}
+                {loadingLibraries
+                  ? <i className="fa-solid fa-spinner fa-spin text-gray-400 ml-2 shrink-0" style={{ fontSize: 11 }} />
+                  : <i className="fa-solid fa-chevron-down text-gray-400 ml-2 shrink-0" style={{ fontSize: 10 }} />
+                }
+              </button>
 
               {selectedLibrary?.advertiserName && (
                 <p className="text-xs text-gray-500 mt-1 ml-1">{selectedLibrary.advertiserName}</p>
@@ -247,7 +236,7 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
                         <button
                           key={lib.id}
                           type="button"
-                          onClick={() => { setSelectedLibrary(lib); setShowLibraryList(false) }}
+                          onClick={() => handleSelectLibrary(lib)}
                           className={`w-full text-left px-3 py-2.5 hover:bg-gray-700 transition-colors border-b border-gray-700/50 last:border-0 ${selectedLibrary?.id === lib.id ? 'bg-purple-900/30' : ''}`}
                         >
                           <p className="text-sm text-white truncate">{lib.name}</p>
@@ -262,14 +251,6 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
               )}
             </div>
           </div>
-
-          <button
-            onClick={handleSaveCredentials}
-            disabled={saving}
-            className="w-full bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save Credentials'}
-          </button>
 
           <div className="border-t border-gray-700 pt-4">
             <p className="text-xs text-gray-500 mb-3">
