@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
+import { useUiStore } from '../../store/uiStore.js'
 import { buildBannerZipBlob } from '../../utils/exportBanner.js'
-
-// Module-level cache — persists for the lifetime of the browser session
-let cachedLibraries = null
 
 function Modal({ children }) {
   return (
@@ -19,51 +17,12 @@ function Modal({ children }) {
 export default function FlashTalkingModal({ onClose, bannerName, politeLoad, activeTemplate }) {
   const { token } = useAuthStore()
   const { elements, canvasWidth, canvasHeight } = useCanvasStore()
+  const { ftLibrary } = useUiStore()
 
-  const [selectedLibrary, setSelectedLibrary] = useState(null)
-  const [libraries, setLibraries] = useState([])
-  const [librarySearch, setLibrarySearch] = useState('')
-  const [showLibraryList, setShowLibraryList] = useState(false)
-  const [loadingLibraries, setLoadingLibraries] = useState(!cachedLibraries)
   const [publishing, setPublishing] = useState(false)
   const [status, setStatus] = useState(null)
 
-  const listRef = useRef(null)
-  const authHeaders = { Authorization: `Bearer ${token}` }
-
-  // Auto-load libraries on open, use cache if available
-  useEffect(() => {
-    if (cachedLibraries) {
-      setLibraries(cachedLibraries)
-      return
-    }
-    fetch('/api/flashtalking/libraries', { headers: authHeaders })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) {
-          setStatus({ type: 'error', message: data.error })
-        } else {
-          cachedLibraries = data.items || []
-          setLibraries(cachedLibraries)
-        }
-      })
-      .catch(() => setStatus({ type: 'error', message: 'Failed to load libraries' }))
-      .finally(() => setLoadingLibraries(false))
-  }, [])
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (listRef.current && !listRef.current.contains(e.target)) setShowLibraryList(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
   const handlePublish = async () => {
-    if (!selectedLibrary) {
-      setStatus({ type: 'error', message: 'Select a Creative Library first' })
-      return
-    }
     setPublishing(true)
     setStatus(null)
     try {
@@ -72,11 +31,11 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
       const form = new FormData()
       form.append('file', blob, filename)
       form.append('filename', filename)
-      form.append('library_id', String(selectedLibrary.id))
+      form.append('library_id', String(ftLibrary.id))
 
       const res = await fetch('/api/flashtalking/publish', {
         method: 'POST',
-        headers: authHeaders,
+        headers: { Authorization: `Bearer ${token}` },
         body: form,
       })
       const data = await res.json()
@@ -91,11 +50,6 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
     }
   }
 
-  const filteredLibraries = libraries.filter((l) => {
-    const q = librarySearch.toLowerCase()
-    return l.name.toLowerCase().includes(q) || l.advertiserName.toLowerCase().includes(q)
-  })
-
   return (
     <Modal>
       <div className="flex items-center justify-between mb-5">
@@ -109,67 +63,12 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
       </div>
 
       <div className="space-y-4">
-        {/* Creative Library picker */}
-        <div>
-          <label className="block text-xs text-gray-400 mb-1">Creative Library</label>
-          <div className="relative" ref={listRef}>
-            <button
-              type="button"
-              onClick={() => !loadingLibraries && setShowLibraryList((v) => !v)}
-              disabled={loadingLibraries}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-left flex items-center justify-between hover:border-gray-500 transition-colors focus:outline-none focus:border-purple-500 disabled:opacity-50"
-            >
-              {loadingLibraries ? (
-                <span className="text-gray-400">Loading libraries…</span>
-              ) : selectedLibrary ? (
-                <span className="text-white truncate">{selectedLibrary.name}</span>
-              ) : (
-                <span className="text-gray-500">Select a library…</span>
-              )}
-              {loadingLibraries
-                ? <i className="fa-solid fa-spinner fa-spin text-gray-400 ml-2 shrink-0" style={{ fontSize: 11 }} />
-                : <i className="fa-solid fa-chevron-down text-gray-400 ml-2 shrink-0" style={{ fontSize: 10 }} />
-              }
-            </button>
-
-            {selectedLibrary?.advertiserName && (
-              <p className="text-xs text-gray-500 mt-1 ml-1">{selectedLibrary.advertiserName}</p>
-            )}
-
-            {showLibraryList && (
-              <div className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-xl overflow-hidden">
-                <div className="p-2 border-b border-gray-700">
-                  <input
-                    type="text"
-                    value={librarySearch}
-                    onChange={(e) => setLibrarySearch(e.target.value)}
-                    placeholder="Search libraries…"
-                    autoFocus
-                    className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-                <div className="max-h-52 overflow-y-auto">
-                  {filteredLibraries.length === 0 ? (
-                    <p className="text-gray-500 text-xs px-3 py-3">No libraries found</p>
-                  ) : (
-                    filteredLibraries.map((lib) => (
-                      <button
-                        key={lib.id}
-                        type="button"
-                        onClick={() => { setSelectedLibrary(lib); setShowLibraryList(false) }}
-                        className={`w-full text-left px-3 py-2.5 hover:bg-gray-700 transition-colors border-b border-gray-700/50 last:border-0 ${selectedLibrary?.id === lib.id ? 'bg-purple-900/30' : ''}`}
-                      >
-                        <p className="text-sm text-white truncate">{lib.name}</p>
-                        {lib.advertiserName && (
-                          <p className="text-xs text-gray-400 truncate mt-0.5">{lib.advertiserName}</p>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5">
+          <p className="text-xs text-gray-400 mb-0.5">Creative Library</p>
+          <p className="text-sm text-white font-medium">{ftLibrary.name}</p>
+          {ftLibrary.advertiserName && (
+            <p className="text-xs text-gray-500 mt-0.5">{ftLibrary.advertiserName}</p>
+          )}
         </div>
 
         <div className="border-t border-gray-700 pt-4">
@@ -179,7 +78,7 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
           </p>
           <button
             onClick={handlePublish}
-            disabled={publishing || loadingLibraries || !selectedLibrary}
+            disabled={publishing}
             className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 13 }} />

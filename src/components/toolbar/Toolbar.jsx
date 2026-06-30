@@ -5,6 +5,7 @@ import { useHistoryStore } from '../../store/historyStore.js'
 import { useAuthStore } from '../../store/authStore.js'
 import { exportBannerZip, saveBannerJSON, loadBannerJSON } from '../../utils/exportBanner.js'
 import FlashTalkingModal from '../modals/FlashTalkingModal.jsx'
+import LibraryPickerModal from '../modals/LibraryPickerModal.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -19,7 +20,7 @@ const PRESET_SIZES = [
 export default function Toolbar({ onOpenUsers }) {
   const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
-  const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom } = useUiStore()
+  const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom, ftLibrary } = useUiStore()
   const { user, token, clearAuth } = useAuthStore()
 
   const handleLogout = async () => {
@@ -34,6 +35,7 @@ export default function Toolbar({ onOpenUsers }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [politeLoad, setPoliteLoad] = useState(true)
   const [showPublish, setShowPublish] = useState(false)
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const menuRef = useRef(null)
   const loadInputRef = useRef(null)
 
@@ -225,10 +227,26 @@ export default function Toolbar({ onOpenUsers }) {
           )}
         </div>
 
+        {/* Library pill */}
+        <button
+          onClick={() => setShowLibraryPicker(true)}
+          title="Select Creative Library"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs border transition-colors ${
+            ftLibrary
+              ? 'bg-purple-900/40 border-purple-600 text-purple-300 hover:bg-purple-900/60'
+              : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-purple-500 hover:text-purple-400'
+          }`}
+        >
+          <i className="fa-solid fa-layer-group" style={{ fontSize: 11 }} />
+          <span className="max-w-28 truncate">{ftLibrary ? ftLibrary.name : 'Select Library'}</span>
+          <i className="fa-solid fa-chevron-down" style={{ fontSize: 9 }} />
+        </button>
+
         <button
           onClick={() => setShowPublish(true)}
-          className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded text-xs font-medium"
-          title="Publish to Flashtalking"
+          disabled={!ftLibrary}
+          className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-2.5 py-1.5 rounded text-xs font-medium transition-colors"
+          title={ftLibrary ? 'Publish to Flashtalking' : 'Select a library first'}
         >
           <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 12 }} />
           Publish
@@ -257,7 +275,11 @@ export default function Toolbar({ onOpenUsers }) {
       {/* Hidden file input for load */}
       <input ref={loadInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadFile} />
 
-      {showPublish && (
+      {showLibraryPicker && (
+        <LibraryPickerModal onClose={() => setShowLibraryPicker(false)} />
+      )}
+
+      {showPublish && ftLibrary && (
         <FlashTalkingModal
           onClose={() => setShowPublish(false)}
           bannerName={bannerName}
