@@ -3,6 +3,9 @@ import { useAuthStore } from '../../store/authStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { buildBannerZipBlob } from '../../utils/exportBanner.js'
 
+// Module-level cache — persists for the lifetime of the browser session
+let cachedLibraries = null
+
 function Modal({ children }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -21,22 +24,27 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
   const [libraries, setLibraries] = useState([])
   const [librarySearch, setLibrarySearch] = useState('')
   const [showLibraryList, setShowLibraryList] = useState(false)
-  const [loadingLibraries, setLoadingLibraries] = useState(true)
+  const [loadingLibraries, setLoadingLibraries] = useState(!cachedLibraries)
   const [publishing, setPublishing] = useState(false)
   const [status, setStatus] = useState(null)
 
   const listRef = useRef(null)
   const authHeaders = { Authorization: `Bearer ${token}` }
 
-  // Auto-load libraries on open
+  // Auto-load libraries on open, use cache if available
   useEffect(() => {
+    if (cachedLibraries) {
+      setLibraries(cachedLibraries)
+      return
+    }
     fetch('/api/flashtalking/libraries', { headers: authHeaders })
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
           setStatus({ type: 'error', message: data.error })
         } else {
-          setLibraries(data.items || [])
+          cachedLibraries = data.items || []
+          setLibraries(cachedLibraries)
         }
       })
       .catch(() => setStatus({ type: 'error', message: 'Failed to load libraries' }))
