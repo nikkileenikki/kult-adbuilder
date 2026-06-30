@@ -1,10 +1,12 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { Field, TextInput, SelectInput } from '../left/PropertiesSection.jsx'
 import { useUiStore } from '../../store/uiStore.js'
 import { useAuthStore } from '../../store/authStore.js'
 
-const MAX_FILE_MB = 50
+const MAX_FILE_MB = 100
 const SIZE_WARNING_MB = 10
+const POLL_INTERVAL_MS = 3000
+const POLL_TIMEOUT_MS = 600000 // 10 min total client-side budget
 
 export default function VideoProperties({ el, update, save }) {
   const { ftLibrary } = useUiStore()
@@ -14,6 +16,22 @@ export default function VideoProperties({ el, update, save }) {
   const [uploadStatus, setUploadStatus] = useState(null) // { type, message }
   const [uploading, setUploading] = useState(false)
   const [fileInfo, setFileInfo] = useState(null) // { name, sizeMb }
+
+  const authHeader = { Authorization: `Bearer ${token}` }
+
+  const pollJob = useCallback(async (jobId) => {
+    const deadline = Date.now() + POLL_TIMEOUT_MS
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
+      const res = await fetch(`/api/flashtalking/video-job?job_id=${jobId}`, { headers: authHeader })
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || 'Job check failed')
+      if (data.pending) continue
+      if (!data.ok) throw new Error(data.error || 'Job failed')
+      return data
+    }
+    throw new Error('Timed out waiting for Flashtalking job')
+  }, [token])
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
@@ -32,14 +50,13 @@ export default function VideoProperties({ el, update, save }) {
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0]
     if (!file || !ftLibrary) return
-
-    const sizeMb = file.size / 1024 / 1024
-    if (sizeMb > MAX_FILE_MB) return
+    if (file.size / 1024 / 1024 > MAX_FILE_MB) return
 
     setUploading(true)
     setUploadStatus({ type: 'info', message: 'Uploading video…' })
 
     try {
+      // Phase 1: upload to S3 via our endpoint
       const form = new FormData()
       form.append('file', file, file.name)
       form.append('filename', file.name)
@@ -47,21 +64,25 @@ export default function VideoProperties({ el, update, save }) {
 
       const uploadRes = await fetch('/api/flashtalking/video-upload', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeader,
         body: form,
       })
       const uploadData = await uploadRes.json()
       if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
 
-      setUploadStatus({ type: 'info', message: 'Encoding video…' })
+      // Phase 1 poll: wait for upload job
+      setUploadStatus({ type: 'info', message: 'Processing upload…' })
+      const uploadResult = await pollJob(uploadData.jobId)
 
+      // Phase 2: kick off encode
+      setUploadStatus({ type: 'info', message: 'Encoding video…' })
       const nameBase = file.name.replace(/\.[^.]+$/, '')
       const encodeRes = await fetch('/api/flashtalking/video-encode', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { ...authHeader, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           library_id: ftLibrary.id,
-          video_id: uploadData.videoId,
+          video_id: uploadResult.videoId,
           name: nameBase,
           width: el.width,
           height: el.height,
@@ -70,11 +91,15 @@ export default function VideoProperties({ el, update, save }) {
       const encodeData = await encodeRes.json()
       if (!encodeRes.ok) throw new Error(encodeData.error || 'Encode failed')
 
-      save({ videoName: encodeData.name, videoUrl: String(encodeData.encodedVideoId) })
+      // Phase 2 poll: wait for encode job
+      setUploadStatus({ type: 'info', message: 'Encoding in progress…' })
+      const encodeResult = await pollJob(encodeData.jobId)
 
-      const sizeMsg = encodeData.sizeMb ? ` (${encodeData.sizeMb} MB)` : ''
-      const oversizeWarn = encodeData.oversized ? ' ⚠ Exceeds 2.5 MB — consider trimming source.' : ''
-      setUploadStatus({ type: encodeData.oversized ? 'warn' : 'success', message: `Done${sizeMsg}${oversizeWarn}` })
+      save({ videoName: encodeResult.name, videoUrl: String(encodeResult.videoId) })
+
+      const sizeMsg = encodeResult.sizeMb ? ` (${encodeResult.sizeMb} MB)` : ''
+      const oversizeWarn = encodeResult.oversized ? ' ⚠ Exceeds 2.5 MB — consider trimming source.' : ''
+      setUploadStatus({ type: encodeResult.oversized ? 'warn' : 'success', message: `Done${sizeMsg}${oversizeWarn}` })
       fileRef.current.value = ''
       setFileInfo(null)
     } catch (err) {

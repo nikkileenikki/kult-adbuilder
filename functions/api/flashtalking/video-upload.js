@@ -1,6 +1,4 @@
 const FT_BASE = 'https://api.flashtalking.net/crm/v1'
-const POLL_INTERVAL_MS = 2000
-const POLL_TIMEOUT_MS = 120000
 
 export async function onRequestPost({ request, env }) {
   const session = await getSession(request, env)
@@ -22,11 +20,10 @@ export async function onRequestPost({ request, env }) {
   const authHeader = { Authorization: `Basic ${basic}` }
 
   // Step 1: Request upload slot — get S3 URL + job ID
-  const uploadReqBody = JSON.stringify([{ filename }])
   const uploadRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/upload-many`, {
     method: 'POST',
     headers: { ...authHeader, 'Content-Type': 'application/json' },
-    body: uploadReqBody,
+    body: JSON.stringify([{ filename }]),
   })
 
   if (!uploadRes.ok) {
@@ -52,31 +49,8 @@ export async function onRequestPost({ request, env }) {
     return json({ error: `S3 upload failed: ${s3Res.status}` }, 502)
   }
 
-  // Step 3: Poll upload job until complete
-  const jobId = uploadJob.jobId
-  const deadline = Date.now() + POLL_TIMEOUT_MS
-
-  while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS)
-    const pollRes = await fetch(`${FT_BASE}/jobs/${jobId}`, { headers: authHeader })
-    if (!pollRes.ok) continue
-
-    const pollData = await pollRes.json()
-    const status = pollData.status?.toLowerCase()
-
-    if (status === 'complete' || status === 'completed') {
-      return json({ ok: true, jobId, videoId: pollData.result?.id || pollData.id })
-    }
-    if (status === 'failed' || status === 'error') {
-      return json({ error: 'FT upload job failed', detail: pollData }, 502)
-    }
-  }
-
-  return json({ error: 'Upload job timed out after 120s' }, 504)
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms))
+  // Return jobId immediately — client polls /api/flashtalking/video-job for status
+  return json({ ok: true, jobId: uploadJob.jobId, phase: 'upload' })
 }
 
 async function getSession(request, env) {
