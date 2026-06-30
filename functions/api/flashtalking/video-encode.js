@@ -18,15 +18,15 @@ export async function onRequestPost({ request, env }) {
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const authHeader = { Authorization: `Basic ${basic}` }
 
+  const encodeForm = new FormData()
+  encodeForm.append('videoSource', String(videoId))
+  encodeForm.append('name', name)
+  if (width) encodeForm.append('width', String(width))
+  if (height) encodeForm.append('height', String(height))
   const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
     method: 'POST',
-    headers: { ...authHeader, 'Content-Type': 'application/json' },
-    body: JSON.stringify([{
-      videoSource: videoId,
-      name,
-      ...(width ? { width } : {}),
-      ...(height ? { height } : {}),
-    }]),
+    headers: authHeader,
+    body: encodeForm,
   })
 
   if (!encodeRes.ok) {
