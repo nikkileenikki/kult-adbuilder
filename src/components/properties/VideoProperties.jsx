@@ -71,11 +71,7 @@ export default function VideoProperties({ el, update, save }) {
       console.log('[FT] Step 1 — upload response:', uploadData)
       if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
 
-      // Phase 1 poll: wait for FT to confirm upload job
-      setUploadStatus({ type: 'info', message: 'Processing upload…' })
-      const uploadResult = await pollJob(uploadData.jobId)
-      console.log('[FT] Step 1 poll complete:', uploadResult)
-
+      // upload-many completes synchronously — skip polling, use videoId directly for encode
       // Phase 2: kick off encode
       setUploadStatus({ type: 'info', message: 'Encoding video…' })
       const nameBase = file.name.replace(/\.[^.]+$/, '')
@@ -84,7 +80,7 @@ export default function VideoProperties({ el, update, save }) {
         headers: { ...authHeader, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           library_id: ftLibrary.id,
-          video_id: uploadResult.videoId,
+          video_id: uploadData.videoId,
           name: nameBase,
           width: el.width,
           height: el.height,

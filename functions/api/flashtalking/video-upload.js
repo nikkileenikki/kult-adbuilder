@@ -36,13 +36,14 @@ export async function onRequestPost({ request, env }) {
   let uploadData
   try { uploadData = JSON.parse(uploadRawText) } catch { uploadData = uploadRawText }
 
-  const uploadJob = Array.isArray(uploadData) ? uploadData[0] : uploadData
-  const jobId = uploadJob?.jobId || uploadJob?.id
-  if (!jobId) {
+  // upload-many completes synchronously — response contains the asset directly, no job to poll
+  const uploadAsset = Array.isArray(uploadData) ? uploadData[0] : uploadData
+  const videoId = uploadAsset?.id
+  if (!videoId) {
     return json({ error: 'Unexpected FT upload response', detail: uploadData }, 502)
   }
 
-  return json({ ok: true, jobId, phase: 'upload', debug: uploadData })
+  return json({ ok: true, videoId, phase: 'upload', debug: uploadData })
 }
 
 async function getSession(request, env) {
