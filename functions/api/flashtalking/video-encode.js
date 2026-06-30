@@ -1,6 +1,4 @@
 const FT_BASE = 'https://api.flashtalking.net/crm/v1'
-const POLL_INTERVAL_MS = 3000
-const POLL_TIMEOUT_MS = 300000 // 5 min — encoding takes longer than upload
 
 export async function onRequestPost({ request, env }) {
   const session = await getSession(request, env)
@@ -20,18 +18,15 @@ export async function onRequestPost({ request, env }) {
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const authHeader = { Authorization: `Basic ${basic}` }
 
-  // Step 1: Kick off encode job
-  const encodeBody = JSON.stringify([{
-    videoSource: videoId,
-    name,
-    ...(width ? { width } : {}),
-    ...(height ? { height } : {}),
-  }])
-
   const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
     method: 'POST',
     headers: { ...authHeader, 'Content-Type': 'application/json' },
-    body: encodeBody,
+    body: JSON.stringify([{
+      videoSource: videoId,
+      name,
+      ...(width ? { width } : {}),
+      ...(height ? { height } : {}),
+    }]),
   })
 
   if (!encodeRes.ok) {
@@ -45,40 +40,8 @@ export async function onRequestPost({ request, env }) {
     return json({ error: 'Unexpected FT encode response', detail: encodeData }, 502)
   }
 
-  // Step 2: Poll encode job until complete
-  const jobId = encodeJob.jobId
-  const deadline = Date.now() + POLL_TIMEOUT_MS
-
-  while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS)
-    const pollRes = await fetch(`${FT_BASE}/jobs/${jobId}`, { headers: authHeader })
-    if (!pollRes.ok) continue
-
-    const pollData = await pollRes.json()
-    const status = pollData.status?.toLowerCase()
-
-    if (status === 'complete' || status === 'completed') {
-      const encoded = pollData.result || pollData
-      const sizeMb = encoded.fileSize ? (encoded.fileSize / 1024 / 1024).toFixed(2) : null
-      return json({
-        ok: true,
-        jobId,
-        encodedVideoId: encoded.id,
-        name: encoded.name,
-        sizeMb,
-        oversized: sizeMb !== null && parseFloat(sizeMb) > 2.5,
-      })
-    }
-    if (status === 'failed' || status === 'error') {
-      return json({ error: 'FT encode job failed', detail: pollData }, 502)
-    }
-  }
-
-  return json({ error: 'Encode job timed out after 5 minutes' }, 504)
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms))
+  // Return jobId immediately — client polls /api/flashtalking/video-job for status
+  return json({ ok: true, jobId: encodeJob.jobId, phase: 'encode' })
 }
 
 async function getSession(request, env) {
