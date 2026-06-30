@@ -125,7 +125,7 @@ export default function Toolbar({ onOpenUsers }) {
 
       {/* Banner name */}
       <input
-        type="text" value={bannerName} onChange={(e) => setBannerName(e.target.value)}
+        type="text" value={bannerName} onChange={(e) => setBannerName(e.target.value.replace(/ /g, '-'))}
         title="Banner name"
         placeholder="Banner name"
         className="bg-gray-800 text-white rounded px-2 py-1 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none w-32"
