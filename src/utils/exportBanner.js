@@ -140,7 +140,21 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
+export async function buildBannerZipBlob({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
+  return _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
+}
+
 export async function exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
+  const blob = await _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${bannerName || 'banner'}.zip`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
   const zip = new JSZip()
 
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
@@ -250,13 +264,7 @@ ${clickTagJS}
   zip.file('index.html', html)
   zip.file('manifest.js', manifestJS)
 
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${bannerName || 'banner'}.zip`
-  a.click()
-  URL.revokeObjectURL(url)
+  return zip.generateAsync({ type: 'blob' })
 }
 
 export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop }) {

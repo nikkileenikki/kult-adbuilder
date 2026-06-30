@@ -29,5 +29,13 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at  INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+-- Flashtalking credentials (one per user)
+CREATE TABLE IF NOT EXISTS flashtalking_credentials (
+  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  api_token  TEXT NOT NULL,
+  library_id TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
 CREATE INDEX IF NOT EXISTS idx_banners_user_id ON banners(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
