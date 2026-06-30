@@ -19,9 +19,9 @@ export async function onRequestPost({ request, env }) {
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const authHeader = { Authorization: `Basic ${basic}` }
 
-  // Step 1: Request upload slot — get S3 URL + job ID
+  // Upload file directly to FT with 'files' as the multipart field name
   const uploadForm = new FormData()
-  uploadForm.append('files', filename)
+  uploadForm.append('files', file, filename)
   const uploadRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/upload-many`, {
     method: 'POST',
     headers: authHeader,
@@ -37,12 +37,12 @@ export async function onRequestPost({ request, env }) {
   try { uploadData = JSON.parse(uploadRawText) } catch { uploadData = uploadRawText }
 
   const uploadJob = Array.isArray(uploadData) ? uploadData[0] : uploadData
-  if (!uploadJob?.uploadUrl || !uploadJob?.jobId) {
+  const jobId = uploadJob?.jobId || uploadJob?.id
+  if (!jobId) {
     return json({ error: 'Unexpected FT upload response', detail: uploadData }, 502)
   }
 
-  // Return the upload slot to the client — client PUTs to S3 directly then calls /video-s3-done
-  return json({ ok: true, uploadUrl: uploadJob.uploadUrl, jobId: uploadJob.jobId, contentType: file.type || 'video/mp4', phase: 'slot' })
+  return json({ ok: true, jobId, phase: 'upload', debug: uploadData })
 }
 
 async function getSession(request, env) {
