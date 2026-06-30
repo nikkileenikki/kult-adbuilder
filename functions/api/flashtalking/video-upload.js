@@ -21,7 +21,7 @@ export async function onRequestPost({ request, env }) {
 
   // Step 1: Request upload slot — get S3 URL + job ID
   const uploadForm = new FormData()
-  uploadForm.append('filename', filename)
+  uploadForm.append('files', filename)
   const uploadRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/upload-many`, {
     method: 'POST',
     headers: authHeader,
