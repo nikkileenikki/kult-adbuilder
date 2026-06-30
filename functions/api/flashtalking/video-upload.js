@@ -28,31 +28,21 @@ export async function onRequestPost({ request, env }) {
     body: uploadForm,
   })
 
+  const uploadRawText = await uploadRes.text()
   if (!uploadRes.ok) {
-    const text = await uploadRes.text()
-    return json({ error: `FT upload-many failed: ${uploadRes.status}`, detail: text }, 502)
+    return json({ error: `FT upload-many failed: ${uploadRes.status}`, detail: uploadRawText }, 502)
   }
 
-  const uploadData = await uploadRes.json()
-  const uploadJob = uploadData?.[0]
+  let uploadData
+  try { uploadData = JSON.parse(uploadRawText) } catch { uploadData = uploadRawText }
+
+  const uploadJob = Array.isArray(uploadData) ? uploadData[0] : uploadData
   if (!uploadJob?.uploadUrl || !uploadJob?.jobId) {
     return json({ error: 'Unexpected FT upload response', detail: uploadData }, 502)
   }
 
-  // Step 2: PUT file to S3
-  const fileBuffer = await file.arrayBuffer()
-  const s3Res = await fetch(uploadJob.uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type || 'video/mp4' },
-    body: fileBuffer,
-  })
-
-  if (!s3Res.ok) {
-    return json({ error: `S3 upload failed: ${s3Res.status}` }, 502)
-  }
-
-  // Return jobId immediately — client polls /api/flashtalking/video-job for status
-  return json({ ok: true, jobId: uploadJob.jobId, phase: 'upload' })
+  // Return the upload slot to the client — client PUTs to S3 directly then calls /video-s3-done
+  return json({ ok: true, uploadUrl: uploadJob.uploadUrl, jobId: uploadJob.jobId, contentType: file.type || 'video/mp4', phase: 'slot' })
 }
 
 async function getSession(request, env) {
