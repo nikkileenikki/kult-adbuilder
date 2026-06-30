@@ -4,14 +4,11 @@ export async function onRequestGet({ request, env }) {
   const session = await getSession(request, env)
   if (!session) return json({ error: 'Unauthorized' }, 401)
 
-  const creds = await env.DB.prepare(
-    'SELECT ft_email, ft_password FROM flashtalking_credentials WHERE user_id = ?'
-  ).bind(session.user_id).first()
+  if (!env.FT_EMAIL || !env.FT_PASSWORD) {
+    return json({ error: 'Flashtalking credentials not configured' }, 500)
+  }
 
-  if (!creds) return json({ error: 'No Flashtalking credentials configured' }, 400)
-
-  const basic = btoa(`${creds.ft_email}:${creds.ft_password}`)
-
+  const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const items = []
   let page = 1
   let totalPages = 1
