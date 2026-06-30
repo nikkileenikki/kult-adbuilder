@@ -3,7 +3,7 @@ import { Field, TextInput, SelectInput } from '../left/PropertiesSection.jsx'
 import { useUiStore } from '../../store/uiStore.js'
 import { useAuthStore } from '../../store/authStore.js'
 
-const MAX_FILE_MB = 50
+const MAX_FILE_MB = 100
 const SIZE_WARNING_MB = 10
 
 export default function VideoProperties({ el, update, save }) {
