@@ -4,6 +4,7 @@ import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useAuthStore } from '../../store/authStore.js'
 import { exportBannerZip, saveBannerJSON, loadBannerJSON } from '../../utils/exportBanner.js'
+import FlashTalkingModal from '../modals/FlashTalkingModal.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -32,6 +33,7 @@ export default function Toolbar({ onOpenUsers }) {
   const [customH, setCustomH] = useState(250)
   const [menuOpen, setMenuOpen] = useState(false)
   const [politeLoad, setPoliteLoad] = useState(true)
+  const [showPublish, setShowPublish] = useState(false)
   const menuRef = useRef(null)
   const loadInputRef = useRef(null)
 
@@ -223,6 +225,15 @@ export default function Toolbar({ onOpenUsers }) {
           )}
         </div>
 
+        <button
+          onClick={() => setShowPublish(true)}
+          className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1.5 rounded text-xs font-medium"
+          title="Publish to Flashtalking"
+        >
+          <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 12 }} />
+          Publish
+        </button>
+
         <div className="w-px h-5 bg-gray-700" />
 
         {/* User */}
@@ -245,6 +256,15 @@ export default function Toolbar({ onOpenUsers }) {
 
       {/* Hidden file input for load */}
       <input ref={loadInputRef} type="file" accept=".json" className="hidden" onChange={handleLoadFile} />
+
+      {showPublish && (
+        <FlashTalkingModal
+          onClose={() => setShowPublish(false)}
+          bannerName={bannerName}
+          politeLoad={politeLoad}
+          activeTemplate={activeTemplate}
+        />
+      )}
     </div>
   )
 }
