@@ -35,13 +35,16 @@ export async function onRequestGet({ request, env }) {
       totalPages = data.totalPages || 1
       page++
     }
+    return items
+  }
+
+  const normalize = (items) => {
     const normalized = items.map((it) => ({
       id: it.id,
       name: it.name || it.filename || `video-${it.id}`,
       sizeMb: it.fileSize ? (it.fileSize / 1024 / 1024).toFixed(2) : null,
       createdAt: it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
     }))
-    // Newest first — fall back to id (higher id assumed more recent) when no date field is present.
     normalized.sort((a, b) => {
       if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt)
       return (b.id || 0) - (a.id || 0)
@@ -50,8 +53,14 @@ export async function onRequestGet({ request, env }) {
   }
 
   try {
-    const [uploaded, transcoded] = await Promise.all([fetchByStatus(0), fetchByStatus(1)])
-    return json({ uploaded, transcoded })
+    const [rawUploaded, rawTranscoded] = await Promise.all([fetchByStatus(0), fetchByStatus(1)])
+    return json({
+      uploaded: normalize(rawUploaded),
+      transcoded: normalize(rawTranscoded),
+      // Raw FT payloads for both filter values — inspect via browser devtools if a bucket looks wrong,
+      // since FT doesn't publicly document what encodedStatus values mean.
+      debug: { rawUploaded, rawTranscoded },
+    })
   } catch (err) {
     let detail = err.message
     try {

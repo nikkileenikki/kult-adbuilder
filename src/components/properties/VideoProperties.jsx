@@ -46,6 +46,7 @@ export default function VideoProperties({ el, update, save }) {
       const res = await fetch(`/api/flashtalking/videos?library_id=${ftLibrary.id}`, { headers: authHeader })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load videos')
+      console.log('[FT] video list debug:', data.debug)
       setUploaded(data.uploaded || [])
       setTranscoded(data.transcoded || [])
     } catch (err) {
