@@ -208,10 +208,13 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
         }} />
       )
     case 'video': {
-      const hasUrl = !!element.videoUrl
-      return hasUrl ? (
+      // videoUrl is a manifest reference (e.g. "219233/name"), not playable — videoPreviewUrl
+      // (set when picking a video from the Flashtalking library) is the actual canvas preview source.
+      const previewSrc = element.videoPreviewUrl
+      return previewSrc ? (
         <video
-          src={element.videoUrl}
+          key={previewSrc}
+          src={previewSrc}
           style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }}
           muted={element.muted !== false}
           controls={!!element.controls}
@@ -227,7 +230,7 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
         }}>
           <span style={{ fontSize: 22 }}>▶</span>
           <span>{element.videoName || 'Video'}</span>
-          <span style={{ fontSize: 9, color: '#666' }}>No URL set</span>
+          <span style={{ fontSize: 9, color: '#666' }}>{element.videoUrl ? 'Preview unavailable' : 'No video set'}</span>
         </div>
       )
     }
