@@ -18,19 +18,20 @@ export async function onRequestPost({ request, env }) {
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const authHeader = { Authorization: `Basic ${basic}` }
 
-  const encodeSpec = { videoSource: String(videoId), name }
-  if (width) encodeSpec.width = width
-  if (height) encodeSpec.height = height
+  const encodeSpec = { videoSource: Number(videoId), name }
+  if (width) encodeSpec.width = Number(width)
+  if (height) encodeSpec.height = Number(height)
+  const requestBody = [encodeSpec]
 
   const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
     method: 'POST',
     headers: { ...authHeader, 'Content-Type': 'application/json' },
-    body: JSON.stringify([encodeSpec]),
+    body: JSON.stringify(requestBody),
   })
 
   if (!encodeRes.ok) {
     const text = await encodeRes.text()
-    return json({ error: `FT encode-many failed: ${encodeRes.status}`, detail: text }, 502)
+    return json({ error: `FT encode-many failed: ${encodeRes.status}`, detail: text, sent: requestBody }, 502)
   }
 
   const encodeData = await encodeRes.json()
