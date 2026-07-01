@@ -47,8 +47,8 @@ export async function onRequestPost({ request, env }) {
   }
 
   const encodeData = await encodeRes.json()
-  const encodeJob = Array.isArray(encodeData) ? encodeData[0] : (encodeData.items?.[0] || encodeData)
-  const jobId = encodeJob?.jobId || encodeData?.jobId
+  const encodeJob = Array.isArray(encodeData?.items) ? encodeData.items[0] : (Array.isArray(encodeData) ? encodeData[0] : encodeData)
+  const jobId = encodeJob?.id || encodeJob?.jobId
   if (!jobId) {
     return json({ error: 'Unexpected FT encode response', detail: encodeData }, 502)
   }
