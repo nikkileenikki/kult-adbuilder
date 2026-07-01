@@ -127,7 +127,11 @@ export default function VideoProperties({ el, update, save }) {
 
   const handleSelectTranscoded = (video) => {
     const nameBase = video.name.replace(/\.[^.]+$/, '')
-    save({ videoName: nameBase, videoUrl: `${ftLibrary.id}/${nameBase}` })
+    save({
+      videoName: nameBase,
+      videoUrl: `${ftLibrary.id}/${nameBase}`,
+      videoPreviewUrl: video.previewUrl || null,
+    })
     setUploadStatus({ type: 'success', message: `Selected "${video.name}" for this element.` })
   }
 
