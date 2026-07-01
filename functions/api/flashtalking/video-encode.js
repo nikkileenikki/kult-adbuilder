@@ -18,28 +18,40 @@ export async function onRequestPost({ request, env }) {
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const authHeader = { Authorization: `Basic ${basic}` }
 
-  // No width/height — let FT encode at the source video's intrinsic dimensions.
-  const requestBody = [{ videoSource: String(videoSource), name }]
+  // encode-many keeps rejecting the array-of-{videoSource,name} shape with a bare 400 —
+  // try a handful of plausible request shapes and stop at the first one FT accepts.
+  const candidates = [
+    { label: 'array-videoSource', body: [{ videoSource: String(videoSource), name }] },
+    { label: 'object-videoSource', body: { videoSource: String(videoSource), name } },
+    { label: 'assets-wrapper', body: { assets: [{ videoSource: String(videoSource), name }] } },
+    { label: 'array-source', body: [{ source: String(videoSource), name }] },
+    { label: 'array-assetId', body: [{ assetId: String(videoSource), name }] },
+  ]
 
-  const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
-    method: 'POST',
-    headers: { ...authHeader, 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-  })
+  const attempts = []
+  for (const candidate of candidates) {
+    const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(candidate.body),
+    })
 
-  if (!encodeRes.ok) {
+    if (encodeRes.ok) {
+      const encodeData = await encodeRes.json()
+      const encodeJob = Array.isArray(encodeData) ? encodeData[0] : encodeData
+      if (encodeJob?.jobId) {
+        // Return jobId immediately — client polls /api/flashtalking/video-job for status
+        return json({ ok: true, jobId: encodeJob.jobId, phase: 'encode', workingShape: candidate.label })
+      }
+      attempts.push({ label: candidate.label, status: encodeRes.status, detail: 'ok but no jobId', response: encodeData })
+      continue
+    }
+
     const text = await encodeRes.text()
-    return json({ error: `FT encode-many failed: ${encodeRes.status}`, detail: text, sent: requestBody }, 502)
+    attempts.push({ label: candidate.label, status: encodeRes.status, detail: text })
   }
 
-  const encodeData = await encodeRes.json()
-  const encodeJob = encodeData?.[0]
-  if (!encodeJob?.jobId) {
-    return json({ error: 'Unexpected FT encode response', detail: encodeData }, 502)
-  }
-
-  // Return jobId immediately — client polls /api/flashtalking/video-job for status
-  return json({ ok: true, jobId: encodeJob.jobId, phase: 'encode' })
+  return json({ error: 'FT encode-many failed for all attempted request shapes', attempts }, 502)
 }
 
 async function getSession(request, env) {
