@@ -35,11 +35,18 @@ export async function onRequestGet({ request, env }) {
       totalPages = data.totalPages || 1
       page++
     }
-    return items.map((it) => ({
+    const normalized = items.map((it) => ({
       id: it.id,
       name: it.name || it.filename || `video-${it.id}`,
       sizeMb: it.fileSize ? (it.fileSize / 1024 / 1024).toFixed(2) : null,
+      createdAt: it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
     }))
+    // Newest first — fall back to id (higher id assumed more recent) when no date field is present.
+    normalized.sort((a, b) => {
+      if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt)
+      return (b.id || 0) - (a.id || 0)
+    })
+    return normalized
   }
 
   try {

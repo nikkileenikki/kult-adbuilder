@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Field, TextInput, SelectInput } from '../left/PropertiesSection.jsx'
 import { useUiStore } from '../../store/uiStore.js'
 import { useAuthStore } from '../../store/authStore.js'
+import VideoLibraryModal from '../modals/VideoLibraryModal.jsx'
 
 const MAX_FILE_MB = 100
 const SIZE_WARNING_MB = 10
@@ -20,6 +21,7 @@ export default function VideoProperties({ el, update, save }) {
   const [transcoded, setTranscoded] = useState([])
   const [listLoading, setListLoading] = useState(false)
   const [encodingId, setEncodingId] = useState(null)
+  const [showLibrary, setShowLibrary] = useState(false)
 
   const authHeader = { Authorization: `Bearer ${token}` }
 
@@ -219,50 +221,31 @@ export default function VideoProperties({ el, update, save }) {
               </p>
             )}
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-gray-500">Uploaded ({uploaded.length})</p>
-                <button onClick={refreshLists} disabled={listLoading} className="text-gray-500 hover:text-gray-300">
-                  <i className={`fa-solid fa-rotate ${listLoading ? 'fa-spin' : ''}`} style={{ fontSize: 10 }} />
-                </button>
-              </div>
-              <div className="max-h-32 overflow-y-auto space-y-1">
-                {uploaded.length === 0 && <p className="text-xs text-gray-600 italic">No uploaded videos yet.</p>}
-                {uploaded.map((v) => (
-                  <div key={v.id} className="flex items-center justify-between bg-gray-800 rounded px-2 py-1">
-                    <span className="text-xs text-gray-300 truncate mr-2">{v.name}{v.sizeMb ? ` · ${v.sizeMb} MB` : ''}</span>
-                    <button
-                      onClick={() => handleTranscode(v)}
-                      disabled={encodingId === v.id}
-                      className="text-xs bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white rounded px-2 py-0.5 shrink-0"
-                    >
-                      {encodingId === v.id ? 'Encoding…' : 'Transcode'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Transcoded ({transcoded.length})</p>
-              <div className="max-h-32 overflow-y-auto space-y-1">
-                {transcoded.length === 0 && <p className="text-xs text-gray-600 italic">No transcoded videos yet.</p>}
-                {transcoded.map((v) => (
-                  <div key={v.id} className="flex items-center justify-between bg-gray-800 rounded px-2 py-1">
-                    <span className="text-xs text-gray-300 truncate mr-2">{v.name}{v.sizeMb ? ` · ${v.sizeMb} MB` : ''}</span>
-                    <button
-                      onClick={() => handleSelectTranscoded(v)}
-                      className={`text-xs rounded px-2 py-0.5 shrink-0 ${String(v.id) === el.videoUrl ? 'bg-green-700 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-200'}`}
-                    >
-                      {String(v.id) === el.videoUrl ? 'Selected' : 'Use'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <button
+              onClick={() => setShowLibrary(true)}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 rounded py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            >
+              <i className="fa-solid fa-film" style={{ fontSize: 11 }} />
+              Video Library ({uploaded.length + transcoded.length})
+            </button>
           </div>
         )}
       </div>
+
+      {showLibrary && (
+        <VideoLibraryModal
+          onClose={() => setShowLibrary(false)}
+          libraryName={ftLibrary?.name}
+          uploaded={uploaded}
+          transcoded={transcoded}
+          loading={listLoading}
+          onRefresh={refreshLists}
+          onTranscode={handleTranscode}
+          encodingId={encodingId}
+          onSelectTranscoded={handleSelectTranscoded}
+          selectedVideoId={el.videoUrl}
+        />
+      )}
     </div>
   )
 }
