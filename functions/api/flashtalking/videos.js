@@ -1,4 +1,5 @@
 const FT_BASE = 'https://api.flashtalking.net/crm/v1'
+const STATUS_VALUES_TO_TRY = [0, 1, 2, 3]
 
 export async function onRequestGet({ request, env }) {
   const session = await getSession(request, env)
@@ -26,7 +27,8 @@ export async function onRequestGet({ request, env }) {
       )
       const rawText = await res.text()
       if (!res.ok) {
-        throw new Error(JSON.stringify({ status: res.status, detail: rawText }))
+        // Not every status value is necessarily valid — skip ones FT rejects instead of failing the whole request.
+        return []
       }
       let data
       try { data = JSON.parse(rawText) } catch { data = { items: [] } }
@@ -38,38 +40,57 @@ export async function onRequestGet({ request, env }) {
     return items
   }
 
-  const normalize = (items) => {
-    const normalized = items.map((it) => ({
-      id: it.id,
-      videoSource: it.videoSource,
-      name: it.name || it.filename || `video-${it.id}`,
-      sizeMb: (it.filesize || it.fileSize) ? ((it.filesize || it.fileSize) / 1024 / 1024).toFixed(2) : null,
-      createdAt: it.lastModified || it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
-    }))
-    normalized.sort((a, b) => {
-      if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt)
-      return (b.id || 0) - (a.id || 0)
-    })
-    return normalized
-  }
-
   try {
-    const [rawUploaded, rawTranscoded] = await Promise.all([fetchByStatus(0), fetchByStatus(1)])
+    const resultsByStatus = await Promise.all(STATUS_VALUES_TO_TRY.map(fetchByStatus))
+    const byId = new Map()
+    resultsByStatus.forEach((items) => {
+      items.forEach((it) => {
+        if (!byId.has(it.id)) byId.set(it.id, it)
+      })
+    })
+    const allItems = [...byId.values()]
+
+    // Classify per-item using the asset's own encoded/encodeStatus field rather than
+    // trusting which query bucket it came back under.
+    const isEncoded = (it) => {
+      const v = it.encoded ?? it.encodeStatus
+      return v !== undefined && v !== null && Number(v) !== 0
+    }
+
+    const normalize = (items) => {
+      const normalized = items.map((it) => ({
+        id: it.id,
+        videoSource: it.videoSource,
+        name: it.name || it.filename || `video-${it.id}`,
+        sizeMb: (it.filesize || it.fileSize) ? ((it.filesize || it.fileSize) / 1024 / 1024).toFixed(2) : null,
+        createdAt: it.lastModified || it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
+      }))
+      normalized.sort((a, b) => {
+        if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt)
+        return (b.id || 0) - (a.id || 0)
+      })
+      return normalized
+    }
+
+    const uploadedRaw = allItems.filter((it) => !isEncoded(it))
+    const transcodedRaw = allItems.filter((it) => isEncoded(it))
+
     return json({
-      uploaded: normalize(rawUploaded),
-      transcoded: normalize(rawTranscoded),
-      // Raw FT payloads for both filter values — inspect via browser devtools if a bucket looks wrong,
-      // since FT doesn't publicly document what encodedStatus values mean.
-      debug: { rawUploadedSample: rawUploaded.slice(0, 3), rawUploadedCount: rawUploaded.length, rawTranscodedSample: rawTranscoded.slice(0, 3), rawTranscodedCount: rawTranscoded.length },
+      uploaded: normalize(uploadedRaw),
+      transcoded: normalize(transcodedRaw),
+      debug: {
+        totalItemsFetched: allItems.length,
+        countsByStatusQuery: STATUS_VALUES_TO_TRY.reduce((acc, s, i) => {
+          acc[s] = resultsByStatus[i].length
+          return acc
+        }, {}),
+        uploadedCount: uploadedRaw.length,
+        transcodedCount: transcodedRaw.length,
+        transcodedSample: transcodedRaw.slice(0, 3),
+      },
     })
   } catch (err) {
-    let detail = err.message
-    try {
-      const parsed = JSON.parse(err.message)
-      return json({ error: `FT asset list failed: ${parsed.status}`, detail: parsed.detail }, 502)
-    } catch {
-      return json({ error: 'FT asset list failed', detail }, 502)
-    }
+    return json({ error: 'FT asset list failed', detail: err.message }, 502)
   }
 }
 
