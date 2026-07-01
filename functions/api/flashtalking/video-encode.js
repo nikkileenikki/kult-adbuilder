@@ -9,7 +9,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   const body = await request.json()
-  const { library_id: libraryId, video_source: videoSource, name } = body
+  const { library_id: libraryId, video_source: videoSource, name, width, height } = body
 
   if (!libraryId) return json({ error: 'library_id is required' }, 400)
   if (!videoSource) return json({ error: 'video_source is required' }, 400)
@@ -18,40 +18,43 @@ export async function onRequestPost({ request, env }) {
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const authHeader = { Authorization: `Basic ${basic}` }
 
-  // encode-many keeps rejecting the array-of-{videoSource,name} shape with a bare 400 —
-  // try a handful of plausible request shapes and stop at the first one FT accepts.
-  const candidates = [
-    { label: 'array-videoSource', body: [{ videoSource: String(videoSource), name }] },
-    { label: 'object-videoSource', body: { videoSource: String(videoSource), name } },
-    { label: 'assets-wrapper', body: { assets: [{ videoSource: String(videoSource), name }] } },
-    { label: 'array-source', body: [{ source: String(videoSource), name }] },
-    { label: 'array-assetId', body: [{ assetId: String(videoSource), name }] },
-  ]
+  const item = {
+    advvast: false,
+    name,
+    type: 'job:encode_video',
+    overwrite: false,
+    videoSource: String(videoSource),
+  }
+  if (width) item.width = Number(width)
+  if (height) item.height = Number(height)
 
-  const attempts = []
-  for (const candidate of candidates) {
-    const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
-      method: 'POST',
-      headers: { ...authHeader, 'Content-Type': 'application/json' },
-      body: JSON.stringify(candidate.body),
-    })
-
-    if (encodeRes.ok) {
-      const encodeData = await encodeRes.json()
-      const encodeJob = Array.isArray(encodeData) ? encodeData[0] : encodeData
-      if (encodeJob?.jobId) {
-        // Return jobId immediately — client polls /api/flashtalking/video-job for status
-        return json({ ok: true, jobId: encodeJob.jobId, phase: 'encode', workingShape: candidate.label })
-      }
-      attempts.push({ label: candidate.label, status: encodeRes.status, detail: 'ok but no jobId', response: encodeData })
-      continue
-    }
-
-    const text = await encodeRes.text()
-    attempts.push({ label: candidate.label, status: encodeRes.status, detail: text })
+  const requestBody = {
+    advvast: false,
+    overwrite: false,
+    type: 'job:encode_video',
+    items: [item],
   }
 
-  return json({ error: 'FT encode-many failed for all attempted request shapes', attempts }, 502)
+  const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
+    method: 'POST',
+    headers: { ...authHeader, 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+  })
+
+  if (!encodeRes.ok) {
+    const text = await encodeRes.text()
+    return json({ error: `FT encode-many failed: ${encodeRes.status}`, detail: text, sent: requestBody }, 502)
+  }
+
+  const encodeData = await encodeRes.json()
+  const encodeJob = Array.isArray(encodeData) ? encodeData[0] : (encodeData.items?.[0] || encodeData)
+  const jobId = encodeJob?.jobId || encodeData?.jobId
+  if (!jobId) {
+    return json({ error: 'Unexpected FT encode response', detail: encodeData }, 502)
+  }
+
+  // Return jobId immediately — client polls /api/flashtalking/video-job for status
+  return json({ ok: true, jobId, phase: 'encode' })
 }
 
 async function getSession(request, env) {
