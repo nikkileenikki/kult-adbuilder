@@ -126,7 +126,8 @@ export default function VideoProperties({ el, update, save }) {
   }
 
   const handleSelectTranscoded = (video) => {
-    save({ videoName: video.name, videoUrl: String(video.id) })
+    const nameBase = video.name.replace(/\.[^.]+$/, '')
+    save({ videoName: nameBase, videoUrl: `${ftLibrary.id}/${nameBase}` })
     setUploadStatus({ type: 'success', message: `Selected "${video.name}" for this element.` })
   }
 
@@ -227,7 +228,8 @@ export default function VideoProperties({ el, update, save }) {
           onTranscode={handleTranscode}
           encodingId={encodingId}
           onSelectTranscoded={handleSelectTranscoded}
-          selectedVideoId={el.videoUrl}
+          selectedVideoUrl={el.videoUrl}
+          libraryId={ftLibrary?.id}
         />
       )}
     </div>
