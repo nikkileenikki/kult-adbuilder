@@ -9,7 +9,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   const body = await request.json()
-  const { library_id: libraryId, video_source: videoSource, name, width, height } = body
+  const { library_id: libraryId, video_source: videoSource, name } = body
 
   if (!libraryId) return json({ error: 'library_id is required' }, 400)
   if (!videoSource) return json({ error: 'video_source is required' }, 400)
@@ -18,10 +18,8 @@ export async function onRequestPost({ request, env }) {
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
   const authHeader = { Authorization: `Basic ${basic}` }
 
-  const encodeSpec = { videoSource: String(videoSource), name }
-  if (width) encodeSpec.width = Number(width)
-  if (height) encodeSpec.height = Number(height)
-  const requestBody = [encodeSpec]
+  // No width/height — let FT encode at the source video's intrinsic dimensions.
+  const requestBody = [{ videoSource: String(videoSource), name }]
 
   const encodeRes = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video/encode-many`, {
     method: 'POST',
