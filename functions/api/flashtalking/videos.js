@@ -59,7 +59,7 @@ export async function onRequestGet({ request, env }) {
       transcoded: normalize(rawTranscoded),
       // Raw FT payloads for both filter values — inspect via browser devtools if a bucket looks wrong,
       // since FT doesn't publicly document what encodedStatus values mean.
-      debug: { rawUploaded, rawTranscoded },
+      debug: { rawUploadedSample: rawUploaded.slice(0, 3), rawUploadedCount: rawUploaded.length, rawTranscodedSample: rawTranscoded.slice(0, 3), rawTranscodedCount: rawTranscoded.length },
     })
   } catch (err) {
     let detail = err.message
