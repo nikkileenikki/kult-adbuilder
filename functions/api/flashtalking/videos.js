@@ -41,9 +41,10 @@ export async function onRequestGet({ request, env }) {
   const normalize = (items) => {
     const normalized = items.map((it) => ({
       id: it.id,
+      videoSource: it.videoSource,
       name: it.name || it.filename || `video-${it.id}`,
-      sizeMb: it.fileSize ? (it.fileSize / 1024 / 1024).toFixed(2) : null,
-      createdAt: it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
+      sizeMb: (it.filesize || it.fileSize) ? ((it.filesize || it.fileSize) / 1024 / 1024).toFixed(2) : null,
+      createdAt: it.lastModified || it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
     }))
     normalized.sort((a, b) => {
       if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt)
