@@ -44,8 +44,10 @@ export default function VideoLibraryModal({
   onTranscode,
   encodingId,
   onSelectTranscoded,
-  selectedVideoId,
+  selectedVideoUrl,
+  libraryId,
 }) {
+  const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
   return (
     <Modal>
       <div className="flex items-start justify-between mb-1 gap-3">
@@ -92,8 +94,8 @@ export default function VideoLibraryModal({
               <VideoRow
                 key={v.id}
                 video={v}
-                actionLabel={String(v.id) === selectedVideoId ? 'Selected' : 'Use'}
-                highlight={String(v.id) === selectedVideoId}
+                actionLabel={videoUrlFor(v) === selectedVideoUrl ? 'Selected' : 'Use'}
+                highlight={videoUrlFor(v) === selectedVideoUrl}
                 onAction={onSelectTranscoded}
               />
             ))}
