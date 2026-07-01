@@ -134,15 +134,20 @@ export default function VideoProperties({ el, update, save }) {
     setUploadStatus({ type: 'success', message: `Selected "${video.name}" for this element.` })
   }
 
-  const statusColor = {
-    success: 'text-green-400',
-    warn: 'text-yellow-400',
-    error: 'text-red-400',
-    info: 'text-gray-400',
-  }
-
   return (
     <div className="space-y-2 pb-2 border-b border-gray-700">
+      {!ftLibrary ? (
+        <p className="text-xs text-gray-500 italic">Select a Creative Library in the toolbar first.</p>
+      ) : (
+        <button
+          onClick={() => setShowLibrary(true)}
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 mb-1"
+        >
+          <i className="fa-solid fa-film" style={{ fontSize: 13 }} />
+          Video Library ({uploaded.length + transcoded.length})
+        </button>
+      )}
+
       <Field label="Video URL">
         <TextInput value={el.videoUrl || ''} placeholder="220952/video" onChange={(v) => save({ videoUrl: v })} />
       </Field>
@@ -167,59 +172,6 @@ export default function VideoProperties({ el, update, save }) {
         </label>
       </div>
 
-      {/* Flashtalking video upload */}
-      <div className="mt-3 pt-3 border-t border-gray-700">
-        <p className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
-          <i className="fa-solid fa-cloud-arrow-up text-purple-400" style={{ fontSize: 10 }} />
-          Flashtalking Videos
-        </p>
-        {!ftLibrary ? (
-          <p className="text-xs text-gray-500 italic">Select a Creative Library in the toolbar first.</p>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-gray-500 truncate">
-              Library: <span className="text-gray-300">{ftLibrary.name}</span>
-            </p>
-
-            <div className="space-y-2">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="video/mp4,video/webm,video/quicktime"
-                onChange={handleFileChange}
-                className="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-gray-700 file:text-gray-200 hover:file:bg-gray-600 cursor-pointer"
-              />
-              {fileInfo && (
-                <p className="text-xs text-gray-500">{fileInfo.name} · {fileInfo.sizeMb} MB</p>
-              )}
-              <button
-                onClick={handleUpload}
-                disabled={uploading || !fileInfo || (fileInfo && parseFloat(fileInfo.sizeMb) > MAX_FILE_MB)}
-                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
-              >
-                <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 11 }} />
-                {uploading ? 'Uploading…' : 'Upload'}
-              </button>
-            </div>
-
-            {uploadStatus && (
-              <p className={`text-xs ${statusColor[uploadStatus.type] || 'text-gray-400'}`}>
-                {uploadStatus.type === 'info' && <i className="fa-solid fa-spinner fa-spin mr-1" style={{ fontSize: 10 }} />}
-                {uploadStatus.message}
-              </p>
-            )}
-
-            <button
-              onClick={() => setShowLibrary(true)}
-              className="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 rounded py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
-            >
-              <i className="fa-solid fa-film" style={{ fontSize: 11 }} />
-              Video Library ({uploaded.length + transcoded.length})
-            </button>
-          </div>
-        )}
-      </div>
-
       {showLibrary && (
         <VideoLibraryModal
           onClose={() => setShowLibrary(false)}
@@ -233,6 +185,12 @@ export default function VideoProperties({ el, update, save }) {
           onSelectTranscoded={handleSelectTranscoded}
           selectedVideoUrl={el.videoUrl}
           libraryId={ftLibrary?.id}
+          fileRef={fileRef}
+          fileInfo={fileInfo}
+          uploading={uploading}
+          uploadStatus={uploadStatus}
+          onFileChange={handleFileChange}
+          onUpload={handleUpload}
         />
       )}
     </div>

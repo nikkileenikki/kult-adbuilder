@@ -3,7 +3,7 @@ import React from 'react'
 function Modal({ children }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-3xl shadow-2xl max-h-[80vh] flex flex-col">
+      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-3xl shadow-2xl max-h-[85vh] flex flex-col">
         {children}
       </div>
     </div>
@@ -34,6 +34,9 @@ function VideoRow({ video, actionLabel, onAction, actionDisabled, highlight }) {
   )
 }
 
+const MAX_FILE_MB = 100
+const SIZE_WARNING_MB = 10
+
 export default function VideoLibraryModal({
   onClose,
   libraryName,
@@ -46,8 +49,21 @@ export default function VideoLibraryModal({
   onSelectTranscoded,
   selectedVideoUrl,
   libraryId,
+  fileRef,
+  fileInfo,
+  uploading,
+  uploadStatus,
+  onFileChange,
+  onUpload,
 }) {
   const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
+  const statusColor = {
+    success: 'text-green-400',
+    warn: 'text-yellow-400',
+    error: 'text-red-400',
+    info: 'text-gray-400',
+  }
+
   return (
     <Modal>
       <div className="flex items-start justify-between mb-1 gap-3">
@@ -68,6 +84,36 @@ export default function VideoLibraryModal({
       <p className="text-xs text-gray-500 mb-4 break-words">
         Library: <span className="text-gray-300">{libraryName}</span>
       </p>
+
+      <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-3 mb-4 flex items-center gap-3">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="video/mp4,video/webm,video/quicktime"
+          onChange={onFileChange}
+          className="flex-1 min-w-0 text-xs text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-gray-700 file:text-gray-200 hover:file:bg-gray-600 cursor-pointer"
+        />
+        <button
+          onClick={onUpload}
+          disabled={uploading || !fileInfo || (fileInfo && parseFloat(fileInfo.sizeMb) > MAX_FILE_MB)}
+          className="bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 shrink-0"
+        >
+          <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 11 }} />
+          {uploading ? 'Uploading…' : 'Upload'}
+        </button>
+      </div>
+
+      {(fileInfo || uploadStatus) && (
+        <div className="mb-3 -mt-2 space-y-1">
+          {fileInfo && <p className="text-xs text-gray-500">{fileInfo.name} · {fileInfo.sizeMb} MB</p>}
+          {uploadStatus && (
+            <p className={`text-xs ${statusColor[uploadStatus.type] || 'text-gray-400'}`}>
+              {uploadStatus.type === 'info' && <i className="fa-solid fa-spinner fa-spin mr-1" style={{ fontSize: 10 }} />}
+              {uploadStatus.message}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 overflow-y-auto pr-1">
         <div className="min-w-0">
