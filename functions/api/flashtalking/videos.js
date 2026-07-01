@@ -13,39 +13,47 @@ export async function onRequestGet({ request, env }) {
   if (!libraryId) return json({ error: 'library_id is required' }, 400)
 
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
-  const items = []
-  let page = 1
-  let totalPages = 1
+  const authHeader = { Authorization: `Basic ${basic}` }
 
-  while (page <= totalPages) {
-    const res = await fetch(`${FT_BASE}/creative-libraries/${libraryId}/asset/video?page=${page}&rpp=100`, {
-      headers: { Authorization: `Basic ${basic}` },
-    })
-    const rawText = await res.text()
-    if (!res.ok) {
-      return json({ error: `FT asset list failed: ${res.status}`, detail: rawText }, 502)
+  const fetchByStatus = async (encodedStatus) => {
+    const items = []
+    let page = 1
+    let totalPages = 1
+    while (page <= totalPages) {
+      const res = await fetch(
+        `${FT_BASE}/creative-libraries/${libraryId}/asset/video?encodedStatus=${encodedStatus}&page=${page}&rpp=100`,
+        { headers: authHeader }
+      )
+      const rawText = await res.text()
+      if (!res.ok) {
+        throw new Error(JSON.stringify({ status: res.status, detail: rawText }))
+      }
+      let data
+      try { data = JSON.parse(rawText) } catch { data = { items: [] } }
+      const pageItems = Array.isArray(data) ? data : (data.items || [])
+      items.push(...pageItems)
+      totalPages = data.totalPages || 1
+      page++
     }
-    let data
-    try { data = JSON.parse(rawText) } catch { data = { items: [] } }
-    const pageItems = Array.isArray(data) ? data : (data.items || [])
-    items.push(...pageItems)
-    totalPages = data.totalPages || 1
-    page++
+    return items.map((it) => ({
+      id: it.id,
+      name: it.name || it.filename || `video-${it.id}`,
+      sizeMb: it.fileSize ? (it.fileSize / 1024 / 1024).toFixed(2) : null,
+    }))
   }
 
-  // Encoded assets carry an encoded/source video id; raw uploads don't.
-  const normalized = items.map((it) => ({
-    id: it.id,
-    name: it.name || it.filename || `video-${it.id}`,
-    sizeMb: it.fileSize ? (it.fileSize / 1024 / 1024).toFixed(2) : null,
-    encoded: !!(it.videoSource || it.sourceId || it.encoded),
-    raw: it,
-  }))
-
-  return json({
-    uploaded: normalized.filter((v) => !v.encoded),
-    transcoded: normalized.filter((v) => v.encoded),
-  })
+  try {
+    const [uploaded, transcoded] = await Promise.all([fetchByStatus(0), fetchByStatus(1)])
+    return json({ uploaded, transcoded })
+  } catch (err) {
+    let detail = err.message
+    try {
+      const parsed = JSON.parse(err.message)
+      return json({ error: `FT asset list failed: ${parsed.status}`, detail: parsed.detail }, 502)
+    } catch {
+      return json({ error: 'FT asset list failed', detail }, 502)
+    }
+  }
 }
 
 async function getSession(request, env) {
