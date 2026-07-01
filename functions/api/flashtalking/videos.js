@@ -64,6 +64,8 @@ export async function onRequestGet({ request, env }) {
         name: it.name || it.filename || `video-${it.id}`,
         sizeMb: (it.filesize || it.fileSize) ? ((it.filesize || it.fileSize) / 1024 / 1024).toFixed(2) : null,
         createdAt: it.lastModified || it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
+        width: it.bbwidth || it.width || null,
+        height: it.bbheight || it.height || null,
       }))
       normalized.sort((a, b) => {
         if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt)
