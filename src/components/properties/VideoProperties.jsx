@@ -130,7 +130,6 @@ export default function VideoProperties({ el, update, save }) {
     save({
       videoName: nameBase,
       videoUrl: `${ftLibrary.id}/${nameBase}`,
-      videoPreviewUrl: video.previewUrl || null,
     })
     setUploadStatus({ type: 'success', message: `Selected "${video.name}" for this element.` })
   }
