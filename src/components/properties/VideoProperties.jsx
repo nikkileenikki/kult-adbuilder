@@ -119,7 +119,7 @@ export default function VideoProperties({ el, update, save }) {
         headers: { ...authHeader, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           library_id: ftLibrary.id,
-          video_id: video.id,
+          video_source: video.videoSource,
           name: nameBase,
           width: el.width,
           height: el.height,
