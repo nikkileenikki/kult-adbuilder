@@ -40,16 +40,6 @@ export async function onRequestGet({ request, env }) {
     return items
   }
 
-  // FT's asset "url" is a storage key like "dve-video-store/uploads/xxx.mp4" (bucket/key),
-  // not a resolvable link. Best-effort virtual-hosted-style S3 URL for canvas preview playback.
-  const buildPreviewUrl = (storageKey) => {
-    if (!storageKey) return null
-    if (/^https?:\/\//.test(storageKey)) return storageKey
-    const [bucket, ...rest] = storageKey.split('/')
-    if (!bucket || rest.length === 0) return null
-    return `https://${bucket}.s3.amazonaws.com/${rest.join('/')}`
-  }
-
   try {
     const resultsByStatus = await Promise.all(STATUS_VALUES_TO_TRY.map(fetchByStatus))
     const byId = new Map()
@@ -76,7 +66,6 @@ export async function onRequestGet({ request, env }) {
         createdAt: it.lastModified || it.createdAt || it.dateCreated || it.uploadedAt || it.uploadDate || null,
         width: it.bbwidth || it.width || null,
         height: it.bbheight || it.height || null,
-        previewUrl: buildPreviewUrl(it.url),
       }))
       normalized.sort((a, b) => {
         if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt)

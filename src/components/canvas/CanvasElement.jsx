@@ -208,9 +208,9 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
         }} />
       )
     case 'video': {
-      // videoUrl is a manifest reference (e.g. "219233/name"), not playable — videoPreviewUrl
-      // (set when picking a video from the Flashtalking library) is the actual canvas preview source.
-      const previewSrc = element.videoPreviewUrl
+      // Same URL pattern Flashtalking's own html5API.js runtime uses to resolve a manifest
+      // video reference ("libraryId/name") into a playable src at render time.
+      const previewSrc = element.videoUrl ? `https://cdn.flashtalking.com/${element.videoUrl}.mp4` : null
       return previewSrc ? (
         <video
           key={previewSrc}
@@ -230,7 +230,7 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
         }}>
           <span style={{ fontSize: 22 }}>▶</span>
           <span>{element.videoName || 'Video'}</span>
-          <span style={{ fontSize: 9, color: '#666' }}>{element.videoUrl ? 'Preview unavailable' : 'No video set'}</span>
+          <span style={{ fontSize: 9, color: '#666' }}>No video set</span>
         </div>
       )
     }
