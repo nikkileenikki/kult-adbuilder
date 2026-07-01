@@ -23,29 +23,34 @@ export async function onRequestGet({ request, env }) {
   }
 
   const data = await res.json()
-  const status = data.status?.toLowerCase()
-  const done = status === 'complete' || status === 'completed'
-  const failed = status === 'failed' || status === 'error'
+  // FT's job payload can be a bare object or wrapped in items[0]; status is a number here, not a string.
+  const job = Array.isArray(data.items) ? data.items[0] : data
+  const status = job.status
+  const statusStr = typeof status === 'string' ? status.toLowerCase() : String(status ?? '')
+  const failed = statusStr === 'failed' || statusStr === 'error'
+  const completed = !!job.dateCompleted && Number(job.dateCompleted) > 0
 
   if (failed) {
-    return json({ ok: false, status, error: 'Job failed', detail: data })
+    return json({ ok: false, status, error: 'Job failed', detail: job })
   }
 
-  if (!done) {
+  if (!completed) {
     return json({ ok: false, status, pending: true })
   }
 
-  // Job complete — extract result fields for encode jobs
-  const result = data.result || data
-  const sizeMb = result.fileSize ? (result.fileSize / 1024 / 1024).toFixed(2) : null
+  // Job complete — response holds the result; shape not yet confirmed live, so include raw job for debugging.
+  const resultArr = Array.isArray(job.response) ? job.response : []
+  const result = resultArr[0] || job.result || job
+  const sizeMb = result?.fileSize ? (result.fileSize / 1024 / 1024).toFixed(2) : null
 
   return json({
     ok: true,
     status,
-    videoId: result.id,
-    name: result.name,
+    videoId: result?.id,
+    name: result?.name,
     sizeMb,
     oversized: sizeMb !== null && parseFloat(sizeMb) > 2.5,
+    debug: job,
   })
 }
 

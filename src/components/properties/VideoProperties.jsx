@@ -6,8 +6,6 @@ import VideoLibraryModal from '../modals/VideoLibraryModal.jsx'
 
 const MAX_FILE_MB = 100
 const SIZE_WARNING_MB = 10
-const POLL_INTERVAL_MS = 3000
-const POLL_TIMEOUT_MS = 600000 // 10 min total client-side budget
 
 export default function VideoProperties({ el, update, save }) {
   const { ftLibrary } = useUiStore()
@@ -24,20 +22,6 @@ export default function VideoProperties({ el, update, save }) {
   const [showLibrary, setShowLibrary] = useState(false)
 
   const authHeader = { Authorization: `Bearer ${token}` }
-
-  const pollJob = useCallback(async (jobId) => {
-    const deadline = Date.now() + POLL_TIMEOUT_MS
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
-      const res = await fetch(`/api/flashtalking/video-job?job_id=${jobId}`, { headers: authHeader })
-      const data = await res.json()
-      if (!res.ok || data.error) throw new Error(data.error || 'Job check failed')
-      if (data.pending) continue
-      if (!data.ok) throw new Error(data.error || 'Job failed')
-      return data
-    }
-    throw new Error('Timed out waiting for Flashtalking job')
-  }, [token])
 
   const refreshLists = useCallback(async () => {
     if (!ftLibrary) return
@@ -128,13 +112,12 @@ export default function VideoProperties({ el, update, save }) {
       const encodeData = await encodeRes.json()
       if (!encodeRes.ok) throw new Error(encodeData.error || 'Encode failed')
 
-      setUploadStatus({ type: 'info', message: 'Encoding in progress…' })
-      const encodeResult = await pollJob(encodeData.jobId)
-
-      const sizeMsg = encodeResult.sizeMb ? ` (${encodeResult.sizeMb} MB)` : ''
-      const oversizeWarn = encodeResult.oversized ? ' ⚠ Exceeds 2.5 MB — consider trimming source.' : ''
-      setUploadStatus({ type: encodeResult.oversized ? 'warn' : 'success', message: `Transcoded${sizeMsg}${oversizeWarn}` })
-      await refreshLists()
+      // Encoding can take a while on FT's side — don't block on it here.
+      // Refresh the library periodically; the video will show up under Transcoded once ready.
+      setUploadStatus({ type: 'success', message: 'Transcoding started — it will appear under Transcoded once FT finishes.' })
+      setTimeout(refreshLists, 15000)
+      setTimeout(refreshLists, 45000)
+      setTimeout(refreshLists, 90000)
     } catch (err) {
       setUploadStatus({ type: 'error', message: err.message })
     } finally {
