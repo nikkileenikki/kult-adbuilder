@@ -1,7 +1,16 @@
 import React, { useCallback, useRef } from 'react'
 import { useUiStore } from '../../store/uiStore.js'
 
-export default function ResizeHandle({ handle, element, onResize }) {
+const SNAP_THRESHOLD = 6
+
+function snapTo(val, candidates) {
+  for (const c of candidates) {
+    if (Math.abs(val - c) <= SNAP_THRESHOLD) return c
+  }
+  return val
+}
+
+export default function ResizeHandle({ handle, element, onResize, canvasWidth, canvasHeight }) {
   const scaleRef = useRef(1)
   scaleRef.current = useUiStore((s) => s.canvasZoom / 100)
   const onMouseDown = useCallback((e) => {
@@ -17,10 +26,24 @@ export default function ResizeHandle({ handle, element, onResize }) {
       const dy = (mv.clientY - start.y) / scaleRef.current
       let { x, y, w, h } = orig
 
-      if (handle.id.includes('e')) w = Math.max(10, orig.w + dx)
-      if (handle.id.includes('s')) h = Math.max(10, orig.h + dy)
-      if (handle.id.includes('w')) { w = Math.max(10, orig.w - dx); x = orig.x + orig.w - w }
-      if (handle.id.includes('n')) { h = Math.max(10, orig.h - dy); y = orig.y + orig.h - h }
+      if (handle.id.includes('e')) {
+        w = Math.max(10, orig.w + dx)
+        if (canvasWidth != null) w = snapTo(x + w, [canvasWidth, canvasWidth / 2]) - x
+      }
+      if (handle.id.includes('s')) {
+        h = Math.max(10, orig.h + dy)
+        if (canvasHeight != null) h = snapTo(y + h, [canvasHeight, canvasHeight / 2]) - y
+      }
+      if (handle.id.includes('w')) {
+        w = Math.max(10, orig.w - dx)
+        x = orig.x + orig.w - w
+        if (canvasWidth != null) { x = snapTo(x, [0, canvasWidth / 2]); w = orig.x + orig.w - x }
+      }
+      if (handle.id.includes('n')) {
+        h = Math.max(10, orig.h - dy)
+        y = orig.y + orig.h - h
+        if (canvasHeight != null) { y = snapTo(y, [0, canvasHeight / 2]); h = orig.y + orig.h - y }
+      }
 
       if (ratio) {
         // Determine dominant axis from handle and apply ratio to the other
