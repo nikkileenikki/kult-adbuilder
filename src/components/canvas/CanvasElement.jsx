@@ -124,7 +124,7 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
     <div id={element.id} style={style} onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}>
       <ElementContent element={element} editingText={editingText} textRef={textRef} onTextBlur={onTextBlur} />
       {isSelected && !element.locked && (
-        <ResizeHandles element={element} />
+        <ResizeHandles element={element} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
       )}
     </div>
   )
@@ -215,9 +215,9 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
         <video
           key={previewSrc}
           src={previewSrc}
-          style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }}
+          style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
           muted={element.muted !== false}
-          controls={!!element.controls}
+          controls
           autoPlay={element.playTrigger === 'autoplay'}
           loop
           playsInline
@@ -239,7 +239,7 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
   }
 }
 
-function ResizeHandles({ element }) {
+function ResizeHandles({ element, canvasWidth, canvasHeight }) {
   const { updateElement } = useCanvasStore()
   const handles = [
     { id: 'nw', style: { top: -5, left: -5 }, cursor: 'nw-resize' },
@@ -250,7 +250,14 @@ function ResizeHandles({ element }) {
   return (
     <>
       {handles.map((h) => (
-        <ResizeHandle key={h.id} handle={h} element={element} onResize={updateElement} />
+        <ResizeHandle
+          key={h.id}
+          handle={h}
+          element={element}
+          onResize={updateElement}
+          canvasWidth={canvasWidth}
+          canvasHeight={canvasHeight}
+        />
       ))}
     </>
   )
