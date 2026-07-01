@@ -121,8 +121,6 @@ export default function VideoProperties({ el, update, save }) {
           library_id: ftLibrary.id,
           video_source: video.videoSource,
           name: nameBase,
-          width: el.width,
-          height: el.height,
         }),
       })
       const encodeData = await encodeRes.json()
