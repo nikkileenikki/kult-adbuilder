@@ -12,6 +12,7 @@ export default function TemplateBuilderBar() {
 
   const [name, setName] = useState(templateBuilder?.name || '')
   const [category, setCategory] = useState(templateBuilder?.category || 'custom')
+  const [customHtml, setCustomHtml] = useState(templateBuilder?.customHtml || '')
   const [customJs, setCustomJs] = useState(templateBuilder?.customJs || '')
   const [customCss, setCustomCss] = useState(templateBuilder?.customCss || '')
   const [showCode, setShowCode] = useState(false)
@@ -38,7 +39,7 @@ export default function TemplateBuilderBar() {
       const res = await fetch(`/api/templates${editingId ? `?id=${editingId}` : ''}`, {
         method: editingId ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, customJs, customCss }),
+        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, customHtml, customJs, customCss }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save template')
@@ -76,7 +77,7 @@ export default function TemplateBuilderBar() {
 
         <button
           onClick={() => setShowCode((v) => !v)}
-          title="Add custom JS/CSS for interactive effects beyond drag-and-drop elements"
+          title="Use raw HTML/CSS/JS for bespoke effects the drag-and-drop elements can't do"
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border transition-colors ${
             showCode ? 'bg-purple-700 border-purple-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-purple-500'
           }`}
@@ -101,28 +102,46 @@ export default function TemplateBuilderBar() {
       </div>
 
       {showCode && (
-        <div className="px-3 pb-3 flex gap-3">
-          <div className="flex-1">
-            <label className="text-xs text-purple-200 block mb-1">Custom JS <span className="text-gray-400">(injected into the exported banner's script, runs after elements load — reference elements by their id)</span></label>
+        <div className="px-3 pb-3 space-y-2">
+          {customHtml.trim() && (
+            <p className="text-xs text-yellow-300 bg-yellow-900/30 border border-yellow-800 rounded px-2 py-1.5">
+              Custom HTML is set — this template will render entirely from your HTML/JS/CSS instead of the drag-and-drop elements on the canvas.
+            </p>
+          )}
+          <div>
+            <label className="text-xs text-purple-200 block mb-1">Custom HTML <span className="text-gray-400">(replaces the element-based rendering entirely — paste a full bespoke banner's body markup)</span></label>
             <textarea
-              value={customJs}
-              onChange={(e) => setCustomJs(e.target.value)}
+              value={customHtml}
+              onChange={(e) => setCustomHtml(e.target.value)}
               rows={6}
-              placeholder="// e.g. custom carousel/catfish interaction logic"
+              placeholder="<div id=&quot;banner&quot;>...</div>"
               spellCheck={false}
               className="w-full bg-gray-900 text-gray-100 rounded px-2 py-1.5 text-xs font-mono border border-gray-700 focus:border-purple-500 focus:outline-none resize-y"
             />
           </div>
-          <div className="flex-1">
-            <label className="text-xs text-purple-200 block mb-1">Custom CSS <span className="text-gray-400">(injected into the exported banner's stylesheet)</span></label>
-            <textarea
-              value={customCss}
-              onChange={(e) => setCustomCss(e.target.value)}
-              rows={6}
-              placeholder="/* e.g. custom transitions, effects */"
-              spellCheck={false}
-              className="w-full bg-gray-900 text-gray-100 rounded px-2 py-1.5 text-xs font-mono border border-gray-700 focus:border-purple-500 focus:outline-none resize-y"
-            />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-purple-200 block mb-1">Custom JS <span className="text-gray-400">(runs standalone — define your own init/onload, jQuery + GSAP + myFT are available)</span></label>
+              <textarea
+                value={customJs}
+                onChange={(e) => setCustomJs(e.target.value)}
+                rows={6}
+                placeholder="function init() { ... } window.onload = init;"
+                spellCheck={false}
+                className="w-full bg-gray-900 text-gray-100 rounded px-2 py-1.5 text-xs font-mono border border-gray-700 focus:border-purple-500 focus:outline-none resize-y"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-purple-200 block mb-1">Custom CSS <span className="text-gray-400">(injected into the exported banner's stylesheet)</span></label>
+              <textarea
+                value={customCss}
+                onChange={(e) => setCustomCss(e.target.value)}
+                rows={6}
+                placeholder="/* full styles for your custom markup */"
+                spellCheck={false}
+                className="w-full bg-gray-900 text-gray-100 rounded px-2 py-1.5 text-xs font-mono border border-gray-700 focus:border-purple-500 focus:outline-none resize-y"
+              />
+            </div>
           </div>
         </div>
       )}

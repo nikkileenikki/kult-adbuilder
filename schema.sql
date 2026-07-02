@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS templates (
   width       INTEGER NOT NULL,
   height      INTEGER NOT NULL,
   data        TEXT NOT NULL,             -- JSON: { elements: [...] }
+  custom_html TEXT NOT NULL DEFAULT '',   -- raw HTML replacing the element-based container, for bespoke templates
   custom_js   TEXT NOT NULL DEFAULT '',   -- raw JS injected into exported banners built from this template
   custom_css  TEXT NOT NULL DEFAULT '',   -- raw CSS injected into exported banners built from this template
   created_by  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
