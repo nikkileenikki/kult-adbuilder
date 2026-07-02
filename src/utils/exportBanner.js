@@ -284,13 +284,7 @@ async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, pol
     ? `window.onload = function() { politeLoad(init); };`
     : `window.onload = function() { init(); };`
 
-  let html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="ad.size" content="width=${canvasWidth},height=${canvasHeight}" />
-  <title>${escapeHtml(bannerName)}</title>
-  <style>
+  const presetCss = isAdvanced ? '' : `
     *{margin:0;padding:0;box-sizing:border-box}
     body{width:${canvasWidth}px;height:${canvasHeight}px;overflow:hidden;background:#fff;border:1px solid #000;box-sizing:border-box;position:relative}
     #container{position:relative;width:100%;height:100%;overflow:hidden;opacity:${containerOpacity}}
@@ -300,7 +294,15 @@ async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, pol
       33% {box-shadow:20px 0 #333,-20px 0 rgba(0,0,0,0.1);background:rgba(0,0,0,0.1)}
       66% {box-shadow:20px 0 rgba(0,0,0,0.1),-20px 0 #333;background:rgba(0,0,0,0.1)}
       100%{box-shadow:20px 0 rgba(0,0,0,0.1),-20px 0 #333;background:#333}
-    }
+    }`
+
+  let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="ad.size" content="width=${canvasWidth},height=${canvasHeight}" />
+  <title>${escapeHtml(bannerName)}</title>
+  <style>${presetCss}
   </style>${templateCssTag}${customCssTag}
 </head>
 <body>
