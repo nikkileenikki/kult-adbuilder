@@ -3,15 +3,13 @@ import { useUiStore } from '../../store/uiStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useAuthStore } from '../../store/authStore.js'
 
-const CATEGORIES = ['standard', 'carousel', 'catfish', 'custom']
-
 export default function TemplateBuilderBar() {
   const { templateBuilder, setTemplateBuilder } = useUiStore()
   const { elements, canvasWidth, canvasHeight } = useCanvasStore()
   const { token } = useAuthStore()
 
   const [name, setName] = useState(templateBuilder?.name || '')
-  const [category, setCategory] = useState(templateBuilder?.category || 'custom')
+  const category = templateBuilder?.category || 'custom'
   const [customHtml, setCustomHtml] = useState(templateBuilder?.customHtml || '')
   const [customJs, setCustomJs] = useState(templateBuilder?.customJs || '')
   const [customCss, setCustomCss] = useState(templateBuilder?.customCss || '')
@@ -38,8 +36,12 @@ export default function TemplateBuilderBar() {
       setError(`This template already has a ${sizeKey} size — change the canvas size or edit that size instead.`)
       return
     }
-    if (customManifest.trim()) {
-      try { JSON.parse(customManifest) } catch { setError('Custom Manifest must be valid JSON'); return }
+    let cleanManifest = customManifest.trim()
+    if (cleanManifest) {
+      // Accept either bare JSON or a pasted `FT.manifest({...});` statement.
+      const wrapped = cleanManifest.match(/^FT\.manifest\(\s*([\s\S]*?)\s*\)\s*;?\s*$/)
+      if (wrapped) cleanManifest = wrapped[1]
+      try { JSON.parse(cleanManifest) } catch { setError('Custom Manifest must be valid JSON'); return }
     }
     setSaving(true)
     setError(null)
@@ -48,7 +50,7 @@ export default function TemplateBuilderBar() {
       const qs = sizeId ? `?sizeId=${sizeId}` : (templateId ? `?templateId=${templateId}` : '')
       // Auto-detect {{tokenName}} / {{type.tokenName}} placeholders in the custom code so
       // the ad builder can show typed fill-in inputs (image/video/text) for them.
-      const tokenMatches = `${customHtml} ${customJs} ${customCss} ${customManifest}`.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)
+      const tokenMatches = `${customHtml} ${customJs} ${customCss} ${cleanManifest}`.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)
       const tokenKeys = [...new Set([...tokenMatches].map((m) => m[1]))]
       const variables = tokenKeys.map((key) => {
         const dot = key.indexOf('.')
@@ -62,7 +64,7 @@ export default function TemplateBuilderBar() {
       const res = await fetch(`/api/templates${qs}`, {
         method: sizeId ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, variables, customHtml, customJs, customCss, customManifest }),
+        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, variables, customHtml, customJs, customCss, customManifest: cleanManifest }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save template')
@@ -80,7 +82,9 @@ export default function TemplateBuilderBar() {
       <div className="px-3 py-2 flex items-center gap-2">
         <i className="fa-solid fa-table-columns text-purple-300" style={{ fontSize: 13 }} />
         <span className="text-purple-200 text-xs font-medium shrink-0">
-          {templateBuilder.sizeId ? 'Editing Size' : templateBuilder.templateId ? 'Adding Size' : 'New Template'}
+          {templateBuilder.sizeId
+            ? `Editing ${canvasWidth}×${canvasHeight}${templateBuilder.name ? ` — ${templateBuilder.name}` : ''}`
+            : templateBuilder.templateId ? 'Adding Size' : 'New Template'}
         </span>
         {(templateBuilder.siblingSizes || []).length > 0 && (
           <span className="text-purple-300/70 text-xs shrink-0">
@@ -95,14 +99,6 @@ export default function TemplateBuilderBar() {
           placeholder="Template name"
           className="bg-gray-800 text-white rounded px-2 py-1 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none w-44"
         />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="bg-gray-800 rounded px-2 py-1 text-sm text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
-        >
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-
         <button
           onClick={() => setShowCode((v) => !v)}
           title="Use raw HTML/CSS/JS for bespoke effects the drag-and-drop elements can't do"
