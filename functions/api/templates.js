@@ -51,12 +51,12 @@ export async function onRequestPost({ request, env }) {
   const url = new URL(request.url)
   const templateId = url.searchParams.get('templateId')
   const body = await request.json()
-  const { name, category, width, height, elements, customHtml, customJs, customCss } = body
+  const { name, category, width, height, elements, variables, customHtml, customJs, customCss } = body
 
   if (!width || !height) return json({ error: 'width and height are required' }, 400)
   if (!Array.isArray(elements)) return json({ error: 'elements must be an array' }, 400)
 
-  const data = JSON.stringify({ elements })
+  const data = JSON.stringify({ elements, variables: variables || [] })
 
   if (templateId) {
     const existing = await env.DB.prepare('SELECT id FROM templates WHERE id = ?').bind(templateId).first()
@@ -101,12 +101,12 @@ export async function onRequestPut({ request, env }) {
   if (!existing) return json({ error: 'Size not found' }, 404)
 
   const body = await request.json()
-  const { name, category, width, height, elements, customHtml, customJs, customCss } = body
+  const { name, category, width, height, elements, variables, customHtml, customJs, customCss } = body
 
   if (!width || !height) return json({ error: 'width and height are required' }, 400)
   if (!Array.isArray(elements)) return json({ error: 'elements must be an array' }, 400)
 
-  const data = JSON.stringify({ elements })
+  const data = JSON.stringify({ elements, variables: variables || [] })
 
   await env.DB.prepare(
     'UPDATE template_sizes SET width = ?, height = ?, data = ?, custom_html = ?, custom_js = ?, custom_css = ?, updated_at = unixepoch() WHERE id = ?'

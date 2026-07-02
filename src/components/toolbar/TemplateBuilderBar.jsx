@@ -42,10 +42,14 @@ export default function TemplateBuilderBar() {
     try {
       const { sizeId, templateId } = templateBuilder
       const qs = sizeId ? `?sizeId=${sizeId}` : (templateId ? `?templateId=${templateId}` : '')
+      // Auto-detect {{tokenName}} placeholders in the custom code so the ad builder can
+      // show fill-in inputs for them once this template is selected.
+      const tokenMatches = `${customHtml} ${customJs} ${customCss}`.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)
+      const variables = [...new Set([...tokenMatches].map((m) => m[1]))]
       const res = await fetch(`/api/templates${qs}`, {
         method: sizeId ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, customHtml, customJs, customCss }),
+        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, variables, customHtml, customJs, customCss }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save template')

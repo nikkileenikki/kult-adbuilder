@@ -37,6 +37,14 @@ export default function TemplatePanel() {
   }
 
   const vars = (activeTemplate.variables || []).filter((v) => v.type !== 'repeater' && v.type !== 'number')
+  const tokenVars = activeTemplate.tokenVariables || []
+
+  const handleTokenChange = (tokenName, value) => {
+    setActiveTemplate({
+      ...activeTemplate,
+      tokenValues: { ...(activeTemplate.tokenValues || {}), [tokenName]: value },
+    })
+  }
 
   return (
     <div className="mb-3">
@@ -54,25 +62,47 @@ export default function TemplatePanel() {
         </button>
       </div>
 
-      <div className="bg-gray-900 rounded-lg p-2 space-y-1">
-        {vars.map((v) => {
-          const el = getEl(v.key)
-          const isSelected = el && selectedId === el.id
-          return (
-            <VarRow
-              key={v.key}
-              v={v}
-              el={el}
-              isSelected={isSelected}
-              onSelect={() => el && setSelected(el.id)}
-              onImageUpload={(file) => handleImageUpload(v.key, file)}
-              onTextChange={(text) => handleTextChange(v.key, text)}
-              onUrlChange={(url) => handleUrlChange(v.key, url)}
-              onVideoUrlChange={(url) => handleVideoUrlChange(v.key, url)}
-            />
-          )
-        })}
-      </div>
+      {vars.length > 0 && (
+        <div className="bg-gray-900 rounded-lg p-2 space-y-1">
+          {vars.map((v) => {
+            const el = getEl(v.key)
+            const isSelected = el && selectedId === el.id
+            return (
+              <VarRow
+                key={v.key}
+                v={v}
+                el={el}
+                isSelected={isSelected}
+                onSelect={() => el && setSelected(el.id)}
+                onImageUpload={(file) => handleImageUpload(v.key, file)}
+                onTextChange={(text) => handleTextChange(v.key, text)}
+                onUrlChange={(url) => handleUrlChange(v.key, url)}
+                onVideoUrlChange={(url) => handleVideoUrlChange(v.key, url)}
+              />
+            )
+          })}
+        </div>
+      )}
+
+      {tokenVars.length > 0 && (
+        <div className="bg-gray-900 rounded-lg p-2 space-y-2 mt-2">
+          <p className="text-xs text-gray-500 px-1">
+            Custom code variables — used in this template's raw HTML/JS/CSS, applied on export.
+          </p>
+          {tokenVars.map((tokenName) => (
+            <div key={tokenName} className="px-1">
+              <label className="text-xs text-gray-400 font-medium block mb-1">{`{{${tokenName}}}`}</label>
+              <input
+                type="text"
+                value={activeTemplate.tokenValues?.[tokenName] || ''}
+                onChange={(e) => handleTokenChange(tokenName, e.target.value)}
+                placeholder="Value…"
+                className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
