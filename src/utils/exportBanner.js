@@ -130,25 +130,34 @@ function buildClickTagJS(elements) {
   return lines.join('\n')
 }
 
-function buildManifestJS({ canvasWidth, canvasHeight, elements }) {
-  const videoEntries = (elements || [])
+function buildManifestJS({ canvasWidth, canvasHeight, elements, customManifest }) {
+  const videos = (elements || [])
     .filter((el) => el.visible && el.type === 'video' && el.videoName && el.videoUrl)
-    .map((el) => `    { "name": "${el.videoName}", "ref": "${el.videoUrl}" }`)
-  const videosBlock = videoEntries.length ? `,\n  "videos": [\n${videoEntries.join(',\n')}\n  ]` : ''
+    .map((el) => ({ name: el.videoName, ref: el.videoUrl }))
 
   const trackingNames = new Set()
-  const trackingEntries = (elements || [])
+  const trackingEvents = (elements || [])
     .filter((el) => el.visible && el.type === 'invisible' && el.trackingName && !trackingNames.has(el.trackingName) && trackingNames.add(el.trackingName))
-    .map((el) => `    {"name": "${el.trackingName}", "type": "${el.trackingType || 'standard'}"}`)
-  const trackingBlock = trackingEntries.length ? `,\n  "trackingEvents": [\n${trackingEntries.join(',\n')}\n  ]` : ''
+    .map((el) => ({ name: el.trackingName, type: el.trackingType || 'standard' }))
 
-  return `FT.manifest({
-  "filename": "index.html",
-  "width": ${canvasWidth},
-  "height": ${canvasHeight},
-  "clickTagCount": 1,
-  "hideBrowsers": ["ie8"]${videosBlock}${trackingBlock}
-});`
+  const manifest = {
+    filename: 'index.html',
+    width: canvasWidth,
+    height: canvasHeight,
+    clickTagCount: 1,
+    hideBrowsers: ['ie8'],
+  }
+  if (videos.length) manifest.videos = videos
+  if (trackingEvents.length) manifest.trackingEvents = trackingEvents
+
+  // Custom manifest fields (admin-authored on the template) override auto-generated ones.
+  if (customManifest?.trim()) {
+    try {
+      Object.assign(manifest, JSON.parse(customManifest))
+    } catch (_) { /* invalid JSON — ignore, keep auto-generated manifest */ }
+  }
+
+  return `FT.manifest(${JSON.stringify(manifest, null, 2)});`
 }
 
 function buildTrackingJS(elements) {
@@ -214,27 +223,14 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   URL.revokeObjectURL(url)
 }
 
-async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
-  const zip = new JSZip()
-
+// Builds the exported index.html as a string. Used for both the real ZIP export and the
+// live canvas preview (which skips the base64->file swap since there's no zip to reference).
+async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, imageFiles, inlineTemplateCss }) {
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
   const animJS = buildAnimationJS(sorted)
   const clickTagJS = buildClickTagJS(sorted)
   const trackingJS = buildTrackingJS(sorted)
-  const manifestJS = buildManifestJS({ canvasWidth, canvasHeight, elements: sorted })
-
-  // Extract base64 images into root folder
-  const imageFiles = []
-  let imgCounter = 0
-  elements.filter((el) => el.type === 'image' && el.src?.startsWith('data:')).forEach((el) => {
-    const match = el.src.match(/^data:([^;]+);base64,(.+)$/)
-    if (!match) return
-    const ext = match[1].split('/')[1] || 'png'
-    const filename = el.filename || `img_${imgCounter++}.${ext}`
-    zip.file(filename, match[2], { base64: true })
-    imageFiles.push({ src: el.src, filename })
-  })
 
   // Custom HTML/JS/CSS authored on the active template (admin-built templates only).
   // customHtml present -> "advanced mode": bespoke markup replaces the element-based
@@ -254,8 +250,9 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
   const jqueryTag = isAdvanced ? '\n  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"><\/script>' : ''
   const containerOpacity = isAdvanced ? 1 : 0
 
-  // Fetch and embed template CSS if a template is active
+  // Fetch template CSS if a template is active — inlined for preview, or returned for the zip writer to save as a file
   let templateCssTag = ''
+  let templateCss = null
   if (activeTemplate) {
     const sizeKey = `${canvasWidth}x${canvasHeight}`
     const size = activeTemplate.sizes?.[sizeKey] || Object.values(activeTemplate.sizes || {})[0]
@@ -270,8 +267,8 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
           css = css.replace(/\{\{layout\.(\w+)\}\}/g, (_, key) => layout[key] ?? '')
           // Substitute image filename references
           imageFiles.forEach(({ src, filename }) => { css = css.replaceAll(src, filename) })
-          zip.file('template.css', css)
-          templateCssTag = '\n  <link rel="stylesheet" href="template.css" />'
+          templateCss = css
+          templateCssTag = inlineTemplateCss ? `\n  <style>\n${css}\n  </style>` : '\n  <link rel="stylesheet" href="template.css" />'
         }
       } catch (_) { /* skip if fetch fails */ }
     }
@@ -341,10 +338,43 @@ ${trackingJS}
     html = html.replaceAll(src, filename)
   })
 
+  return { html, templateCss }
+}
+
+async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
+  const zip = new JSZip()
+
+  // Extract base64 images into root folder
+  const imageFiles = []
+  let imgCounter = 0
+  elements.filter((el) => el.type === 'image' && el.src?.startsWith('data:')).forEach((el) => {
+    const match = el.src.match(/^data:([^;]+);base64,(.+)$/)
+    if (!match) return
+    const ext = match[1].split('/')[1] || 'png'
+    const filename = el.filename || `img_${imgCounter++}.${ext}`
+    zip.file(filename, match[2], { base64: true })
+    imageFiles.push({ src: el.src, filename })
+  })
+
+  const { html, templateCss } = await _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, imageFiles, inlineTemplateCss: false })
+  const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
+  const manifestJS = buildManifestJS({ canvasWidth, canvasHeight, elements: sorted, customManifest: activeTemplate?.customManifest })
+
+  if (templateCss) zip.file('template.css', templateCss)
   zip.file('index.html', html)
   zip.file('manifest.js', manifestJS)
 
   return zip.generateAsync({ type: 'blob' })
+}
+
+// Live preview HTML for the canvas — same rendering path as export, base64 images kept inline
+// (no zip to reference files from) and template CSS inlined as a <style> tag.
+export async function buildPreviewHtml({ elements, canvasWidth, canvasHeight, bannerName, activeTemplate }) {
+  const { html } = await _buildHTML({
+    elements, canvasWidth, canvasHeight, bannerName: bannerName || 'preview', politeLoad: false,
+    activeTemplate, imageFiles: [], inlineTemplateCss: true,
+  })
+  return html
 }
 
 export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop }) {

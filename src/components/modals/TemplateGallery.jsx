@@ -49,6 +49,7 @@ export default function TemplateGallery() {
               customHtml: s.customHtml || '',
               customJs: s.customJs || '',
               customCss: s.customCss || '',
+              customManifest: s.customManifest || '',
               tokenVariables: s.data?.variables || [],
             }
           }
@@ -95,7 +96,7 @@ export default function TemplateGallery() {
       selectedId: null,
       activeTemplate: {
         ...tpl,
-        customHtml: size.customHtml, customJs: size.customJs, customCss: size.customCss,
+        customHtml: size.customHtml, customJs: size.customJs, customCss: size.customCss, customManifest: size.customManifest,
         tokenVariables: size.tokenVariables || [], tokenValues: {},
       },
       animDuration: 5,
@@ -136,7 +137,7 @@ export default function TemplateGallery() {
     const siblingSizes = Object.values(tpl.sizes).map((s) => `${s.width}x${s.height}`).filter((k) => k !== `${size.width}x${size.height}`)
     setTemplateBuilder({
       snapshot, templateId: tpl.id, sizeId: size.sizeId, name: tpl.name, category: tpl.category,
-      customHtml: size.customHtml || '', customJs: size.customJs || '', customCss: size.customCss || '', siblingSizes,
+      customHtml: size.customHtml || '', customJs: size.customJs || '', customCss: size.customCss || '', customManifest: size.customManifest || '', siblingSizes,
     })
     let counter = Date.now()
     const elements = (size.elements || []).map((el) => ({ ...el, id: `${el.type}_${counter++}`, folderId: null }))

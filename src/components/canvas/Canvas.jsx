@@ -1,10 +1,11 @@
-import React, { useRef, useCallback } from 'react'
+import React, { useRef, useCallback, useState, useEffect } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 import CanvasElement from './CanvasElement.jsx'
+import { buildPreviewHtml } from '../../utils/exportBanner.js'
 
 export default function Canvas() {
-  const { elements, canvasWidth, canvasHeight, setSelected, snapLines } = useCanvasStore()
+  const { elements, canvasWidth, canvasHeight, setSelected, snapLines, activeTemplate } = useCanvasStore()
   const { canvasZoom } = useUiStore()
   const containerRef = useRef(null)
   const scale = canvasZoom / 100
@@ -14,6 +15,17 @@ export default function Canvas() {
   }, [setSelected])
 
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
+  const isAdvanced = !!activeTemplate?.customHtml
+  const [previewHtml, setPreviewHtml] = useState('')
+
+  useEffect(() => {
+    if (!isAdvanced) return
+    let cancelled = false
+    buildPreviewHtml({ elements, canvasWidth, canvasHeight, activeTemplate })
+      .then((html) => { if (!cancelled) setPreviewHtml(html) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isAdvanced, elements, canvasWidth, canvasHeight, activeTemplate])
 
   return (
     <div
@@ -40,7 +52,15 @@ export default function Canvas() {
             boxShadow: '0 0 0 2000px rgba(30,41,59,0.5), inset 0 0 0 1px rgba(255,255,255,0.1)',
           }}
         >
-          {/* Checkerboard canvas */}
+          {isAdvanced ? (
+            <iframe
+              title="Template preview"
+              srcDoc={previewHtml}
+              sandbox="allow-scripts allow-same-origin"
+              style={{ width: canvasWidth, height: canvasHeight, border: 'none', display: 'block', background: '#fff' }}
+            />
+          ) : (
+          /* Checkerboard canvas */
           <div
             id="canvas"
             className="w-full h-full relative overflow-visible"
@@ -72,6 +92,7 @@ export default function Canvas() {
                 style={{ top: ly - 0.5, height: 1, background: 'rgba(59,130,246,0.9)', zIndex: 9100 }} />
             ))}
           </div>
+          )}
         </div>
         </div>
       </div>
