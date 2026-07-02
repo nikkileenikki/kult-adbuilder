@@ -36,7 +36,7 @@ export default function Canvas() {
     <div
       ref={containerRef}
       id="canvas-viewport"
-      className="flex-1 overflow-auto bg-gray-900"
+      className="flex-1 overflow-auto bg-gray-900 relative"
       style={{ background: 'rgba(30,41,59,0.7)' }}
     >
       <div className="min-w-full min-h-full flex items-center justify-center p-10" style={{ boxSizing: 'border-box' }}>
@@ -100,18 +100,18 @@ export default function Canvas() {
           </div>
           )}
         </div>
-        {isAdvanced && (
-          <button
-            onClick={handleRefreshPreview}
-            title="Refresh / replay custom template"
-            className="absolute bottom-12 right-2 flex items-center justify-center rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
-            style={{ width: 34, height: 34, zIndex: 9200 }}
-          >
-            <i className="fa-solid fa-rotate-right" style={{ fontSize: 14 }} />
-          </button>
-        )}
         </div>
       </div>
+      {isAdvanced && (
+        <button
+          onClick={handleRefreshPreview}
+          title="Refresh / replay custom template"
+          className="absolute bottom-4 right-4 flex items-center justify-center rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+          style={{ width: 34, height: 34, zIndex: 9200 }}
+        >
+          <i className="fa-solid fa-rotate-right" style={{ fontSize: 14 }} />
+        </button>
+      )}
     </div>
   )
 }
