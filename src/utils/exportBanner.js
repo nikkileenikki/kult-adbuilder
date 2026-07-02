@@ -136,13 +136,60 @@ function buildManifestJS({ canvasWidth, canvasHeight, elements }) {
     .map((el) => `    { "name": "${el.videoName}", "ref": "${el.videoUrl}" }`)
   const videosBlock = videoEntries.length ? `,\n  "videos": [\n${videoEntries.join(',\n')}\n  ]` : ''
 
+  const trackingNames = new Set()
+  const trackingEntries = (elements || [])
+    .filter((el) => el.visible && el.type === 'invisible' && el.trackingName && !trackingNames.has(el.trackingName) && trackingNames.add(el.trackingName))
+    .map((el) => `    {"name": "${el.trackingName}", "type": "${el.trackingType || 'standard'}"}`)
+  const trackingBlock = trackingEntries.length ? `,\n  "trackingEvents": [\n${trackingEntries.join(',\n')}\n  ]` : ''
+
   return `FT.manifest({
   "filename": "index.html",
   "width": ${canvasWidth},
   "height": ${canvasHeight},
   "clickTagCount": 1,
-  "hideBrowsers": ["ie8"]${videosBlock}
+  "hideBrowsers": ["ie8"]${videosBlock}${trackingBlock}
 });`
+}
+
+function buildTrackingJS(elements) {
+  const tracked = elements.filter((el) => el.visible && el.type === 'invisible' && el.trackingName)
+  if (!tracked.length) return ''
+
+  const lines = []
+  const needsSwipe = tracked.some((el) => el.triggerOn === 'swipeLeft' || el.triggerOn === 'swipeRight')
+  if (needsSwipe) {
+    lines.push(`  function ktSwipe(el, dir, cb) {
+    var sx = 0, sy = 0;
+    el.addEventListener('touchstart', function(e) { sx = e.changedTouches[0].screenX; sy = e.changedTouches[0].screenY; }, { passive: true });
+    el.addEventListener('touchend', function(e) {
+      var dx = e.changedTouches[0].screenX - sx;
+      var dy = e.changedTouches[0].screenY - sy;
+      if (Math.abs(dx) < 30 || Math.abs(dx) < Math.abs(dy)) return;
+      if ((dir === 'left' && dx < 0) || (dir === 'right' && dx > 0)) cb();
+    }, { passive: true });
+  }`)
+  }
+
+  tracked.forEach((el) => {
+    const target = `document.getElementById('${el.id}')`
+    const fire = `function() { myFT.tracker('${el.trackingName}'); }`
+    switch (el.triggerOn) {
+      case 'hover':
+        lines.push(`  ${target}.addEventListener('mouseenter', ${fire});`)
+        break
+      case 'swipeLeft':
+        lines.push(`  ktSwipe(${target}, 'left', ${fire});`)
+        break
+      case 'swipeRight':
+        lines.push(`  ktSwipe(${target}, 'right', ${fire});`)
+        break
+      case 'click':
+      default:
+        lines.push(`  ${target}.addEventListener('click', ${fire});`)
+        break
+    }
+  })
+  return lines.join('\n')
 }
 
 function escapeHtml(str) {
@@ -174,6 +221,7 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
   const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
   const animJS = buildAnimationJS(sorted)
   const clickTagJS = buildClickTagJS(sorted)
+  const trackingJS = buildTrackingJS(sorted)
   const manifestJS = buildManifestJS({ canvasWidth, canvasHeight, elements: sorted })
 
   // Extract base64 images into root folder
@@ -254,6 +302,7 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
 
   function addEvent() {
 ${clickTagJS}
+${trackingJS}
     animate();
   }
 

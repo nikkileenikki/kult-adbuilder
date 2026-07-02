@@ -6,6 +6,7 @@ import ShapeProperties from '../properties/ShapeProperties.jsx'
 import ImageProperties from '../properties/ImageProperties.jsx'
 import VideoProperties from '../properties/VideoProperties.jsx'
 import ClickthroughProperties from '../properties/ClickthroughProperties.jsx'
+import InvisibleProperties from '../properties/InvisibleProperties.jsx'
 import AlignPad from '../properties/AlignPad.jsx'
 
 export default function PropertiesSection() {
@@ -104,6 +105,7 @@ export default function PropertiesSection() {
         {el.type === 'image' && <ImageProperties el={el} update={update} save={save} />}
         {el.type === 'video' && <VideoProperties el={el} update={update} save={save} />}
         {el.type === 'clickthrough' && <ClickthroughProperties el={el} update={update} save={save} />}
+        {el.type === 'invisible' && <InvisibleProperties el={el} update={update} save={save} />}
       </div>
 
       {isLocked && (
