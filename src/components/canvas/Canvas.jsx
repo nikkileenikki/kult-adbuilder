@@ -17,6 +17,7 @@ export default function Canvas() {
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const isAdvanced = !!activeTemplate?.customHtml
   const [previewHtml, setPreviewHtml] = useState('')
+  const [previewKey, setPreviewKey] = useState(0)
 
   useEffect(() => {
     if (!isAdvanced) return
@@ -26,6 +27,10 @@ export default function Canvas() {
       .catch(() => {})
     return () => { cancelled = true }
   }, [isAdvanced, elements, canvasWidth, canvasHeight, activeTemplate])
+
+  const handleRefreshPreview = useCallback(() => {
+    setPreviewKey((k) => k + 1)
+  }, [])
 
   return (
     <div
@@ -54,6 +59,7 @@ export default function Canvas() {
         >
           {isAdvanced ? (
             <iframe
+              key={previewKey}
               title="Template preview"
               srcDoc={previewHtml}
               sandbox="allow-scripts allow-same-origin"
@@ -94,6 +100,16 @@ export default function Canvas() {
           </div>
           )}
         </div>
+        {isAdvanced && (
+          <button
+            onClick={handleRefreshPreview}
+            title="Refresh / replay custom template"
+            className="absolute bottom-12 right-2 flex items-center justify-center rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+            style={{ width: 34, height: 34, zIndex: 9200 }}
+          >
+            <i className="fa-solid fa-rotate-right" style={{ fontSize: 14 }} />
+          </button>
+        )}
         </div>
       </div>
     </div>
