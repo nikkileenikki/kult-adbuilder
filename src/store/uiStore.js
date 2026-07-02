@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
-export const useUiStore = create((set) => ({
+export const useUiStore = create(persist((set) => ({
   activeModal: null,
   modalData: null,
   canvasZoom: 100,
@@ -10,5 +11,10 @@ export const useUiStore = create((set) => ({
   closeModal: () => set({ activeModal: null, modalData: null }),
   setCanvasZoom: (zoom) => set({ canvasZoom: Math.min(200, Math.max(25, zoom)) }),
   setFtLibrary: (lib) => set({ ftLibrary: lib }),
-  setTemplateBuilder: (v) => set({ templateBuilder: v }),
+  setTemplateBuilder: (v) => set((s) => ({ templateBuilder: typeof v === 'function' ? v(s.templateBuilder) : v })),
+}), {
+  name: 'kult-adbuilder-ui',
+  // Only the in-progress template draft needs to survive a refresh — modals/zoom/library
+  // selection should reset to their defaults on reload.
+  partialize: (state) => ({ templateBuilder: state.templateBuilder }),
 }))

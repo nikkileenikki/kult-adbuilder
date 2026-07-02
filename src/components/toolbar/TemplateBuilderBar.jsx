@@ -18,12 +18,11 @@ export default function TemplateBuilderBar() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
-  // Warn before an accidental refresh/close wipes the in-progress template.
+  // Mirror the in-progress draft into the persisted uiStore so an accidental refresh/close
+  // doesn't lose it — canvasStore (elements/canvas size) already persists on its own.
   useEffect(() => {
-    const handler = (e) => { e.preventDefault(); e.returnValue = '' }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [])
+    setTemplateBuilder((prev) => prev ? { ...prev, name, customHtml, customJs, customCss, customManifest } : prev)
+  }, [name, customHtml, customJs, customCss, customManifest, setTemplateBuilder])
 
   if (!templateBuilder) return null
 

@@ -109,7 +109,7 @@ export default function Toolbar({ onOpenUsers }) {
 
   const handleSave = () => {
     setMenuOpen(false)
-    saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop })
+    saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, activeTemplate })
   }
 
   const handleLoad = () => {
@@ -136,6 +136,7 @@ export default function Toolbar({ onOpenUsers }) {
       if (data.animDuration) setAnimDuration(data.animDuration)
       if (data.animLoop) setAnimLoop(data.animLoop)
       if (data.elements) useCanvasStore.setState({ elements: data.elements, selectedId: null })
+      useCanvasStore.setState({ activeTemplate: data.template || null })
     })
     e.target.value = ''
   }
