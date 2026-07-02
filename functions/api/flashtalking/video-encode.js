@@ -29,12 +29,14 @@ export async function onRequestPost({ request, env }) {
   if (height) item.height = Number(height)
 
   if (width && height) {
+    // 550kbps video + 64kbps audio = 614kbps total -> ~2.3MB for a 30s clip (614*30/8/1024).
+    // Tuned to land in the 2-2.5MB target for typical 30s durations; longer clips will run larger.
     item.customEncodes = [{
       width: Number(width),
       height: Number(height),
-      audio_bitrate: 96,
+      audio_bitrate: 64,
       audio_gain: 0,
-      video_bitrate: 800,
+      video_bitrate: 550,
       frame_rate: 25,
       audio_sample_rate: '32000',
       audio_loudness_level: 0,
