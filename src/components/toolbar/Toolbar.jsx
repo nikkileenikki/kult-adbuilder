@@ -20,8 +20,19 @@ const PRESET_SIZES = [
 export default function Toolbar({ onOpenUsers }) {
   const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
-  const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom, ftLibrary } = useUiStore()
+  const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom, ftLibrary, setTemplateBuilder } = useUiStore()
   const { user, token, clearAuth } = useAuthStore()
+
+  const newTemplate = () => {
+    const snapshot = useCanvasStore.getState()
+    setTemplateBuilder({ snapshot, editingTemplateId: null, name: '', category: 'custom' })
+    useCanvasStore.setState({
+      elements: [], groups: [], selectedId: null,
+      canvasWidth: 300, canvasHeight: 250,
+      animDuration: 5, animLoop: 1,
+      activeTemplate: null,
+    })
+  }
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
@@ -222,6 +233,13 @@ export default function Toolbar({ onOpenUsers }) {
           className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 hover:text-red-400 text-gray-300 px-2.5 py-1.5 rounded text-xs border border-gray-700 transition-colors">
           <i className="fa-solid fa-arrow-rotate-left" style={{ fontSize: 12 }} /> Reset Canvas
         </button>
+
+        {user?.role === 'admin' && (
+          <button onClick={newTemplate} title="Build a new reusable template"
+            className="flex items-center gap-1.5 bg-gray-800 hover:bg-purple-900/40 hover:border-purple-700 hover:text-purple-300 text-gray-300 px-2.5 py-1.5 rounded text-xs border border-gray-700 transition-colors">
+            <i className="fa-solid fa-plus" style={{ fontSize: 12 }} /> New Template
+          </button>
+        )}
 
         {/* Import/Export dropdown */}
         <div className="relative" ref={menuRef}>
