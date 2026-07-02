@@ -1,0 +1,2 @@
+ALTER TABLE templates ADD COLUMN custom_js TEXT NOT NULL DEFAULT '';
+ALTER TABLE templates ADD COLUMN custom_css TEXT NOT NULL DEFAULT '';

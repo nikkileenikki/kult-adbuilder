@@ -3,7 +3,7 @@ export async function onRequestGet({ request, env }) {
   if (!session) return json({ error: 'Unauthorized' }, 401)
 
   const rows = await env.DB.prepare(
-    'SELECT id, name, category, width, height, data, created_by, created_at, updated_at FROM templates ORDER BY created_at DESC'
+    'SELECT id, name, category, width, height, data, custom_js, custom_css, created_by, created_at, updated_at FROM templates ORDER BY created_at DESC'
   ).all()
 
   const items = (rows.results || []).map((r) => ({
@@ -13,6 +13,8 @@ export async function onRequestGet({ request, env }) {
     width: r.width,
     height: r.height,
     data: JSON.parse(r.data),
+    customJs: r.custom_js || '',
+    customCss: r.custom_css || '',
     createdBy: r.created_by,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -29,7 +31,7 @@ export async function onRequestPost({ request, env }) {
   if (!caller || caller.role !== 'admin') return json({ error: 'Forbidden' }, 403)
 
   const body = await request.json()
-  const { name, category, width, height, elements } = body
+  const { name, category, width, height, elements, customJs, customCss } = body
 
   if (!name) return json({ error: 'name is required' }, 400)
   if (!width || !height) return json({ error: 'width and height are required' }, 400)
@@ -39,8 +41,8 @@ export async function onRequestPost({ request, env }) {
   const data = JSON.stringify({ elements })
 
   await env.DB.prepare(
-    'INSERT INTO templates (id, name, category, width, height, data, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, name, category || 'custom', width, height, data, session.user_id).run()
+    'INSERT INTO templates (id, name, category, width, height, data, custom_js, custom_css, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, name, category || 'custom', width, height, data, customJs || '', customCss || '', session.user_id).run()
 
   return json({ ok: true, id })
 }
@@ -60,7 +62,7 @@ export async function onRequestPut({ request, env }) {
   if (!existing) return json({ error: 'Template not found' }, 404)
 
   const body = await request.json()
-  const { name, category, width, height, elements } = body
+  const { name, category, width, height, elements, customJs, customCss } = body
 
   if (!name) return json({ error: 'name is required' }, 400)
   if (!width || !height) return json({ error: 'width and height are required' }, 400)
@@ -69,8 +71,8 @@ export async function onRequestPut({ request, env }) {
   const data = JSON.stringify({ elements })
 
   await env.DB.prepare(
-    'UPDATE templates SET name = ?, category = ?, width = ?, height = ?, data = ?, updated_at = unixepoch() WHERE id = ?'
-  ).bind(name, category || 'custom', width, height, data, id).run()
+    'UPDATE templates SET name = ?, category = ?, width = ?, height = ?, data = ?, custom_js = ?, custom_css = ?, updated_at = unixepoch() WHERE id = ?'
+  ).bind(name, category || 'custom', width, height, data, customJs || '', customCss || '', id).run()
 
   return json({ ok: true })
 }

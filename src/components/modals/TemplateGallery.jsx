@@ -43,6 +43,8 @@ export default function TemplateGallery() {
           category: t.category,
           isCustom: true,
           variables: [],
+          customJs: t.customJs || '',
+          customCss: t.customCss || '',
           sizes: {
             [`${t.width}x${t.height}`]: { label: `${t.width}x${t.height}`, width: t.width, height: t.height, elements: t.data.elements || [] },
           },
@@ -100,7 +102,7 @@ export default function TemplateGallery() {
     const size = Object.values(tpl.sizes)[0]
     if (!size) return
     const snapshot = useCanvasStore.getState()
-    setTemplateBuilder({ snapshot, editingTemplateId: tpl.id, name: tpl.name, category: tpl.category })
+    setTemplateBuilder({ snapshot, editingTemplateId: tpl.id, name: tpl.name, category: tpl.category, customJs: tpl.customJs || '', customCss: tpl.customCss || '' })
     let counter = Date.now()
     const elements = (size.elements || []).map((el) => ({ ...el, id: `${el.type}_${counter++}`, folderId: null }))
     useCanvasStore.setState({
