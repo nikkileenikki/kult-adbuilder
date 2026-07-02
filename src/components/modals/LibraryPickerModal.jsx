@@ -74,13 +74,15 @@ export default function LibraryPickerModal({ onClose }) {
         />
       </div>
 
-      <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-700 mb-4">
+      <div className="h-64 overflow-y-auto rounded-lg border border-gray-700 mb-4">
         {loading ? (
-          <div className="flex items-center justify-center py-8 text-gray-400 text-sm gap-2">
+          <div className="h-full flex items-center justify-center text-gray-400 text-sm gap-2">
             <i className="fa-solid fa-spinner fa-spin" /> Loading libraries…
           </div>
         ) : filtered.length === 0 ? (
-          <p className="text-gray-500 text-xs px-3 py-4 text-center">No libraries found</p>
+          <div className="h-full flex items-center justify-center">
+            <p className="text-gray-500 text-xs px-3 text-center">No libraries found</p>
+          </div>
         ) : (
           filtered.map((lib) => (
             <button

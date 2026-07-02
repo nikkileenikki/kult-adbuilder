@@ -1,11 +1,12 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 let nextId = Date.now()
 const uid = (type) => `${type}_${nextId++}`
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
 
-export const useCanvasStore = create((set, get) => ({
+export const useCanvasStore = create(persist((set, get) => ({
   elements: [],
   groups: [],
   selectedId: null,
@@ -79,4 +80,14 @@ export const useCanvasStore = create((set, get) => ({
   toggleLock: (id) => set((s) => ({
     elements: s.elements.map((el) => el.id === id ? { ...el, locked: !el.locked } : el),
   })),
+}), {
+  name: 'kult-adbuilder-canvas',
+  partialize: (state) => ({
+    elements: state.elements,
+    groups: state.groups,
+    canvasWidth: state.canvasWidth,
+    canvasHeight: state.canvasHeight,
+    animDuration: state.animDuration,
+    animLoop: state.animLoop,
+  }),
 }))
