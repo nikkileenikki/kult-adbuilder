@@ -42,10 +42,19 @@ export default function TemplateBuilderBar() {
     try {
       const { sizeId, templateId } = templateBuilder
       const qs = sizeId ? `?sizeId=${sizeId}` : (templateId ? `?templateId=${templateId}` : '')
-      // Auto-detect {{tokenName}} placeholders in the custom code so the ad builder can
-      // show fill-in inputs for them once this template is selected.
+      // Auto-detect {{tokenName}} / {{type.tokenName}} placeholders in the custom code so
+      // the ad builder can show typed fill-in inputs (image/video/text) for them.
       const tokenMatches = `${customHtml} ${customJs} ${customCss}`.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)
-      const variables = [...new Set([...tokenMatches].map((m) => m[1]))]
+      const tokenKeys = [...new Set([...tokenMatches].map((m) => m[1]))]
+      const variables = tokenKeys.map((key) => {
+        const dot = key.indexOf('.')
+        if (dot > 0) {
+          const type = key.slice(0, dot)
+          const label = key.slice(dot + 1)
+          if (type === 'image' || type === 'video' || type === 'text') return { key, type, label }
+        }
+        return { key, type: 'text', label: key }
+      })
       const res = await fetch(`/api/templates${qs}`, {
         method: sizeId ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -123,6 +132,9 @@ export default function TemplateBuilderBar() {
               Custom HTML is set — this template will render entirely from your HTML/JS/CSS instead of the drag-and-drop elements on the canvas.
             </p>
           )}
+          <p className="text-xs text-gray-500 px-1">
+            Use <code className="text-purple-300">{'{{image.name}}'}</code>, <code className="text-purple-300">{'{{video.name}}'}</code>, or <code className="text-purple-300">{'{{text.name}}'}</code> in the code below for typed fill-in inputs (image upload, video picker, text field) — plain <code className="text-purple-300">{'{{name}}'}</code> defaults to text.
+          </p>
           <div>
             <label className="text-xs text-purple-200 block mb-1">Custom HTML <span className="text-gray-400">(replaces the element-based rendering entirely — paste a full bespoke banner's body markup)</span></label>
             <textarea
