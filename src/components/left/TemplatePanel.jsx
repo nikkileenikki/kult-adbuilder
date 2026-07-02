@@ -39,10 +39,19 @@ export default function TemplatePanel() {
   }
 
   const vars = (activeTemplate.variables || []).filter((v) => v.type !== 'repeater' && v.type !== 'number')
-  // Normalize: legacy saved tokens are plain strings, newer ones are typed { key, type, label }.
-  const tokenVars = (activeTemplate.tokenVariables || []).map((t) =>
-    typeof t === 'string' ? { key: t, type: 'text', label: t } : t
-  )
+  // Always derive type/label from the key itself (works for both legacy plain-string
+  // tokens and newer typed objects — the key is the single source of truth either way).
+  const tokenVars = (activeTemplate.tokenVariables || []).map((t) => {
+    const key = typeof t === 'string' ? t : t.key
+    const dot = key.indexOf('.')
+    if (dot > 0) {
+      const type = key.slice(0, dot)
+      if (type === 'image' || type === 'video' || type === 'text') {
+        return { key, type, label: key.slice(dot + 1) }
+      }
+    }
+    return { key, type: 'text', label: key }
+  })
 
   const handleTokenChange = (tokenKey, value) => {
     setActiveTemplate({
