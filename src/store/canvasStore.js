@@ -89,5 +89,6 @@ export const useCanvasStore = create(persist((set, get) => ({
     canvasHeight: state.canvasHeight,
     animDuration: state.animDuration,
     animLoop: state.animLoop,
+    activeTemplate: state.activeTemplate,
   }),
 }))
