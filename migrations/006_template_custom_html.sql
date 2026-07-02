@@ -1,0 +1,1 @@
+ALTER TABLE templates ADD COLUMN custom_html TEXT NOT NULL DEFAULT '';
