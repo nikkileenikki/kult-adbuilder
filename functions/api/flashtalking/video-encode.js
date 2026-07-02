@@ -28,6 +28,19 @@ export async function onRequestPost({ request, env }) {
   if (width) item.width = Number(width)
   if (height) item.height = Number(height)
 
+  if (width && height) {
+    item.customEncodes = [{
+      width: Number(width),
+      height: Number(height),
+      audio_bitrate: '96k',
+      audio_gain: 0,
+      video_bitrate: 800,
+      frame_rate: 25,
+      audio_sample_rate: '32000',
+      audio_loudness_level: 0,
+    }]
+  }
+
   const requestBody = {
     advvast: false,
     overwrite: false,
