@@ -11,6 +11,7 @@ import AddShapeModal from './components/modals/AddShapeModal.jsx'
 import AddVideoModal from './components/modals/AddVideoModal.jsx'
 import AnimationModal from './components/modals/AnimationModal.jsx'
 import TemplateGallery from './components/modals/TemplateGallery.jsx'
+import TemplateBuilderBar from './components/toolbar/TemplateBuilderBar.jsx'
 
 export default function App({ onOpenUsers }) {
   const { activeModal } = useUiStore()
@@ -42,6 +43,7 @@ export default function App({ onOpenUsers }) {
       <LeftPanel />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Toolbar onOpenUsers={onOpenUsers} />
+        <TemplateBuilderBar />
         <Canvas />
         <Timeline />
       </div>

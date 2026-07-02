@@ -1,14 +1,16 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { TEMPLATES } from '../../templates/index.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
+import { useAuthStore } from '../../store/authStore.js'
 import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 const CATEGORY_LABELS = {
   standard: 'Standard',
   carousel: 'Carousel',
   catfish: 'Catfish',
+  custom: 'Custom',
 }
 
 const VAR_TYPE_ICONS = {
@@ -21,11 +23,41 @@ const VAR_TYPE_ICONS = {
 }
 
 export default function TemplateGallery() {
-  const { closeModal } = useUiStore()
+  const { closeModal, setTemplateBuilder } = useUiStore()
   const { saveState, setCanvasSize } = useCanvasStore()
   const { saveState: hist } = useHistoryStore()
+  const { token, user } = useAuthStore()
   const [selected, setSelected] = useState(null)
+  const [dbTemplates, setDbTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
   useEscapeKey(closeModal)
+
+  const refreshDbTemplates = useCallback(() => {
+    setLoading(true)
+    fetch('/api/templates', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        const items = (data.items || []).map((t) => ({
+          id: t.id,
+          name: t.name,
+          category: t.category,
+          isCustom: true,
+          variables: [],
+          sizes: {
+            [`${t.width}x${t.height}`]: { label: `${t.width}x${t.height}`, width: t.width, height: t.height, elements: t.data.elements || [] },
+          },
+        }))
+        setDbTemplates(items)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [token])
+
+  useEffect(() => {
+    refreshDbTemplates()
+  }, [refreshDbTemplates])
+
+  const allTemplates = [...TEMPLATES, ...dbTemplates]
 
   const loadTemplate = (tpl) => {
     const sizes = Object.values(tpl.sizes)
@@ -52,6 +84,31 @@ export default function TemplateGallery() {
     closeModal()
   }
 
+  const editTemplate = (tpl) => {
+    const size = Object.values(tpl.sizes)[0]
+    if (!size) return
+    const snapshot = useCanvasStore.getState()
+    setTemplateBuilder({ snapshot, editingTemplateId: tpl.id, name: tpl.name, category: tpl.category })
+    let counter = Date.now()
+    const elements = (size.elements || []).map((el) => ({ ...el, id: `${el.type}_${counter++}`, folderId: null }))
+    useCanvasStore.setState({
+      elements, selectedId: null, activeTemplate: null,
+      canvasWidth: size.width, canvasHeight: size.height,
+      animDuration: 5, animLoop: 1,
+    })
+    closeModal()
+  }
+
+  const deleteTemplate = async (tpl) => {
+    if (!confirm(`Delete template "${tpl.name}"? This cannot be undone.`)) return
+    await fetch(`/api/templates?id=${tpl.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
+    if (selected === tpl.id) setSelected(null)
+    refreshDbTemplates()
+  }
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={closeModal}>
       <div
@@ -71,7 +128,7 @@ export default function TemplateGallery() {
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-5">
           <div className="grid grid-cols-3 gap-4">
-            {TEMPLATES.map((tpl) => {
+            {allTemplates.map((tpl) => {
               const firstSize = Object.values(tpl.sizes)[0]
               const isSelected = selected === tpl.id
               return (
@@ -79,7 +136,7 @@ export default function TemplateGallery() {
                   key={tpl.id}
                   onClick={() => setSelected(tpl.id)}
                   onDoubleClick={() => loadTemplate(tpl)}
-                  className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
                     isSelected ? 'border-blue-500' : 'border-gray-700 hover:border-gray-500'
                   }`}
                 >
@@ -87,6 +144,24 @@ export default function TemplateGallery() {
                   <div className="bg-gray-900 flex items-center justify-center" style={{ height: 120 }}>
                     <TemplatePreview tpl={tpl} size={firstSize} />
                   </div>
+                  {tpl.isCustom && user?.role === 'admin' && (
+                    <div className="absolute top-1.5 right-1.5 flex gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); editTemplate(tpl) }}
+                        title="Edit template"
+                        className="w-6 h-6 flex items-center justify-center bg-gray-900/80 hover:bg-purple-700 text-gray-300 hover:text-white rounded"
+                      >
+                        <i className="fa-solid fa-pen" style={{ fontSize: 10 }} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteTemplate(tpl) }}
+                        title="Delete template"
+                        className="w-6 h-6 flex items-center justify-center bg-gray-900/80 hover:bg-red-700 text-gray-300 hover:text-white rounded"
+                      >
+                        <i className="fa-solid fa-trash" style={{ fontSize: 10 }} />
+                      </button>
+                    </div>
+                  )}
                   {/* Info */}
                   <div className="bg-gray-700 px-3 py-2">
                     <div className="font-semibold text-sm text-white truncate">{tpl.name}</div>
@@ -98,13 +173,17 @@ export default function TemplateGallery() {
                 </div>
               )
             })}
+            {loading && dbTemplates.length === 0 && (
+              <div className="col-span-3 text-center text-gray-500 text-xs py-4">Loading custom templates…</div>
+            )}
           </div>
 
           {/* Variables preview for selected */}
           {selected && (() => {
-            const tpl = TEMPLATES.find((t) => t.id === selected)
+            const tpl = allTemplates.find((t) => t.id === selected)
             if (!tpl) return null
             const vars = tpl.variables || []
+            if (!vars.length) return null
             return (
               <div className="mt-4 bg-gray-900 rounded-lg p-4">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Template Variables</div>
@@ -130,7 +209,7 @@ export default function TemplateGallery() {
           <button onClick={closeModal} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-1.5 rounded text-sm">Cancel</button>
           <button
             disabled={!selected}
-            onClick={() => { const tpl = TEMPLATES.find((t) => t.id === selected); if (tpl) loadTemplate(tpl) }}
+            onClick={() => { const tpl = allTemplates.find((t) => t.id === selected); if (tpl) loadTemplate(tpl) }}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded text-sm"
           >
             Use Template
