@@ -33,16 +33,22 @@ export default function Canvas() {
   }, [])
 
   return (
+    // Canvas Viewport — the dark, scrollable stage area surrounding the banner. Holds the
+    // scaled banner container plus any viewport-pinned overlay controls (e.g. refresh button).
     <div
       ref={containerRef}
       id="canvas-viewport"
       className="flex-1 overflow-auto bg-gray-900 relative"
       style={{ background: 'rgba(30,41,59,0.7)' }}
     >
+      {/* Zoom Frame — centers the scaled banner within the viewport and reserves exactly
+          the scaled footprint so the CSS transform below doesn't cause layout overflow. */}
       <div className="min-w-full min-h-full flex items-center justify-center p-10" style={{ boxSizing: 'border-box' }}>
-        {/* Outer div matches the visually-scaled size so transform doesn't cause layout overflow */}
+        {/* Scale Anchor — sized to the zoomed (canvasWidth*scale) dimensions; canvasWrapper is
+            absolutely positioned inside it and scaled via CSS transform. */}
         <div style={{ width: canvasWidth * scale, height: canvasHeight * scale, flexShrink: 0, position: 'relative' }}>
-        {/* Canvas wrapper — dark overlay outside via box-shadow */}
+        {/* Canvas Wrapper (#canvasWrapper) — the banner's actual pixel-size box; dims
+            everything outside its bounds via a box-shadow spread. */}
         <div
           id="canvasWrapper"
           className="relative shadow-2xl"
@@ -58,6 +64,8 @@ export default function Canvas() {
           }}
         >
           {isAdvanced ? (
+            // Template Preview Iframe — renders an advanced (custom-HTML) template's export
+            // output live; remounted via `key` to replay its animation on refresh.
             <iframe
               key={previewKey}
               title="Template preview"
@@ -66,7 +74,8 @@ export default function Canvas() {
               style={{ width: canvasWidth, height: canvasHeight, border: 'none', display: 'block', background: '#fff' }}
             />
           ) : (
-          /* Checkerboard canvas */
+          /* Checkerboard Canvas (#canvas) — the white/checkerboard drag-and-drop surface
+             that renders CanvasElement instances for non-advanced (element-based) banners. */
           <div
             id="canvas"
             className="w-full h-full relative overflow-visible"
@@ -103,6 +112,8 @@ export default function Canvas() {
         </div>
       </div>
       {isAdvanced && (
+        // Refresh/Replay Button — pinned to the canvas viewport (not the banner itself),
+        // bottom-right corner; remounts the Template Preview Iframe above to replay it.
         <button
           onClick={handleRefreshPreview}
           title="Refresh / replay custom template"

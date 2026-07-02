@@ -39,12 +39,20 @@ export default function App({ onOpenUsers }) {
   }, [activeModal, undo, redo, selectedId, deleteElement, saveState])
 
   return (
+    // App Shell — full-height flex row: Left Panel sidebar + the main column (Toolbar,
+    // optional Template Builder Bar, Canvas viewport, Timeline) plus modal overlays.
     <div className="flex h-screen bg-gray-900 text-gray-100 select-none overflow-hidden">
+      {/* Left Panel — layers list, template variables, element property editors */}
       <LeftPanel />
+      {/* Main Column */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Toolbar — banner name, canvas size, zoom, undo/redo, file menu, publish */}
         <Toolbar onOpenUsers={onOpenUsers} />
+        {/* Template Builder Bar — purple admin bar shown only while building/editing a template */}
         {templateBuilder && <TemplateBuilderBar />}
+        {/* Canvas — the scrollable stage containing the banner (see Canvas.jsx for its internals) */}
         <Canvas />
+        {/* Timeline — animation timeline/track editor docked at the bottom */}
         <Timeline />
       </div>
 

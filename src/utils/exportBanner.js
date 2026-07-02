@@ -223,25 +223,33 @@ export async function exportBannerZip({ elements, canvasWidth, canvasHeight, ban
   URL.revokeObjectURL(url)
 }
 
+// Substitutes {{token}} placeholders in a template's custom code with the values the
+// ad builder collected in the left panel. Shared by the zip export and the live preview
+// so both stay in sync on what "advanced mode" custom HTML/JS/CSS/manifest actually is.
+function substituteTemplateTokens(activeTemplate) {
+  const values = activeTemplate?.tokenValues || {}
+  const sub = (str) => (str || '').replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key) => values[key] ?? '')
+  return {
+    customHtml: sub(activeTemplate?.customHtml?.trim() || ''),
+    customJs: sub(activeTemplate?.customJs?.trim() || ''),
+    customCss: sub(activeTemplate?.customCss?.trim() || ''),
+    customManifest: sub(activeTemplate?.customManifest?.trim() || ''),
+  }
+}
+
 // Builds the exported index.html as a string. Used for both the real ZIP export and the
 // live canvas preview (which skips the base64->file swap since there's no zip to reference).
-async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, imageFiles, inlineTemplateCss }) {
+async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, customHtml, customJs, customCss, imageFiles, inlineTemplateCss }) {
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
   const animJS = buildAnimationJS(sorted)
   const clickTagJS = buildClickTagJS(sorted)
   const trackingJS = buildTrackingJS(sorted)
 
-  // Custom HTML/JS/CSS authored on the active template (admin-built templates only).
   // customHtml present -> "advanced mode": bespoke markup replaces the element-based
   // container entirely, and customJs runs standalone (own window.onload, no wrapper).
-  const substituteTokens = (str) => {
-    const values = activeTemplate?.tokenValues || {}
-    return str.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key) => values[key] ?? '')
-  }
-  const customHtml = substituteTokens(activeTemplate?.customHtml?.trim() || '')
-  const customJs = substituteTokens(activeTemplate?.customJs?.trim() || '')
-  const customCss = substituteTokens(activeTemplate?.customCss?.trim() || '')
+  // Advanced templates are meant to be self-contained bespoke banners, so they skip the
+  // FT html5API.js script and the preset loader markup — only jQuery + GSAP are provided.
   const isAdvanced = !!customHtml
   const customCssTag = customCss ? `\n  <style>\n${customCss}\n  </style>` : ''
   const customJsBlock = (!isAdvanced && customJs) ? `\n\n  function customTemplateInit() {\n${customJs}\n  }` : ''
@@ -305,9 +313,7 @@ async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, pol
   <style>${presetCss}
   </style>${templateCssTag}${customCssTag}
 </head>
-<body>
-  <script src="https://cdn.flashtalking.com/frameworks/js/api/2/10/html5API.js"><\/script>
-  <div class="loader"></div>
+<body>${isAdvanced ? '' : '\n  <script src="https://cdn.flashtalking.com/frameworks/js/api/2/10/html5API.js"><\/script>\n  <div class="loader"></div>'}
   <div id="container">
     ${bodyHTML}
   </div>${jqueryTag}
@@ -358,9 +364,30 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
     imageFiles.push({ src: el.src, filename })
   })
 
-  const { html, templateCss } = await _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, imageFiles, inlineTemplateCss: false })
+  // Custom templates (advanced mode) can have images embedded directly as base64 data
+  // URIs in their HTML/CSS rather than as canvas image elements — extract those too so
+  // the zip ships real image files instead of inlined base64.
+  const { customHtml, customJs, customCss, customManifest } = substituteTemplateTokens(activeTemplate)
+  const dataUriRe = /data:([^;,"')]+);base64,([A-Za-z0-9+/=]+)/g
+  ;[customHtml, customCss].forEach((str) => {
+    let match
+    dataUriRe.lastIndex = 0
+    while ((match = dataUriRe.exec(str))) {
+      const fullSrc = match[0]
+      if (imageFiles.some((f) => f.src === fullSrc)) continue
+      const ext = match[1].split('/')[1] || 'png'
+      const filename = `tpl_img_${imgCounter++}.${ext}`
+      zip.file(filename, match[2], { base64: true })
+      imageFiles.push({ src: fullSrc, filename })
+    }
+  })
+
+  const { html, templateCss } = await _buildHTML({
+    elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate,
+    customHtml, customJs, customCss, imageFiles, inlineTemplateCss: false,
+  })
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
-  const manifestJS = buildManifestJS({ canvasWidth, canvasHeight, elements: sorted, customManifest: activeTemplate?.customManifest })
+  const manifestJS = buildManifestJS({ canvasWidth, canvasHeight, elements: sorted, customManifest })
 
   if (templateCss) zip.file('template.css', templateCss)
   zip.file('index.html', html)
@@ -372,15 +399,28 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
 // Live preview HTML for the canvas — same rendering path as export, base64 images kept inline
 // (no zip to reference files from) and template CSS inlined as a <style> tag.
 export async function buildPreviewHtml({ elements, canvasWidth, canvasHeight, bannerName, activeTemplate }) {
+  const { customHtml, customJs, customCss } = substituteTemplateTokens(activeTemplate)
   const { html } = await _buildHTML({
     elements, canvasWidth, canvasHeight, bannerName: bannerName || 'preview', politeLoad: false,
-    activeTemplate, imageFiles: [], inlineTemplateCss: true,
+    activeTemplate, customHtml, customJs, customCss, imageFiles: [], inlineTemplateCss: true,
   })
   return html
 }
 
-export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop }) {
-  const data = JSON.stringify({ version: 1, bannerName, canvasWidth, canvasHeight, animDuration, animLoop, elements }, null, 2)
+export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, activeTemplate }) {
+  const template = activeTemplate ? {
+    id: activeTemplate.id,
+    name: activeTemplate.name,
+    customHtml: activeTemplate.customHtml || '',
+    customJs: activeTemplate.customJs || '',
+    customCss: activeTemplate.customCss || '',
+    customManifest: activeTemplate.customManifest || '',
+    variables: activeTemplate.variables || [],
+    tokenVariables: activeTemplate.tokenVariables || [],
+    tokenValues: activeTemplate.tokenValues || {},
+    sizes: activeTemplate.sizes || {},
+  } : null
+  const data = JSON.stringify({ version: 1, bannerName, canvasWidth, canvasHeight, animDuration, animLoop, elements, template }, null, 2)
   const blob = new Blob([data], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
