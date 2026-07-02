@@ -148,10 +148,17 @@ export default function VideoProperties({ el, update, save }) {
 
   const handleSelectTranscoded = (video) => {
     const nameBase = video.name.replace(/\.[^.]+$/, '')
-    save({
+    const update = {
       videoName: nameBase,
       videoUrl: `${ftLibrary.id}/${nameBase}`,
-    })
+    }
+    // Fit the element to the video's own aspect ratio (keep current width, adjust height)
+    // and lock it so future manual resizes don't distort the video.
+    if (video.width && video.height && el.width) {
+      update.height = Math.round(el.width * (video.height / video.width))
+      update.lockAspectRatio = true
+    }
+    save(update)
     setUploadStatus({ type: 'success', message: `Selected "${video.name}" for this element.` })
   }
 
