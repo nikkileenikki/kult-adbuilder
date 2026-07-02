@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 const QUALITY_OPTIONS = [
   { value: '240p', label: '240p', height: 240 },
@@ -63,6 +64,7 @@ export default function VideoLibraryModal({
   onUpload,
 }) {
   const [quality, setQuality] = useState('480p')
+  useEscapeKey(onClose)
   const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
   const statusColor = {
     success: 'text-green-400',

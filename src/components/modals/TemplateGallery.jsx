@@ -3,6 +3,7 @@ import { TEMPLATES } from '../../templates/index.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
+import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 const CATEGORY_LABELS = {
   standard: 'Standard',
@@ -24,6 +25,7 @@ export default function TemplateGallery() {
   const { saveState, setCanvasSize } = useCanvasStore()
   const { saveState: hist } = useHistoryStore()
   const [selected, setSelected] = useState(null)
+  useEscapeKey(closeModal)
 
   const loadTemplate = (tpl) => {
     const sizes = Object.values(tpl.sizes)

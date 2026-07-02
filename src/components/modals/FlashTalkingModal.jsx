@@ -3,6 +3,7 @@ import { useAuthStore } from '../../store/authStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 import { buildBannerZipBlob } from '../../utils/exportBanner.js'
+import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 function Modal({ children }) {
   return (
@@ -18,6 +19,7 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
   const { token } = useAuthStore()
   const { elements, canvasWidth, canvasHeight } = useCanvasStore()
   const { ftLibrary } = useUiStore()
+  useEscapeKey(onClose)
 
   const [publishing, setPublishing] = useState(false)
   const [status, setStatus] = useState(null)
