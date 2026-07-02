@@ -14,7 +14,7 @@ import TemplateGallery from './components/modals/TemplateGallery.jsx'
 import TemplateBuilderBar from './components/toolbar/TemplateBuilderBar.jsx'
 
 export default function App({ onOpenUsers }) {
-  const { activeModal } = useUiStore()
+  const { activeModal, templateBuilder } = useUiStore()
   const { undo, redo } = useHistoryStore()
   const { selectedId, deleteElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
@@ -43,7 +43,7 @@ export default function App({ onOpenUsers }) {
       <LeftPanel />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Toolbar onOpenUsers={onOpenUsers} />
-        <TemplateBuilderBar />
+        {templateBuilder && <TemplateBuilderBar />}
         <Canvas />
         <Timeline />
       </div>
