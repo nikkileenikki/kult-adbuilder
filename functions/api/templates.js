@@ -6,7 +6,7 @@ export async function onRequestGet({ request, env }) {
     'SELECT id, name, category, created_by, created_at, updated_at FROM templates ORDER BY created_at DESC'
   ).all()
   const sizeRows = await env.DB.prepare(
-    'SELECT id, template_id, width, height, data, custom_html, custom_js, custom_css, created_at, updated_at FROM template_sizes ORDER BY created_at ASC'
+    'SELECT id, template_id, width, height, data, custom_html, custom_js, custom_css, custom_manifest, created_at, updated_at FROM template_sizes ORDER BY created_at ASC'
   ).all()
 
   const sizesByTemplate = new Map()
@@ -19,6 +19,7 @@ export async function onRequestGet({ request, env }) {
       customHtml: r.custom_html || '',
       customJs: r.custom_js || '',
       customCss: r.custom_css || '',
+      customManifest: r.custom_manifest || '',
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }
@@ -51,7 +52,7 @@ export async function onRequestPost({ request, env }) {
   const url = new URL(request.url)
   const templateId = url.searchParams.get('templateId')
   const body = await request.json()
-  const { name, category, width, height, elements, variables, customHtml, customJs, customCss } = body
+  const { name, category, width, height, elements, variables, customHtml, customJs, customCss, customManifest } = body
 
   if (!width || !height) return json({ error: 'width and height are required' }, 400)
   if (!Array.isArray(elements)) return json({ error: 'elements must be an array' }, 400)
@@ -64,8 +65,8 @@ export async function onRequestPost({ request, env }) {
 
     const sizeId = crypto.randomUUID()
     await env.DB.prepare(
-      'INSERT INTO template_sizes (id, template_id, width, height, data, custom_html, custom_js, custom_css) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(sizeId, templateId, width, height, data, customHtml || '', customJs || '', customCss || '').run()
+      'INSERT INTO template_sizes (id, template_id, width, height, data, custom_html, custom_js, custom_css, custom_manifest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(sizeId, templateId, width, height, data, customHtml || '', customJs || '', customCss || '', customManifest || '').run()
     await env.DB.prepare('UPDATE templates SET updated_at = unixepoch() WHERE id = ?').bind(templateId).run()
 
     return json({ ok: true, id: templateId, sizeId })
@@ -79,8 +80,8 @@ export async function onRequestPost({ request, env }) {
     'INSERT INTO templates (id, name, category, created_by) VALUES (?, ?, ?, ?)'
   ).bind(id, name, category || 'custom', session.user_id).run()
   await env.DB.prepare(
-    'INSERT INTO template_sizes (id, template_id, width, height, data, custom_html, custom_js, custom_css) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(sizeId, id, width, height, data, customHtml || '', customJs || '', customCss || '').run()
+    'INSERT INTO template_sizes (id, template_id, width, height, data, custom_html, custom_js, custom_css, custom_manifest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(sizeId, id, width, height, data, customHtml || '', customJs || '', customCss || '', customManifest || '').run()
 
   return json({ ok: true, id, sizeId })
 }
@@ -101,7 +102,7 @@ export async function onRequestPut({ request, env }) {
   if (!existing) return json({ error: 'Size not found' }, 404)
 
   const body = await request.json()
-  const { name, category, width, height, elements, variables, customHtml, customJs, customCss } = body
+  const { name, category, width, height, elements, variables, customHtml, customJs, customCss, customManifest } = body
 
   if (!width || !height) return json({ error: 'width and height are required' }, 400)
   if (!Array.isArray(elements)) return json({ error: 'elements must be an array' }, 400)
@@ -109,8 +110,8 @@ export async function onRequestPut({ request, env }) {
   const data = JSON.stringify({ elements, variables: variables || [] })
 
   await env.DB.prepare(
-    'UPDATE template_sizes SET width = ?, height = ?, data = ?, custom_html = ?, custom_js = ?, custom_css = ?, updated_at = unixepoch() WHERE id = ?'
-  ).bind(width, height, data, customHtml || '', customJs || '', customCss || '', sizeId).run()
+    'UPDATE template_sizes SET width = ?, height = ?, data = ?, custom_html = ?, custom_js = ?, custom_css = ?, custom_manifest = ?, updated_at = unixepoch() WHERE id = ?'
+  ).bind(width, height, data, customHtml || '', customJs || '', customCss || '', customManifest || '', sizeId).run()
 
   if (name) {
     await env.DB.prepare(

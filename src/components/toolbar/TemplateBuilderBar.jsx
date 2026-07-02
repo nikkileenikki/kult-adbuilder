@@ -15,6 +15,7 @@ export default function TemplateBuilderBar() {
   const [customHtml, setCustomHtml] = useState(templateBuilder?.customHtml || '')
   const [customJs, setCustomJs] = useState(templateBuilder?.customJs || '')
   const [customCss, setCustomCss] = useState(templateBuilder?.customCss || '')
+  const [customManifest, setCustomManifest] = useState(templateBuilder?.customManifest || '')
   const [showCode, setShowCode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -37,6 +38,9 @@ export default function TemplateBuilderBar() {
       setError(`This template already has a ${sizeKey} size — change the canvas size or edit that size instead.`)
       return
     }
+    if (customManifest.trim()) {
+      try { JSON.parse(customManifest) } catch { setError('Custom Manifest must be valid JSON'); return }
+    }
     setSaving(true)
     setError(null)
     try {
@@ -44,7 +48,7 @@ export default function TemplateBuilderBar() {
       const qs = sizeId ? `?sizeId=${sizeId}` : (templateId ? `?templateId=${templateId}` : '')
       // Auto-detect {{tokenName}} / {{type.tokenName}} placeholders in the custom code so
       // the ad builder can show typed fill-in inputs (image/video/text) for them.
-      const tokenMatches = `${customHtml} ${customJs} ${customCss}`.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)
+      const tokenMatches = `${customHtml} ${customJs} ${customCss} ${customManifest}`.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)
       const tokenKeys = [...new Set([...tokenMatches].map((m) => m[1]))]
       const variables = tokenKeys.map((key) => {
         const dot = key.indexOf('.')
@@ -58,7 +62,7 @@ export default function TemplateBuilderBar() {
       const res = await fetch(`/api/templates${qs}`, {
         method: sizeId ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, variables, customHtml, customJs, customCss }),
+        body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, variables, customHtml, customJs, customCss, customManifest }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save template')
@@ -169,6 +173,17 @@ export default function TemplateBuilderBar() {
                 className="w-full bg-gray-900 text-gray-100 rounded px-2 py-1.5 text-xs font-mono border border-gray-700 focus:border-purple-500 focus:outline-none resize-y"
               />
             </div>
+          </div>
+          <div>
+            <label className="text-xs text-purple-200 block mb-1">Custom Manifest <span className="text-gray-400">(JSON object merged into manifest.js's FT.manifest({'{'}...{'}'}) — overrides auto-generated fields like videos/trackingEvents if you set them here)</span></label>
+            <textarea
+              value={customManifest}
+              onChange={(e) => setCustomManifest(e.target.value)}
+              rows={4}
+              placeholder='{"hideBrowsers": ["ie8", "ie9"], "clickTagCount": 2}'
+              spellCheck={false}
+              className="w-full bg-gray-900 text-gray-100 rounded px-2 py-1.5 text-xs font-mono border border-gray-700 focus:border-purple-500 focus:outline-none resize-y"
+            />
           </div>
         </div>
       )}
