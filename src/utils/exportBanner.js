@@ -66,6 +66,14 @@ function buildElementHTML(el) {
       return `<div id="${id}" class="click clickTag" style="${css};display:block;cursor:pointer;"></div>`
     case 'invisible':
       return `<div id="${id}" style="${css}"></div>`
+    case 'video': {
+      const attrs = []
+      if (el.playTrigger === 'autoplay') attrs.push('autoplay')
+      if (el.muted !== false) attrs.push('muted')
+      if (el.controls) attrs.push('controls')
+      const attrStr = attrs.length ? ` ${attrs.join(' ')}` : ''
+      return `<ft-video id="${id}" name="${escapeHtml(el.videoName || id)}" style="${css}"${attrStr}></ft-video>`
+    }
     default:
       return ''
   }
@@ -122,13 +130,18 @@ function buildClickTagJS(elements) {
   return lines.join('\n')
 }
 
-function buildManifestJS({ canvasWidth, canvasHeight }) {
+function buildManifestJS({ canvasWidth, canvasHeight, elements }) {
+  const videoEntries = (elements || [])
+    .filter((el) => el.visible && el.type === 'video' && el.videoName && el.videoUrl)
+    .map((el) => `    { "name": "${el.videoName}", "ref": "${el.videoUrl}" }`)
+  const videosBlock = videoEntries.length ? `,\n  "videos": [\n${videoEntries.join(',\n')}\n  ]` : ''
+
   return `FT.manifest({
   "filename": "index.html",
   "width": ${canvasWidth},
   "height": ${canvasHeight},
   "clickTagCount": 1,
-  "hideBrowsers": ["ie8"]
+  "hideBrowsers": ["ie8"]${videosBlock}
 });`
 }
 
@@ -161,7 +174,7 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
   const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
   const animJS = buildAnimationJS(sorted)
   const clickTagJS = buildClickTagJS(sorted)
-  const manifestJS = buildManifestJS({ canvasWidth, canvasHeight })
+  const manifestJS = buildManifestJS({ canvasWidth, canvasHeight, elements: sorted })
 
   // Extract base64 images into root folder
   const imageFiles = []
