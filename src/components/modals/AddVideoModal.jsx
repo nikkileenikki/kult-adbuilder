@@ -9,7 +9,7 @@ export default function AddVideoModal() {
   const [videoName, setVideoName] = useState('video1')
   const [playTrigger, setPlayTrigger] = useState('autoplay')
   const [muted, setMuted] = useState(true)
-  const [controls, setControls] = useState(false)
+  const [controls, setControls] = useState(true)
   const { addElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { closeModal } = useUiStore()
