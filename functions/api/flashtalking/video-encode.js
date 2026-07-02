@@ -32,7 +32,7 @@ export async function onRequestPost({ request, env }) {
     item.customEncodes = [{
       width: Number(width),
       height: Number(height),
-      audio_bitrate: '96k',
+      audio_bitrate: 96,
       audio_gain: 0,
       video_bitrate: 800,
       frame_rate: 25,
