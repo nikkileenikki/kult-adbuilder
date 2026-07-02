@@ -239,9 +239,13 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
   // Custom HTML/JS/CSS authored on the active template (admin-built templates only).
   // customHtml present -> "advanced mode": bespoke markup replaces the element-based
   // container entirely, and customJs runs standalone (own window.onload, no wrapper).
-  const customHtml = activeTemplate?.customHtml?.trim() || ''
-  const customJs = activeTemplate?.customJs?.trim() || ''
-  const customCss = activeTemplate?.customCss?.trim() || ''
+  const substituteTokens = (str) => {
+    const values = activeTemplate?.tokenValues || {}
+    return str.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key) => values[key] ?? '')
+  }
+  const customHtml = substituteTokens(activeTemplate?.customHtml?.trim() || '')
+  const customJs = substituteTokens(activeTemplate?.customJs?.trim() || '')
+  const customCss = substituteTokens(activeTemplate?.customCss?.trim() || '')
   const isAdvanced = !!customHtml
   const customCssTag = customCss ? `\n  <style>\n${customCss}\n  </style>` : ''
   const customJsBlock = (!isAdvanced && customJs) ? `\n\n  function customTemplateInit() {\n${customJs}\n  }` : ''

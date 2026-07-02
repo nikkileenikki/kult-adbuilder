@@ -49,6 +49,7 @@ export default function TemplateGallery() {
               customHtml: s.customHtml || '',
               customJs: s.customJs || '',
               customCss: s.customCss || '',
+              tokenVariables: s.data?.variables || [],
             }
           }
           return { id: t.id, name: t.name, category: t.category, isCustom: true, variables: [], sizes }
@@ -92,7 +93,11 @@ export default function TemplateGallery() {
     useCanvasStore.setState({
       elements,
       selectedId: null,
-      activeTemplate: { ...tpl, customHtml: size.customHtml, customJs: size.customJs, customCss: size.customCss },
+      activeTemplate: {
+        ...tpl,
+        customHtml: size.customHtml, customJs: size.customJs, customCss: size.customCss,
+        tokenVariables: size.tokenVariables || [], tokenValues: {},
+      },
       animDuration: 5,
       animLoop: 1,
     })
