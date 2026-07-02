@@ -236,6 +236,13 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
     imageFiles.push({ src: el.src, filename })
   })
 
+  // Custom JS/CSS authored on the active template (admin-built templates only)
+  const customJs = activeTemplate?.customJs?.trim() || ''
+  const customCss = activeTemplate?.customCss?.trim() || ''
+  const customCssTag = customCss ? `\n  <style>\n${customCss}\n  </style>` : ''
+  const customJsBlock = customJs ? `\n\n  function customTemplateInit() {\n${customJs}\n  }` : ''
+  const customJsCall = customJs ? '\n    customTemplateInit();' : ''
+
   // Fetch and embed template CSS if a template is active
   let templateCssTag = ''
   if (activeTemplate) {
@@ -286,7 +293,7 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
       66% {box-shadow:20px 0 rgba(0,0,0,0.1),-20px 0 #333;background:rgba(0,0,0,0.1)}
       100%{box-shadow:20px 0 rgba(0,0,0,0.1),-20px 0 #333;background:#333}
     }
-  </style>${templateCssTag}
+  </style>${templateCssTag}${customCssTag}
 </head>
 <body>
   <script src="https://cdn.flashtalking.com/frameworks/js/api/2/10/html5API.js"><\/script>
@@ -303,7 +310,7 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
   function addEvent() {
 ${clickTagJS}
 ${trackingJS}
-    animate();
+    animate();${customJsCall}
   }
 
   function animate() {
@@ -311,7 +318,7 @@ ${trackingJS}
     if (loader) loader.style.display = 'none';
     gsap.set('#container', { opacity: 1 });
     ${animJS}
-  }
+  }${customJsBlock}
 
   ${windowOnload}
   <\/script>
