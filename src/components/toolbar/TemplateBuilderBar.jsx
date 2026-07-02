@@ -32,12 +32,18 @@ export default function TemplateBuilderBar() {
 
   const handleSave = async () => {
     if (!name.trim()) { setError('Template name is required'); return }
+    const sizeKey = `${canvasWidth}x${canvasHeight}`
+    if (!templateBuilder.sizeId && (templateBuilder.siblingSizes || []).includes(sizeKey)) {
+      setError(`This template already has a ${sizeKey} size — change the canvas size or edit that size instead.`)
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      const editingId = templateBuilder.editingTemplateId
-      const res = await fetch(`/api/templates${editingId ? `?id=${editingId}` : ''}`, {
-        method: editingId ? 'PUT' : 'POST',
+      const { sizeId, templateId } = templateBuilder
+      const qs = sizeId ? `?sizeId=${sizeId}` : (templateId ? `?templateId=${templateId}` : '')
+      const res = await fetch(`/api/templates${qs}`, {
+        method: sizeId ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, category, width: canvasWidth, height: canvasHeight, elements, customHtml, customJs, customCss }),
       })
@@ -57,8 +63,13 @@ export default function TemplateBuilderBar() {
       <div className="px-3 py-2 flex items-center gap-2">
         <i className="fa-solid fa-table-columns text-purple-300" style={{ fontSize: 13 }} />
         <span className="text-purple-200 text-xs font-medium shrink-0">
-          {templateBuilder.editingTemplateId ? 'Editing Template' : 'New Template'}
+          {templateBuilder.sizeId ? 'Editing Size' : templateBuilder.templateId ? 'Adding Size' : 'New Template'}
         </span>
+        {(templateBuilder.siblingSizes || []).length > 0 && (
+          <span className="text-purple-300/70 text-xs shrink-0">
+            Other sizes: {templateBuilder.siblingSizes.join(', ')}
+          </span>
+        )}
 
         <input
           type="text"
