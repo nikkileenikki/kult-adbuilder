@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
+import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 export default function AddTextModal() {
   const [text, setText] = useState('')
@@ -46,6 +47,7 @@ export default function AddTextModal() {
 }
 
 export function Modal({ title, onClose, children }) {
+  useEscapeKey(onClose)
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="bg-gray-800 rounded-lg p-4 w-96 shadow-xl text-gray-100" onMouseDown={(e) => e.stopPropagation()}>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 import { useUiStore } from '../../store/uiStore.js'
+import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 let cachedLibraries = null
 
@@ -17,6 +18,7 @@ function Modal({ children }) {
 export default function LibraryPickerModal({ onClose }) {
   const { token } = useAuthStore()
   const { ftLibrary, setFtLibrary } = useUiStore()
+  useEscapeKey(onClose)
 
   const [libraries, setLibraries] = useState(cachedLibraries || [])
   const [search, setSearch] = useState('')
