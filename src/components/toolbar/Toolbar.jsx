@@ -88,6 +88,20 @@ export default function Toolbar({ onOpenUsers }) {
     useCanvasStore.setState({ elements: [], selectedId: null })
   }
 
+  const resetCanvas = () => {
+    if (!confirm('Reset canvas? This clears all elements, canvas size, and banner settings — cannot be undone.')) return
+    saveState()
+    useCanvasStore.setState({
+      elements: [], groups: [], selectedId: null,
+      canvasWidth: 300, canvasHeight: 250,
+      animDuration: 5, animLoop: 1,
+      activeTemplate: null,
+    })
+    setBannerName('ad-banner')
+    setSizeValue('300x250')
+    setZoom(100)
+  }
+
   const handleExportZip = async () => {
     setMenuOpen(false)
     await exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
@@ -202,6 +216,11 @@ export default function Toolbar({ onOpenUsers }) {
         <button onClick={() => openModal('templates')}
           className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
           <i className="fa-solid fa-table-columns" style={{ fontSize: 12 }} /> Templates
+        </button>
+
+        <button onClick={resetCanvas} title="Reset canvas to a blank state"
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 hover:text-red-400 text-gray-300 px-2.5 py-1.5 rounded text-xs border border-gray-700 transition-colors">
+          <i className="fa-solid fa-arrow-rotate-left" style={{ fontSize: 12 }} /> Reset Canvas
         </button>
 
         {/* Import/Export dropdown */}
