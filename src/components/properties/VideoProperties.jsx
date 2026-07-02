@@ -91,10 +91,18 @@ export default function VideoProperties({ el, update, save }) {
     }
   }
 
-  const handleTranscode = async (video) => {
+  const handleTranscode = async (video, targetHeight) => {
     if (!ftLibrary) return
     setEncodingId(video.id)
     setUploadStatus({ type: 'info', message: `Encoding ${video.name}…` })
+
+    // Maintain aspect ratio: derive width from the source's own ratio, keep dimensions even.
+    let width = video.width
+    let height = video.height
+    if (targetHeight && video.width && video.height) {
+      height = targetHeight
+      width = Math.round((video.width / video.height) * targetHeight / 2) * 2
+    }
 
     try {
       const nameBase = video.name.replace(/\.[^.]+$/, '')
@@ -105,8 +113,8 @@ export default function VideoProperties({ el, update, save }) {
           library_id: ftLibrary.id,
           video_source: video.videoSource,
           name: nameBase,
-          width: video.width,
-          height: video.height,
+          width,
+          height,
         }),
       })
       const encodeData = await encodeRes.json()

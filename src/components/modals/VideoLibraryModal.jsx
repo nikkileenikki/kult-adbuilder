@@ -1,4 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
+
+const QUALITY_OPTIONS = [
+  { value: '240p', label: '240p', height: 240 },
+  { value: '360p', label: '360p', height: 360 },
+  { value: '480p', label: '480p', height: 480 },
+]
 
 function Modal({ children }) {
   return (
@@ -56,6 +62,7 @@ export default function VideoLibraryModal({
   onFileChange,
   onUpload,
 }) {
+  const [quality, setQuality] = useState('480p')
   const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
   const statusColor = {
     success: 'text-green-400',
@@ -117,7 +124,18 @@ export default function VideoLibraryModal({
 
       <div className="grid grid-cols-2 gap-4 overflow-y-auto pr-1">
         <div className="min-w-0">
-          <p className="text-xs text-gray-400 mb-2 font-medium">Uploaded ({uploaded.length})</p>
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <p className="text-xs text-gray-400 font-medium">Uploaded ({uploaded.length})</p>
+            <select
+              value={quality}
+              onChange={(e) => setQuality(e.target.value)}
+              className="bg-gray-700 text-gray-200 text-xs rounded px-1.5 py-0.5 border border-gray-600"
+            >
+              {QUALITY_OPTIONS.map((q) => (
+                <option key={q.value} value={q.value}>{q.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-1.5">
             {uploaded.length === 0 && <p className="text-xs text-gray-600 italic">No uploaded videos yet.</p>}
             {uploaded.map((v) => (
@@ -126,7 +144,7 @@ export default function VideoLibraryModal({
                 video={v}
                 actionLabel={encodingId === v.id ? 'Encoding…' : 'Transcode'}
                 actionDisabled={encodingId === v.id}
-                onAction={onTranscode}
+                onAction={(video) => onTranscode(video, QUALITY_OPTIONS.find((q) => q.value === quality).height)}
               />
             ))}
           </div>
