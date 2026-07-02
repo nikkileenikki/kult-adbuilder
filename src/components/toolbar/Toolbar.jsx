@@ -28,12 +28,23 @@ export default function Toolbar({ onOpenUsers }) {
     clearAuth()
   }
 
-  const [bannerName, setBannerName] = useState('ad-banner')
+  const [bannerName, setBannerName] = useState(() => localStorage.getItem('kult-adbuilder-bannerName') || 'ad-banner')
   const [sizeValue, setSizeValue] = useState('300x250')
   const [customW, setCustomW] = useState(300)
   const [customH, setCustomH] = useState(250)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [politeLoad, setPoliteLoad] = useState(true)
+  const [politeLoad, setPoliteLoad] = useState(() => {
+    const stored = localStorage.getItem('kult-adbuilder-politeLoad')
+    return stored === null ? true : stored === 'true'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('kult-adbuilder-bannerName', bannerName)
+  }, [bannerName])
+
+  useEffect(() => {
+    localStorage.setItem('kult-adbuilder-politeLoad', String(politeLoad))
+  }, [politeLoad])
   const [showPublish, setShowPublish] = useState(false)
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const menuRef = useRef(null)
