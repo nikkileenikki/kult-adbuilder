@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
+import { useUiStore } from '../../store/uiStore.js'
+import { useAuthStore } from '../../store/authStore.js'
 
 export default function TemplatePanel() {
   const { activeTemplate, elements, selectedId, setSelected, updateElement, setActiveTemplate } = useCanvasStore()
@@ -37,12 +39,15 @@ export default function TemplatePanel() {
   }
 
   const vars = (activeTemplate.variables || []).filter((v) => v.type !== 'repeater' && v.type !== 'number')
-  const tokenVars = activeTemplate.tokenVariables || []
+  // Normalize: legacy saved tokens are plain strings, newer ones are typed { key, type, label }.
+  const tokenVars = (activeTemplate.tokenVariables || []).map((t) =>
+    typeof t === 'string' ? { key: t, type: 'text', label: t } : t
+  )
 
-  const handleTokenChange = (tokenName, value) => {
+  const handleTokenChange = (tokenKey, value) => {
     setActiveTemplate({
       ...activeTemplate,
-      tokenValues: { ...(activeTemplate.tokenValues || {}), [tokenName]: value },
+      tokenValues: { ...(activeTemplate.tokenValues || {}), [tokenKey]: value },
     })
   }
 
@@ -89,17 +94,13 @@ export default function TemplatePanel() {
           <p className="text-xs text-gray-500 px-1">
             Custom code variables — used in this template's raw HTML/JS/CSS, applied on export.
           </p>
-          {tokenVars.map((tokenName) => (
-            <div key={tokenName} className="px-1">
-              <label className="text-xs text-gray-400 font-medium block mb-1">{`{{${tokenName}}}`}</label>
-              <input
-                type="text"
-                value={activeTemplate.tokenValues?.[tokenName] || ''}
-                onChange={(e) => handleTokenChange(tokenName, e.target.value)}
-                placeholder="Value…"
-                className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
+          {tokenVars.map((v) => (
+            <TokenVarRow
+              key={v.key}
+              v={v}
+              value={activeTemplate.tokenValues?.[v.key] || ''}
+              onChange={(value) => handleTokenChange(v.key, value)}
+            />
           ))}
         </div>
       )}
@@ -194,6 +195,116 @@ function ImageDropzone({ el, fileRef, onImageUpload }) {
       </span>
       <input ref={fileRef} type="file" accept="image/*" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) onImageUpload(f); e.target.value = '' }} />
+    </div>
+  )
+}
+
+function TokenVarRow({ v, value, onChange }) {
+  return (
+    <div className="px-1">
+      <label className="text-xs text-gray-400 font-medium block mb-1">
+        {v.label} <span className="text-gray-600">{`{{${v.key}}}`}</span>
+      </label>
+      {v.type === 'image' && <TokenImageInput value={value} onChange={onChange} />}
+      {v.type === 'video' && <TokenVideoInput value={value} onChange={onChange} />}
+      {v.type === 'text' && (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Value…"
+          className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      )}
+    </div>
+  )
+}
+
+function TokenImageInput({ value, onChange }) {
+  const fileRef = useRef(null)
+  const [dragging, setDragging] = useState(false)
+
+  const readFile = (file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => onChange(e.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith('image/')) readFile(f) }}
+      onClick={() => fileRef.current?.click()}
+      className={`flex items-center gap-2 rounded border cursor-pointer transition-colors ${
+        dragging ? 'border-blue-400 bg-blue-500/20' : 'border-dashed border-gray-600 hover:border-gray-400 hover:bg-gray-700/40'
+      } px-2 py-1.5`}
+    >
+      {value ? (
+        <img src={value} alt="" className="w-10 h-8 object-cover rounded border border-gray-700 shrink-0" />
+      ) : (
+        <i className="fa-solid fa-image text-gray-600 shrink-0" style={{ fontSize: 18, width: 40, textAlign: 'center' }} />
+      )}
+      <span className="text-xs text-gray-400 truncate">{dragging ? 'Drop here' : 'Upload or drop image…'}</span>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) readFile(f); e.target.value = '' }} />
+    </div>
+  )
+}
+
+function TokenVideoInput({ value, onChange }) {
+  const { ftLibrary } = useUiStore()
+  const { token } = useAuthStore()
+  const [showPicker, setShowPicker] = useState(false)
+  const [videos, setVideos] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const openPicker = () => {
+    setShowPicker((v) => !v)
+    if (!ftLibrary || videos.length || loading) return
+    setLoading(true)
+    fetch(`/api/flashtalking/videos?library_id=${ftLibrary.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => setVideos(data.transcoded || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+
+  return (
+    <div>
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="220952/video"
+          className="flex-1 min-w-0 bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        <button
+          onClick={openPicker}
+          disabled={!ftLibrary}
+          title={ftLibrary ? 'Choose a transcoded video from the library' : 'Select a Creative Library in the toolbar first'}
+          className="shrink-0 bg-gray-700 hover:bg-purple-900/40 disabled:opacity-40 text-gray-300 hover:text-purple-300 rounded px-2 py-1.5 text-xs border border-gray-600"
+        >
+          <i className="fa-solid fa-film" style={{ fontSize: 11 }} />
+        </button>
+      </div>
+      {showPicker && (
+        <div className="mt-1.5 bg-gray-800 border border-gray-700 rounded max-h-32 overflow-y-auto">
+          {loading && <p className="text-xs text-gray-500 px-2 py-1.5">Loading…</p>}
+          {!loading && videos.length === 0 && <p className="text-xs text-gray-500 px-2 py-1.5">No transcoded videos yet.</p>}
+          {videos.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => { onChange(`${ftLibrary.id}/${v.name.replace(/\.[^.]+$/, '')}`); setShowPicker(false) }}
+              className="w-full text-left px-2 py-1.5 text-xs text-gray-200 hover:bg-gray-700 truncate block"
+            >
+              {v.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
