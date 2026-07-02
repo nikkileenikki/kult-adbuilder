@@ -84,6 +84,18 @@ export default function TemplateGallery() {
     closeModal()
   }
 
+  const newTemplate = () => {
+    const snapshot = useCanvasStore.getState()
+    setTemplateBuilder({ snapshot, editingTemplateId: null, name: '', category: 'custom' })
+    useCanvasStore.setState({
+      elements: [], groups: [], selectedId: null,
+      canvasWidth: 300, canvasHeight: 250,
+      animDuration: 5, animLoop: 1,
+      activeTemplate: null,
+    })
+    closeModal()
+  }
+
   const editTemplate = (tpl) => {
     const size = Object.values(tpl.sizes)[0]
     if (!size) return
@@ -122,7 +134,15 @@ export default function TemplateGallery() {
             <i className="fa-solid fa-table-columns text-blue-400" style={{ fontSize: 16 }} />
             Template Gallery
           </h2>
-          <button onClick={closeModal} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark" style={{ fontSize: 16 }} /></button>
+          <div className="flex items-center gap-3">
+            {user?.role === 'admin' && (
+              <button onClick={newTemplate} title="Build a new reusable template"
+                className="flex items-center gap-1.5 bg-gray-700 hover:bg-purple-900/40 hover:text-purple-300 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-600 transition-colors">
+                <i className="fa-solid fa-plus" style={{ fontSize: 11 }} /> New Template
+              </button>
+            )}
+            <button onClick={closeModal} className="text-gray-400 hover:text-white"><i className="fa-solid fa-xmark" style={{ fontSize: 16 }} /></button>
+          </div>
         </div>
 
         {/* Grid */}
