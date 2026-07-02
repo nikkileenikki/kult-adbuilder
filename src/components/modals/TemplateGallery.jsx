@@ -28,6 +28,7 @@ export default function TemplateGallery() {
   const { saveState: hist } = useHistoryStore()
   const { token, user } = useAuthStore()
   const [selected, setSelected] = useState(null)
+  const [selectedSizeKey, setSelectedSizeKey] = useState(null)
   const [dbTemplates, setDbTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   useEscapeKey(closeModal)
@@ -37,19 +38,21 @@ export default function TemplateGallery() {
     fetch('/api/templates', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => {
-        const items = (data.items || []).map((t) => ({
-          id: t.id,
-          name: t.name,
-          category: t.category,
-          isCustom: true,
-          variables: [],
-          customHtml: t.customHtml || '',
-          customJs: t.customJs || '',
-          customCss: t.customCss || '',
-          sizes: {
-            [`${t.width}x${t.height}`]: { label: `${t.width}x${t.height}`, width: t.width, height: t.height, elements: t.data.elements || [] },
-          },
-        }))
+        const items = (data.items || []).map((t) => {
+          const sizes = {}
+          for (const s of t.sizes || []) {
+            sizes[`${s.width}x${s.height}`] = {
+              label: `${s.width}x${s.height}`,
+              width: s.width, height: s.height,
+              elements: s.data?.elements || [],
+              sizeId: s.id,
+              customHtml: s.customHtml || '',
+              customJs: s.customJs || '',
+              customCss: s.customCss || '',
+            }
+          }
+          return { id: t.id, name: t.name, category: t.category, isCustom: true, variables: [], sizes }
+        })
         setDbTemplates(items)
       })
       .catch(() => {})
@@ -62,10 +65,19 @@ export default function TemplateGallery() {
 
   const allTemplates = [...TEMPLATES, ...dbTemplates]
 
-  const loadTemplate = (tpl) => {
-    const sizes = Object.values(tpl.sizes)
-    if (!sizes.length) return
-    const size = sizes[0]
+  const sizeKeyFor = (tpl) => {
+    const keys = Object.keys(tpl.sizes)
+    return keys.includes(selectedSizeKey) ? selectedSizeKey : keys[0]
+  }
+
+  const selectTemplate = (tpl) => {
+    setSelected(tpl.id)
+    setSelectedSizeKey(Object.keys(tpl.sizes)[0] || null)
+  }
+
+  const loadTemplate = (tpl, sizeKey) => {
+    const size = tpl.sizes[sizeKey || sizeKeyFor(tpl)]
+    if (!size) return
     hist()
     setCanvasSize(size.width, size.height)
 
@@ -80,7 +92,7 @@ export default function TemplateGallery() {
     useCanvasStore.setState({
       elements,
       selectedId: null,
-      activeTemplate: tpl,
+      activeTemplate: { ...tpl, customHtml: size.customHtml, customJs: size.customJs, customCss: size.customCss },
       animDuration: 5,
       animLoop: 1,
     })
@@ -89,7 +101,7 @@ export default function TemplateGallery() {
 
   const newTemplate = () => {
     const snapshot = useCanvasStore.getState()
-    setTemplateBuilder({ snapshot, editingTemplateId: null, name: '', category: 'custom' })
+    setTemplateBuilder({ snapshot, templateId: null, sizeId: null, name: '', category: 'custom', siblingSizes: [] })
     useCanvasStore.setState({
       elements: [], groups: [], selectedId: null,
       canvasWidth: 300, canvasHeight: 250,
@@ -99,11 +111,28 @@ export default function TemplateGallery() {
     closeModal()
   }
 
-  const editTemplate = (tpl) => {
-    const size = Object.values(tpl.sizes)[0]
+  const addSize = (tpl) => {
+    const snapshot = useCanvasStore.getState()
+    const siblingSizes = Object.values(tpl.sizes).map((s) => `${s.width}x${s.height}`)
+    setTemplateBuilder({ snapshot, templateId: tpl.id, sizeId: null, name: tpl.name, category: tpl.category, siblingSizes })
+    useCanvasStore.setState({
+      elements: [], groups: [], selectedId: null,
+      canvasWidth: 300, canvasHeight: 250,
+      animDuration: 5, animLoop: 1,
+      activeTemplate: null,
+    })
+    closeModal()
+  }
+
+  const editTemplate = (tpl, sizeKey) => {
+    const size = tpl.sizes[sizeKey || sizeKeyFor(tpl)]
     if (!size) return
     const snapshot = useCanvasStore.getState()
-    setTemplateBuilder({ snapshot, editingTemplateId: tpl.id, name: tpl.name, category: tpl.category, customHtml: tpl.customHtml || '', customJs: tpl.customJs || '', customCss: tpl.customCss || '' })
+    const siblingSizes = Object.values(tpl.sizes).map((s) => `${s.width}x${s.height}`).filter((k) => k !== `${size.width}x${size.height}`)
+    setTemplateBuilder({
+      snapshot, templateId: tpl.id, sizeId: size.sizeId, name: tpl.name, category: tpl.category,
+      customHtml: size.customHtml || '', customJs: size.customJs || '', customCss: size.customCss || '', siblingSizes,
+    })
     let counter = Date.now()
     const elements = (size.elements || []).map((el) => ({ ...el, id: `${el.type}_${counter++}`, folderId: null }))
     useCanvasStore.setState({
@@ -114,13 +143,19 @@ export default function TemplateGallery() {
     closeModal()
   }
 
-  const deleteTemplate = async (tpl) => {
-    if (!confirm(`Delete template "${tpl.name}"? This cannot be undone.`)) return
-    await fetch(`/api/templates?id=${tpl.id}`, {
+  const deleteSize = async (tpl, sizeKey) => {
+    const size = tpl.sizes[sizeKey || sizeKeyFor(tpl)]
+    if (!size) return
+    const onlySize = Object.keys(tpl.sizes).length === 1
+    const msg = onlySize
+      ? `Delete template "${tpl.name}"? This is its only size and cannot be undone.`
+      : `Delete the ${size.width}x${size.height} size of "${tpl.name}"?`
+    if (!confirm(msg)) return
+    await fetch(`/api/templates?sizeId=${size.sizeId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {})
-    if (selected === tpl.id) setSelected(null)
+    if (selected === tpl.id) { setSelected(null); setSelectedSizeKey(null) }
     refreshDbTemplates()
   }
 
@@ -152,12 +187,13 @@ export default function TemplateGallery() {
         <div className="flex-1 overflow-y-auto p-5">
           <div className="grid grid-cols-3 gap-4">
             {allTemplates.map((tpl) => {
-              const firstSize = Object.values(tpl.sizes)[0]
+              const activeSizeKey = selected === tpl.id ? sizeKeyFor(tpl) : Object.keys(tpl.sizes)[0]
+              const activeSize = tpl.sizes[activeSizeKey]
               const isSelected = selected === tpl.id
               return (
                 <div
                   key={tpl.id}
-                  onClick={() => setSelected(tpl.id)}
+                  onClick={() => selectTemplate(tpl)}
                   onDoubleClick={() => loadTemplate(tpl)}
                   className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
                     isSelected ? 'border-blue-500' : 'border-gray-700 hover:border-gray-500'
@@ -165,20 +201,27 @@ export default function TemplateGallery() {
                 >
                   {/* Preview area */}
                   <div className="bg-gray-900 flex items-center justify-center" style={{ height: 120 }}>
-                    <TemplatePreview tpl={tpl} size={firstSize} />
+                    <TemplatePreview tpl={tpl} size={activeSize} />
                   </div>
                   {tpl.isCustom && user?.role === 'admin' && (
                     <div className="absolute top-1.5 right-1.5 flex gap-1">
                       <button
-                        onClick={(e) => { e.stopPropagation(); editTemplate(tpl) }}
-                        title="Edit template"
+                        onClick={(e) => { e.stopPropagation(); addSize(tpl) }}
+                        title="Add another size to this template"
+                        className="w-6 h-6 flex items-center justify-center bg-gray-900/80 hover:bg-blue-700 text-gray-300 hover:text-white rounded"
+                      >
+                        <i className="fa-solid fa-plus" style={{ fontSize: 10 }} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); editTemplate(tpl, activeSizeKey) }}
+                        title="Edit this size"
                         className="w-6 h-6 flex items-center justify-center bg-gray-900/80 hover:bg-purple-700 text-gray-300 hover:text-white rounded"
                       >
                         <i className="fa-solid fa-pen" style={{ fontSize: 10 }} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); deleteTemplate(tpl) }}
-                        title="Delete template"
+                        onClick={(e) => { e.stopPropagation(); deleteSize(tpl, activeSizeKey) }}
+                        title="Delete this size"
                         className="w-6 h-6 flex items-center justify-center bg-gray-900/80 hover:bg-red-700 text-gray-300 hover:text-white rounded"
                       >
                         <i className="fa-solid fa-trash" style={{ fontSize: 10 }} />
@@ -188,9 +231,24 @@ export default function TemplateGallery() {
                   {/* Info */}
                   <div className="bg-gray-700 px-3 py-2">
                     <div className="font-semibold text-sm text-white truncate">{tpl.name}</div>
-                    <div className="flex items-center justify-between mt-0.5">
+                    <div className="flex items-center justify-between mt-0.5 mb-1.5">
                       <span className="text-xs text-gray-400">{CATEGORY_LABELS[tpl.category] || tpl.category}</span>
-                      <span className="text-xs text-gray-400">{firstSize?.width}×{firstSize?.height}</span>
+                    </div>
+                    {/* Size pills */}
+                    <div className="flex flex-wrap gap-1">
+                      {Object.keys(tpl.sizes).map((key) => (
+                        <button
+                          key={key}
+                          onClick={(e) => { e.stopPropagation(); selectTemplate(tpl); setSelectedSizeKey(key) }}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                            isSelected && key === activeSizeKey
+                              ? 'bg-blue-600 border-blue-500 text-white'
+                              : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-400'
+                          }`}
+                        >
+                          {key}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -232,7 +290,7 @@ export default function TemplateGallery() {
           <button onClick={closeModal} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-1.5 rounded text-sm">Cancel</button>
           <button
             disabled={!selected}
-            onClick={() => { const tpl = allTemplates.find((t) => t.id === selected); if (tpl) loadTemplate(tpl) }}
+            onClick={() => { const tpl = allTemplates.find((t) => t.id === selected); if (tpl) loadTemplate(tpl, sizeKeyFor(tpl)) }}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded text-sm"
           >
             Use Template

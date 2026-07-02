@@ -40,22 +40,31 @@ CREATE TABLE IF NOT EXISTS flashtalking_credentials (
   updated_at         INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- Admin-created reusable templates
+-- Admin-created reusable templates (one row per template family)
 CREATE TABLE IF NOT EXISTS templates (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
   category    TEXT NOT NULL DEFAULT 'custom',
-  width       INTEGER NOT NULL,
-  height      INTEGER NOT NULL,
-  data        TEXT NOT NULL,             -- JSON: { elements: [...] }
-  custom_html TEXT NOT NULL DEFAULT '',   -- raw HTML replacing the element-based container, for bespoke templates
-  custom_js   TEXT NOT NULL DEFAULT '',   -- raw JS injected into exported banners built from this template
-  custom_css  TEXT NOT NULL DEFAULT '',   -- raw CSS injected into exported banners built from this template
   created_by  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+-- One row per size variant of a template (e.g. 300x250, 300x600, 320x480)
+CREATE TABLE IF NOT EXISTS template_sizes (
+  id           TEXT PRIMARY KEY,
+  template_id  TEXT NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+  width        INTEGER NOT NULL,
+  height       INTEGER NOT NULL,
+  data         TEXT NOT NULL DEFAULT '{"elements":[]}',  -- JSON: { elements: [...] }
+  custom_html  TEXT NOT NULL DEFAULT '',   -- raw HTML replacing the element-based container, for bespoke sizes
+  custom_js    TEXT NOT NULL DEFAULT '',   -- raw JS injected into exported banners built from this size
+  custom_css   TEXT NOT NULL DEFAULT '',   -- raw CSS injected into exported banners built from this size
+  created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
 CREATE INDEX IF NOT EXISTS idx_banners_user_id ON banners(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_templates_created_by ON templates(created_by);
+CREATE INDEX IF NOT EXISTS idx_template_sizes_template_id ON template_sizes(template_id);
