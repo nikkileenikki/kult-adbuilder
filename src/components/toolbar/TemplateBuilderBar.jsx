@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useUiStore } from '../../store/uiStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useAuthStore } from '../../store/authStore.js'
@@ -17,6 +17,13 @@ export default function TemplateBuilderBar() {
   const [showCode, setShowCode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+
+  // Warn before an accidental refresh/close wipes the in-progress template.
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
 
   if (!templateBuilder) return null
 
