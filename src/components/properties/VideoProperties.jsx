@@ -91,7 +91,7 @@ export default function VideoProperties({ el, update, save }) {
     }
   }
 
-  const handleTranscode = async (video, targetHeight) => {
+  const handleTranscode = async (video, targetHeight, qualityLabel) => {
     if (!ftLibrary) return
     setEncodingId(video.id)
     setUploadStatus({ type: 'info', message: `Encoding ${video.name}…` })
@@ -105,7 +105,20 @@ export default function VideoProperties({ el, update, save }) {
     }
 
     try {
-      const nameBase = video.name.replace(/\.[^.]+$/, '')
+      const rawBase = video.name.replace(/\.[^.]+$/, '')
+      // Never overwrite an existing encode — name it "base-quality-N", incrementing N
+      // past whatever's already in the Transcoded list for this base+quality.
+      const prefix = qualityLabel ? `${rawBase}-${qualityLabel}-` : `${rawBase}-`
+      let maxIndex = 0
+      transcoded.forEach((t) => {
+        if (t.name.startsWith(prefix)) {
+          const suffix = t.name.slice(prefix.length)
+          const n = parseInt(suffix, 10)
+          if (!isNaN(n) && n > maxIndex) maxIndex = n
+        }
+      })
+      const nameBase = `${prefix}${maxIndex + 1}`
+
       const encodeRes = await fetch('/api/flashtalking/video-encode', {
         method: 'POST',
         headers: { ...authHeader, 'Content-Type': 'application/json' },

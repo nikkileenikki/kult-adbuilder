@@ -144,7 +144,10 @@ export default function VideoLibraryModal({
                 video={v}
                 actionLabel={encodingId === v.id ? 'Encoding…' : 'Transcode'}
                 actionDisabled={encodingId === v.id}
-                onAction={(video) => onTranscode(video, QUALITY_OPTIONS.find((q) => q.value === quality).height)}
+                onAction={(video) => {
+                  const q = QUALITY_OPTIONS.find((o) => o.value === quality)
+                  onTranscode(video, q.height, q.value)
+                }}
               />
             ))}
           </div>
