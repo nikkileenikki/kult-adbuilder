@@ -91,14 +91,19 @@ export default function VideoAssetsModal({ onClose }) {
     }
   }
 
-  const handleTranscode = async (video, targetHeight, qualityLabel) => {
+  const handleTranscode = async (video, targetHeight, qualityLabel, targetWidth) => {
     if (!ftLibrary) return
     setEncodingId(video.id)
     setUploadStatus({ type: 'info', message: `Encoding ${video.name}…` })
 
+    // A caller-supplied width (custom W×H) is used as-is; otherwise derive width from
+    // the source's own aspect ratio so preset quality levels don't distort the video.
     let width = video.width
     let height = video.height
-    if (targetHeight && video.width && video.height) {
+    if (targetWidth && targetHeight) {
+      width = Math.round(targetWidth / 2) * 2
+      height = Math.round(targetHeight / 2) * 2
+    } else if (targetHeight && video.width && video.height) {
       height = targetHeight
       width = Math.round((video.width / video.height) * targetHeight / 2) * 2
     }
