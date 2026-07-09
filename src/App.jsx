@@ -13,7 +13,7 @@ import AnimationModal from './components/modals/AnimationModal.jsx'
 import TemplateGallery from './components/modals/TemplateGallery.jsx'
 import TemplateBuilderBar from './components/toolbar/TemplateBuilderBar.jsx'
 
-export default function App({ onOpenUsers }) {
+export default function App({ onOpenSettings }) {
   const { activeModal, templateBuilder } = useUiStore()
   const { undo, redo } = useHistoryStore()
   const { selectedId, deleteElement } = useCanvasStore()
@@ -43,7 +43,7 @@ export default function App({ onOpenUsers }) {
     // optional Template Builder Bar, Canvas viewport, Timeline) plus modal overlays.
     <div className="flex h-screen bg-gray-900 text-gray-100 select-none overflow-hidden">
       {/* Left Panel — layers list, template variables, element property editors, settings */}
-      <LeftPanel onOpenUsers={onOpenUsers} />
+      <LeftPanel onOpenSettings={onOpenSettings} />
       {/* Main Column */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Toolbar — banner name, canvas size, zoom, undo/redo, file menu, publish */}

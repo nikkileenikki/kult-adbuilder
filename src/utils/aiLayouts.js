@@ -86,6 +86,7 @@ export const BACKGROUND_STYLES = [
   { value: 'gradient', label: 'Gradient' },
   { value: 'abstract', label: 'Abstract blobs' },
   { value: 'watercolor', label: 'Watercolor' },
+  { value: 'other', label: 'Other (AI-generated image)' },
 ]
 
 export function getPaletteFor(layout) {
@@ -203,19 +204,29 @@ export function layoutCatalogSummary() {
 // canvas size. `paletteOverride` (e.g. from a brand guide) replaces the layout's
 // built-in colors when provided. `backgroundStyle` picks how the background shape
 // is filled — 'solid' (default), 'gradient', 'abstract', or 'watercolor'.
-export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null) {
+// `backgroundImage` (a data URI from /api/ai-image), when given, replaces the CSS
+// background entirely with a real full-bleed image element.
+export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null, backgroundImage = null) {
   const layout = findLayout(layoutId)
   if (!layout) return []
   const palette = { ...getPaletteFor(layout), ...(paletteOverride || {}) }
   const elements = []
   let z = 10
 
-  const bgCss = buildBackgroundCss(backgroundStyle, palette, `${layoutId}-${canvasWidth}x${canvasHeight}`)
-  elements.push({
-    type: 'shape',
-    x: 0, y: 0, width: canvasWidth, height: canvasHeight,
-    fillColor: palette.bg, cssBackground: backgroundStyle === 'solid' ? undefined : bgCss, borderRadius: 0, zIndex: z++,
-  })
+  if (backgroundImage) {
+    elements.push({
+      type: 'image',
+      x: 0, y: 0, width: canvasWidth, height: canvasHeight,
+      src: backgroundImage, filename: 'ai-background.png', borderRadius: 0, zIndex: z++,
+    })
+  } else {
+    const bgCss = buildBackgroundCss(backgroundStyle, palette, `${layoutId}-${canvasWidth}x${canvasHeight}`)
+    elements.push({
+      type: 'shape',
+      x: 0, y: 0, width: canvasWidth, height: canvasHeight,
+      fillColor: palette.bg, cssBackground: backgroundStyle === 'solid' ? undefined : bgCss, borderRadius: 0, zIndex: z++,
+    })
+  }
 
   layout.roles.forEach((r) => {
     const x = Math.round(r.x * canvasWidth)

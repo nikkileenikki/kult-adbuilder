@@ -11,7 +11,7 @@ function Modal({ children }) {
   )
 }
 
-export default function UserManagementPage({ onClose }) {
+export default function UserManagementPage({ onClose, embedded }) {
   const { token, user: currentUser } = useAuthStore()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -55,16 +55,11 @@ export default function UserManagementPage({ onClose }) {
     else { const d = await res.json(); alert(d.error || 'Failed') }
   }
 
-  return (
-    <div className="fixed inset-0 bg-gray-950 z-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center gap-3">
-        <span className="text-white font-bold text-sm tracking-wide">
-          <span className="text-purple-400">KULT</span> AD
-        </span>
-        <div className="w-px h-5 bg-gray-700" />
-        <span className="text-gray-200 text-sm font-medium">User Management</span>
-        <div className="ml-auto flex items-center gap-2">
+  const body = (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-white font-semibold text-base">User Management</h2>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSelfPw(true)}
             className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs border border-gray-700"
@@ -77,17 +72,8 @@ export default function UserManagementPage({ onClose }) {
           >
             <i className="fa-solid fa-user-plus" style={{ fontSize: 12 }} /> Add User
           </button>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs border border-gray-700"
-          >
-            <i className="fa-solid fa-arrow-left" style={{ fontSize: 12 }} /> Back to Editor
-          </button>
         </div>
       </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
         {loading && <p className="text-gray-500 text-sm">Loading…</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
         {!loading && !error && (
@@ -147,7 +133,6 @@ export default function UserManagementPage({ onClose }) {
             {users.length === 0 && <p className="text-gray-500 text-sm mt-6">No users found.</p>}
           </div>
         )}
-      </div>
 
       {showAdd && (
         <AddUserModal
@@ -174,6 +159,32 @@ export default function UserManagementPage({ onClose }) {
           onClose={() => setShowSelfPw(false)}
         />
       )}
+    </>
+  )
+
+  if (embedded) return body
+
+  return (
+    <div className="fixed inset-0 bg-gray-950 z-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center gap-3">
+        <span className="text-white font-bold text-sm tracking-wide">
+          <span className="text-purple-400">KULT</span> AD
+        </span>
+        <div className="w-px h-5 bg-gray-700" />
+        <span className="text-gray-200 text-sm font-medium">User Management</span>
+        <button
+          onClick={onClose}
+          className="ml-auto flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs border border-gray-700"
+        >
+          <i className="fa-solid fa-arrow-left" style={{ fontSize: 12 }} /> Back to Editor
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-6">
+        {body}
+      </div>
     </div>
   )
 }

@@ -1,20 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 import { useUiStore } from '../../store/uiStore.js'
-import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 const BLANK = {
   name: '', primaryColor: '', secondaryColor: '', accentColor: '', textColor: '', fontFamily: '', tone: '', notes: '',
-}
-
-function Modal({ children }) {
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col">
-        {children}
-      </div>
-    </div>
-  )
 }
 
 function ColorField({ label, value, onChange, disabled }) {
@@ -40,12 +29,13 @@ function ColorField({ label, value, onChange, disabled }) {
   )
 }
 
-export default function BrandGuideModal({ onClose }) {
+// Named brand guides (Nike, Uniqlo, ...) — embeddable content (no modal chrome), used
+// inside SettingsPage. Bumps uiStore.brandListVersion on any change so the header's
+// Brand select (used by AI generation) stays in sync.
+export default function BrandGuideContent() {
   const { token, user } = useAuthStore()
   const { refreshBrandList } = useUiStore()
   const isAdmin = user?.role === 'admin'
-  const handleClose = () => { refreshBrandList(); onClose() }
-  useEscapeKey(handleClose)
 
   const [brands, setBrands] = useState([])
   const [loading, setLoading] = useState(true)
@@ -100,6 +90,7 @@ export default function BrandGuideModal({ onClose }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save brand')
       load()
+      refreshBrandList()
       if (!selectedId) selectBrand(null)
     } catch (err) {
       setError(err.message)
@@ -122,6 +113,7 @@ export default function BrandGuideModal({ onClose }) {
       if (!res.ok) throw new Error(data.error || 'Failed to delete brand')
       selectBrand(null)
       load()
+      refreshBrandList()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -130,24 +122,15 @@ export default function BrandGuideModal({ onClose }) {
   }
 
   return (
-    <Modal>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-          <i className="fa-solid fa-swatchbook text-purple-400" />
-          Brand Guide
-        </h2>
-        <button onClick={handleClose} className="text-gray-400 hover:text-white transition-colors">
-          <i className="fa-solid fa-xmark" />
-        </button>
-      </div>
-
-      <p className="text-xs text-gray-500 mb-3">
+    <div className="max-w-3xl">
+      <h2 className="text-white font-semibold text-base mb-1">Brand Guide</h2>
+      <p className="text-xs text-gray-500 mb-4">
         Save a guide per brand (Nike, Uniqlo, ...) — pick one when using "Design with AI" to keep colors and copy on-brand.
       </p>
 
-      <div className="flex gap-4 overflow-hidden flex-1 min-h-0">
+      <div className="flex gap-6" style={{ minHeight: 420 }}>
         {/* Brand list */}
-        <div className="w-40 shrink-0 border-r border-gray-700 pr-3 overflow-y-auto">
+        <div className="w-44 shrink-0 border-r border-gray-700 pr-4 overflow-y-auto">
           {isAdmin && (
             <button
               onClick={() => selectBrand(null)}
@@ -170,7 +153,7 @@ export default function BrandGuideModal({ onClose }) {
         </div>
 
         {/* Editor */}
-        <div className="flex-1 min-w-0 overflow-y-auto space-y-3 pr-1">
+        <div className="flex-1 min-w-0 space-y-3">
           <div>
             <label className="text-xs text-gray-400 block mb-1">Brand Name</label>
             <input
@@ -221,34 +204,31 @@ export default function BrandGuideModal({ onClose }) {
               className="w-full bg-gray-800 text-gray-100 rounded px-2 py-1.5 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none resize-y disabled:opacity-50"
             />
           </div>
+
+          {error && <p className="text-xs text-red-400">{error}</p>}
+
+          {isAdmin && (
+            <div className="flex gap-2 pt-1">
+              {selectedId && (
+                <button
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="bg-red-900/40 hover:bg-red-900/70 text-red-300 px-3 py-1.5 rounded text-xs mr-auto"
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs font-medium"
+              >
+                {saving ? 'Saving…' : selectedId ? 'Save Changes' : 'Create Brand'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
-
-      {error && <p className="text-xs text-red-400 mt-3">{error}</p>}
-
-      <div className="flex justify-end gap-2 mt-4">
-        {isAdmin && selectedId && (
-          <button
-            onClick={handleDelete}
-            disabled={saving}
-            className="bg-red-900/40 hover:bg-red-900/70 text-red-300 px-3 py-1.5 rounded text-xs mr-auto"
-          >
-            Delete
-          </button>
-        )}
-        <button onClick={handleClose} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs">
-          {isAdmin ? 'Cancel' : 'Close'}
-        </button>
-        {isAdmin && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs font-medium"
-          >
-            {saving ? 'Saving…' : selectedId ? 'Save Changes' : 'Create Brand'}
-          </button>
-        )}
-      </div>
-    </Modal>
+    </div>
   )
 }
