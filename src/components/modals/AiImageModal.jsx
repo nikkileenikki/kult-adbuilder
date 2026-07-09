@@ -29,15 +29,31 @@ const STYLE_PRESETS = [
   { value: 'watercolor', label: 'Watercolor', modifier: 'Watercolor painting style with soft edges and visible paper texture.' },
 ]
 
-export default function AiImageModal({ onClose }) {
+const SIZE_OPTIONS = [
+  { value: 'auto', label: 'Match canvas' },
+  { value: '1024x1024', label: 'Square (1024×1024)' },
+  { value: '1536x1024', label: 'Landscape (1536×1024)' },
+  { value: '1024x1536', label: 'Portrait (1024×1536)' },
+]
+
+// `onGenerated`, when given, is called with { src, width, height } instead of adding a
+// new canvas element — used by ImageProperties.jsx to replace an existing element's
+// image. `targetWidth`/`targetHeight` default to the canvas size, but are overridden
+// to the element's own size when replacing so the "Match canvas" option makes sense
+// for both call sites.
+export default function AiImageModal({ onClose, onGenerated, targetWidth, targetHeight }) {
   const { token } = useAuthStore()
   const { addElement, canvasWidth, canvasHeight } = useCanvasStore()
   const { activeBrandId } = useUiStore()
   const { saveState } = useHistoryStore()
   useEscapeKey(onClose)
 
+  const boxWidth = targetWidth || canvasWidth
+  const boxHeight = targetHeight || canvasHeight
+
   const [prompt, setPrompt] = useState('')
   const [style, setStyle] = useState('')
+  const [size, setSize] = useState('auto')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -53,17 +69,25 @@ export default function AiImageModal({ onClose }) {
       const res = await fetch('/api/ai-image', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: fullPrompt, width: canvasWidth, height: canvasHeight, brandId: activeBrandId || null }),
+        body: JSON.stringify({
+          prompt: fullPrompt, width: boxWidth, height: boxHeight,
+          size: size === 'auto' ? undefined : size,
+          brandId: activeBrandId || null,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Image generation failed')
 
-      const scale = Math.min(canvasWidth / data.width, canvasHeight / data.height)
+      const scale = Math.min(boxWidth / data.width, boxHeight / data.height)
       const w = Math.round(data.width * scale)
       const h = Math.round(data.height * scale)
 
       saveState()
-      addElement({ type: 'image', src: data.image, filename: 'ai-image.png', width: w, height: h, x: 0, y: 0, borderRadius: 0 })
+      if (onGenerated) {
+        onGenerated({ src: data.image, width: w, height: h })
+      } else {
+        addElement({ type: 'image', src: data.image, filename: 'ai-image.png', width: w, height: h, x: 0, y: 0, borderRadius: 0 })
+      }
       onClose()
     } catch (err) {
       setError(err.message)
@@ -85,7 +109,7 @@ export default function AiImageModal({ onClose }) {
       </div>
 
       <p className="text-xs text-gray-500 mb-3">
-        Describe the image — it's generated and added as a new image element scaled to fit the canvas.
+        Describe the image{onGenerated ? ' — it replaces this element\'s image' : ' — it\'s added as a new image element'}, scaled to fit. Text and logos are never included.
       </p>
 
       <textarea
@@ -96,16 +120,28 @@ export default function AiImageModal({ onClose }) {
         className="w-full bg-gray-800 text-gray-100 rounded px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none resize-y mb-3"
       />
 
-      <label className="flex items-center gap-2 mb-3">
-        <span className="text-xs text-gray-400">Style</span>
-        <select
-          value={style}
-          onChange={(e) => setStyle(e.target.value)}
-          className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
-        >
-          {STYLE_PRESETS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-      </label>
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <label className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Style</span>
+          <select
+            value={style}
+            onChange={(e) => setStyle(e.target.value)}
+            className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
+          >
+            {STYLE_PRESETS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Size</span>
+          <select
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+            className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
+          >
+            {SIZE_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </label>
+      </div>
 
       {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 
