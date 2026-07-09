@@ -142,6 +142,8 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
           onBlur={onTextBlur}
           style={{
             width: '100%', height: '100%',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            alignItems: element.textAlign === 'center' ? 'center' : element.textAlign === 'right' ? 'flex-end' : 'flex-start',
             fontSize: element.fontSize || 16,
             fontFamily: element.fontFamily || 'Arial',
             color: element.color || '#000',
