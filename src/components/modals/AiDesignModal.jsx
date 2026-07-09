@@ -25,11 +25,13 @@ export default function AiDesignModal({ onClose }) {
 
   const [brief, setBrief] = useState('')
   const [backgroundStyle, setBackgroundStyle] = useState('solid')
+  const [backgroundPrompt, setBackgroundPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const handleGenerate = async () => {
     if (!brief.trim()) { setError('Describe the banner first (product, offer, tone, etc.)'); return }
+    if (backgroundStyle === 'other' && !backgroundPrompt.trim()) { setError('Describe the background image you want'); return }
     if (elements.length > 0 && !confirm('This replaces the current canvas elements. Continue?')) return
 
     setLoading(true)
@@ -43,7 +45,19 @@ export default function AiDesignModal({ onClose }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'AI design failed')
 
-      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette)
+      let backgroundImage = null
+      if (backgroundStyle === 'other') {
+        const imgRes = await fetch('/api/ai-image', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: backgroundPrompt, width: canvasWidth, height: canvasHeight, brandId: activeBrandId || null }),
+        })
+        const imgData = await imgRes.json()
+        if (!imgRes.ok) throw new Error(imgData.error || 'Background image generation failed')
+        backgroundImage = imgData.image
+      }
+
+      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette, backgroundImage)
       if (!newElements.length) throw new Error('AI picked an unknown layout')
 
       saveState()
@@ -96,6 +110,16 @@ export default function AiDesignModal({ onClose }) {
           {BACKGROUND_STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
       </label>
+
+      {backgroundStyle === 'other' && (
+        <input
+          type="text"
+          value={backgroundPrompt}
+          onChange={(e) => setBackgroundPrompt(e.target.value)}
+          placeholder="e.g. A sunlit outdoor running track, empty, morning light"
+          className="w-full bg-gray-800 text-gray-100 rounded px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none mb-3"
+        />
+      )}
 
       {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 
