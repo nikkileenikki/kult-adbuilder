@@ -158,7 +158,6 @@ export default function Toolbar({ onOpenUsers }) {
 
       {/* Canvas size */}
       <div className="flex items-center gap-1.5">
-        <i className="fa-solid fa-crop-simple text-gray-400 shrink-0" style={{ fontSize: 12 }} />
         <select value={sizeValue} onChange={onSizeChange}
           className="bg-gray-800 rounded px-2 py-1 text-sm text-white border border-gray-700 focus:border-blue-500 focus:outline-none">
           {PRESET_SIZES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -192,22 +191,42 @@ export default function Toolbar({ onOpenUsers }) {
           className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-400 rounded border border-gray-700">
           <i className="fa-solid fa-compress" style={{ fontSize: 11 }} />
         </button>
+
+        <div className="w-px h-5 bg-gray-700 shrink-0" />
+
+        {/* Undo / Redo */}
+        <button onClick={undo} title="Undo"
+          className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
+          <i className="fa-solid fa-rotate-left" style={{ fontSize: 12 }} />
+        </button>
+        <button onClick={redo} title="Redo"
+          className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
+          <i className="fa-solid fa-rotate-right" style={{ fontSize: 12 }} />
+        </button>
+
+        <button onClick={resetCanvas} title="Reset canvas to a blank state"
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 hover:text-red-400 text-gray-300 px-2.5 py-1.5 rounded text-xs border border-gray-700 transition-colors">
+          <i className="fa-solid fa-arrow-rotate-left" style={{ fontSize: 12 }} /> Reset
+        </button>
       </div>
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-1.5">
 
-        {/* Undo / Redo */}
-        <button onClick={undo} title="Undo"
-          className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
-          <i className="fa-solid fa-rotate-left" style={{ fontSize: 13 }} />
+        {/* Library pill */}
+        <button
+          onClick={() => setShowLibraryPicker(true)}
+          title="Select Creative Library"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs border transition-colors ${
+            ftLibrary
+              ? 'bg-purple-900/40 border-purple-600 text-purple-300 hover:bg-purple-900/60'
+              : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-purple-500 hover:text-purple-400'
+          }`}
+        >
+          <i className="fa-solid fa-layer-group" style={{ fontSize: 11 }} />
+          <span className="max-w-28 truncate">{ftLibrary ? ftLibrary.name : 'Select Library'}</span>
+          <i className="fa-solid fa-chevron-down" style={{ fontSize: 9 }} />
         </button>
-        <button onClick={redo} title="Redo"
-          className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700">
-          <i className="fa-solid fa-rotate-right" style={{ fontSize: 13 }} />
-        </button>
-
-        <div className="w-px h-5 bg-gray-700" />
 
         <button onClick={() => openModal('templates')}
           className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
@@ -221,19 +240,14 @@ export default function Toolbar({ onOpenUsers }) {
           <i className="fa-solid fa-film" style={{ fontSize: 12 }} /> Video Assets
         </button>
 
-        <button onClick={resetCanvas} title="Reset canvas to a blank state"
-          className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 hover:text-red-400 text-gray-300 px-2.5 py-1.5 rounded text-xs border border-gray-700 transition-colors">
-          <i className="fa-solid fa-arrow-rotate-left" style={{ fontSize: 12 }} /> Reset Canvas
-        </button>
-
-        {/* File / Publish dropdown */}
+        {/* Export / Publish dropdown */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded text-xs"
           >
             <i className="fa-solid fa-file-export" style={{ fontSize: 12 }} />
-            File
+            Export
             <i className="fa-solid fa-chevron-down" style={{ fontSize: 10 }} />
           </button>
           {menuOpen && (
@@ -267,21 +281,6 @@ export default function Toolbar({ onOpenUsers }) {
             </div>
           )}
         </div>
-
-        {/* Library pill */}
-        <button
-          onClick={() => setShowLibraryPicker(true)}
-          title="Select Creative Library"
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs border transition-colors ${
-            ftLibrary
-              ? 'bg-purple-900/40 border-purple-600 text-purple-300 hover:bg-purple-900/60'
-              : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-purple-500 hover:text-purple-400'
-          }`}
-        >
-          <i className="fa-solid fa-layer-group" style={{ fontSize: 11 }} />
-          <span className="max-w-28 truncate">{ftLibrary ? ftLibrary.name : 'Select Library'}</span>
-          <i className="fa-solid fa-chevron-down" style={{ fontSize: 9 }} />
-        </button>
 
         <div className="w-px h-5 bg-gray-700" />
 
