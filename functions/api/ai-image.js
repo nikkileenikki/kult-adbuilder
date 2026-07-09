@@ -51,7 +51,11 @@ export async function onRequestPost({ request, env }) {
   // Hard requirement (not advisory, unlike brand color guidance above): generated
   // images are dropped straight onto a banner as a background/asset, so any baked-in
   // text or logo would be unreadable at banner scale and can't be edited afterward.
-  fullPrompt += '\n\nDo not include any text, words, letters, numbers, captions, watermarks, or logos anywhere in the image.'
+  // Stated both up front and again at the end — image models tend to weight the
+  // leading instruction more heavily, but a trailing reminder catches cases where a
+  // long descriptive prompt would otherwise bury it.
+  const noTextInstruction = 'IMPORTANT: the image must contain absolutely no text, words, letters, numbers, captions, watermarks, signage, or logos of any kind — purely visual content only.'
+  fullPrompt = `${noTextInstruction}\n\n${fullPrompt}\n\n${noTextInstruction}`
 
   try {
     const res = await fetch('https://api.openai.com/v1/images/generations', {

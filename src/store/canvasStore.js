@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { idbStorage } from '../utils/idbStorage.js'
 
 let nextId = Date.now()
 const uid = (type) => `${type}_${nextId++}`
@@ -82,6 +83,9 @@ export const useCanvasStore = create(persist((set, get) => ({
   })),
 }), {
   name: 'kult-adbuilder-canvas',
+  // IndexedDB instead of localStorage — elements can carry large base64 images
+  // (uploads, AI-generated art) that reliably blow past localStorage's ~5-10MB quota.
+  storage: createJSONStorage(() => idbStorage),
   partialize: (state) => ({
     elements: state.elements,
     groups: state.groups,
