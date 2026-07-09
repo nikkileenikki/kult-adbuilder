@@ -3,22 +3,23 @@ import { useAuthStore } from '../../store/authStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
+import { useAiChatStore } from '../../store/aiChatStore.js'
 import { buildElementsFromLayout, BACKGROUND_STYLES, findLayout } from '../../utils/aiLayouts.js'
 
 // "Design with AI" as a chat, pinned to the bottom-right of the canvas viewport (see
-// Canvas.jsx). Conversation history is plain component state — intentionally NOT
-// persisted, so it lives for the session and is gone on refresh — and is sent back to
-// /api/ai-design on every turn so follow-ups ("make the headline shorter") refine the
-// previous result instead of generating an unrelated new one.
+// Canvas.jsx). Conversation state lives in aiChatStore (a plain, non-persisted zustand
+// store) rather than component state, so it survives this panel's host component
+// unmounting (e.g. navigating to Settings and back) — it's still cleared on an actual
+// page refresh, matching what was asked: kept for the session, lost on reload. It's
+// sent back to /api/ai-design on every turn so follow-ups ("make the headline
+// shorter") refine the previous result instead of generating an unrelated new one.
 export default function AiChatPanel() {
   const { token } = useAuthStore()
   const { elements, canvasWidth, canvasHeight } = useCanvasStore()
   const { activeBrandId } = useUiStore()
   const { saveState } = useHistoryStore()
+  const { open, messages, history, setOpen, addMessage, addHistoryTurn } = useAiChatStore()
 
-  const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState([]) // { role: 'user'|'assistant'|'error', text }
-  const [history, setHistory] = useState([]) // { brief, layoutId, copy } — sent back for follow-ups
   const [input, setInput] = useState('')
   const [backgroundStyle, setBackgroundStyle] = useState('solid')
   const [backgroundPrompt, setBackgroundPrompt] = useState('')
@@ -33,11 +34,11 @@ export default function AiChatPanel() {
     const brief = input.trim()
     if (!brief) return
     if (backgroundStyle === 'other' && !backgroundPrompt.trim()) {
-      setMessages((m) => [...m, { role: 'error', text: 'Describe the background image you want first.' }])
+      addMessage({ role: 'error', text: 'Describe the background image you want first.' })
       return
     }
 
-    setMessages((m) => [...m, { role: 'user', text: brief }])
+    addMessage({ role: 'user', text: brief })
     setInput('')
     setLoading(true)
 
@@ -74,11 +75,11 @@ export default function AiChatPanel() {
       }))
       useCanvasStore.setState({ elements: withIds, selectedId: null })
 
-      setHistory((h) => [...h, { brief, layoutId: data.layoutId, copy: data.copy }])
+      addHistoryTurn({ brief, layoutId: data.layoutId, copy: data.copy })
       const layoutLabel = findLayout(data.layoutId)?.label || data.layoutId
-      setMessages((m) => [...m, { role: 'assistant', text: `Applied "${layoutLabel}" layout to the canvas.` }])
+      addMessage({ role: 'assistant', text: `Applied "${layoutLabel}" layout to the canvas.` })
     } catch (err) {
-      setMessages((m) => [...m, { role: 'error', text: err.message }])
+      addMessage({ role: 'error', text: err.message })
     } finally {
       setLoading(false)
     }
