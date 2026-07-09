@@ -26,7 +26,9 @@ export async function onRequestPost({ request, env }) {
   const height = Number(body.height) || 1024
   if (!prompt) return json({ error: 'prompt is required' }, 400)
 
-  const size = pickSize(width, height)
+  // Client can request an explicit OpenAI-supported size (e.g. from a size picker);
+  // otherwise fall back to nearest match for the given width/height.
+  const size = SUPPORTED_SIZES.includes(body.size) ? body.size : pickSize(width, height)
 
   // The user's own prompt always drives subject, composition, and style — brand
   // guide info is supporting flavor only, never a literal constraint. Earlier
@@ -45,6 +47,11 @@ export async function onRequestPost({ request, env }) {
       if (parts.length) fullPrompt = `${prompt}\n\n${parts.join('\n')}`
     }
   }
+
+  // Hard requirement (not advisory, unlike brand color guidance above): generated
+  // images are dropped straight onto a banner as a background/asset, so any baked-in
+  // text or logo would be unreadable at banner scale and can't be edited afterward.
+  fullPrompt += '\n\nDo not include any text, words, letters, numbers, captions, watermarks, or logos anywhere in the image.'
 
   try {
     const res = await fetch('https://api.openai.com/v1/images/generations', {

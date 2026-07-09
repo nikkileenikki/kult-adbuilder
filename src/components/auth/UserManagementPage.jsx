@@ -57,9 +57,12 @@ export default function UserManagementPage({ onClose, embedded }) {
 
   const body = (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-white font-semibold text-base">User Management</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-white font-semibold text-base mb-1">User Management</h2>
+          <p className="text-xs text-gray-500">Add, edit, disable, or remove users who can access the ad builder.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowSelfPw(true)}
             className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs border border-gray-700"
@@ -77,7 +80,7 @@ export default function UserManagementPage({ onClose, embedded }) {
         {loading && <p className="text-gray-500 text-sm">Loading…</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
         {!loading && !error && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-400 border-b border-gray-700">

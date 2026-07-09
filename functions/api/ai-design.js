@@ -38,13 +38,23 @@ export async function onRequestPost({ request, env }) {
     ? `\n\nBrand guide — write copy consistent with this:\n${guide.tone ? `Tone/voice: ${guide.tone}\n` : ''}${guide.notes ? `Notes: ${guide.notes}` : ''}`
     : ''
 
+  // `history`: prior turns in this chat, each { brief, layoutId, copy } — lets a
+  // follow-up like "make the headline shorter" refine the last result instead of
+  // generating an unrelated new one from scratch.
+  const history = Array.isArray(body.history) ? body.history.slice(-5) : []
+  const followUpContext = history.length
+    ? `\n\nThis is a follow-up in an ongoing chat. Prior turns (most recent last):\n${history.map((h, i) =>
+        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}`
+      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout or a full redo, keep the same layoutId as the most recent turn and only change the copy fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn.`
+    : ''
+
   const system = `You design ad banner copy. You are given a fixed catalog of layouts, each with a list of "roles" (text slots). Pick the single best-fit layout for the brief and write short, punchy copy for each of its roles.
 Rules:
 - headline: max ~40 characters
 - subhead/body: max ~70 characters
 - cta: max ~20 characters, an action phrase (e.g. "Shop Now", "Get Started")
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}}
-- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}`
+- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}${followUpContext}`
 
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}

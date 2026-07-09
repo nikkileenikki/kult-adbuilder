@@ -7,7 +7,6 @@ import { exportBannerZip, saveBannerJSON, loadBannerJSON } from '../../utils/exp
 import FlashTalkingModal from '../modals/FlashTalkingModal.jsx'
 import LibraryPickerModal from '../modals/LibraryPickerModal.jsx'
 import VideoAssetsModal from '../modals/VideoAssetsModal.jsx'
-import AiDesignModal from '../modals/AiDesignModal.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -45,7 +44,6 @@ export default function Toolbar() {
   const [showPublish, setShowPublish] = useState(false)
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [showVideoAssets, setShowVideoAssets] = useState(false)
-  const [showAiDesign, setShowAiDesign] = useState(false)
   const [brands, setBrands] = useState([])
 
   useEffect(() => {
@@ -260,13 +258,6 @@ export default function Toolbar() {
           <i className="fa-solid fa-film" style={{ fontSize: 12 }} /> Video Assets
         </button>
 
-        <button
-          onClick={() => setShowAiDesign(true)}
-          title="Generate a layout and copy from a text brief"
-          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
-          <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 12 }} /> Design with AI
-        </button>
-
         {/* Export / Publish dropdown */}
         <div className="relative" ref={menuRef}>
           <button
@@ -329,10 +320,6 @@ export default function Toolbar() {
 
       {showVideoAssets && (
         <VideoAssetsModal onClose={() => setShowVideoAssets(false)} />
-      )}
-
-      {showAiDesign && (
-        <AiDesignModal onClose={() => setShowAiDesign(false)} />
       )}
     </div>
   )

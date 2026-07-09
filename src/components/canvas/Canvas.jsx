@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useState, useEffect } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 import CanvasElement from './CanvasElement.jsx'
+import AiChatPanel from './AiChatPanel.jsx'
 import { buildPreviewHtml } from '../../utils/exportBanner.js'
 
 export default function Canvas() {
@@ -113,16 +114,20 @@ export default function Canvas() {
       </div>
       {isAdvanced && (
         // Refresh/Replay Button — pinned to the canvas viewport (not the banner itself),
-        // bottom-right corner; remounts the Template Preview Iframe above to replay it.
+        // bottom-right corner (offset left of the AI chat launcher below); remounts the
+        // Template Preview Iframe above to replay it.
         <button
           onClick={handleRefreshPreview}
           title="Refresh / replay custom template"
-          className="absolute bottom-4 right-4 flex items-center justify-center rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
-          style={{ width: 34, height: 34, zIndex: 9200 }}
+          className="absolute bottom-4 flex items-center justify-center rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+          style={{ right: 68, width: 34, height: 34, zIndex: 9200 }}
         >
           <i className="fa-solid fa-rotate-right" style={{ fontSize: 14 }} />
         </button>
       )}
+
+      {/* AI Chat Launcher — "Design with AI" as a persistent chat, bottom-right of the viewport */}
+      <AiChatPanel />
     </div>
   )
 }
