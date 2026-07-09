@@ -159,6 +159,27 @@ function readableColor(preferred, bg) {
   return Math.abs(bgLum - prefLum) > 0.35 ? preferred : contrastColor(bg)
 }
 
+const MIN_FONT_SIZE = 10
+
+// Rough (not pixel-perfect) estimate of how many lines `text` wraps to at a given
+// fontSize/width, then shrinks fontSize until the estimated wrapped height fits
+// `height`. Avoids the AI's copy-length rules ("~40 chars") reliably overflowing a
+// role's fixed box at its nominal font size.
+function fitFontSize(text, width, height, startSize, bold) {
+  if (!text) return startSize
+  const avgCharWidthFactor = bold ? 0.62 : 0.56
+  const lineHeightFactor = 1.25
+  let fontSize = startSize
+  while (fontSize > MIN_FONT_SIZE) {
+    const charsPerLine = Math.max(1, Math.floor(width / (fontSize * avgCharWidthFactor)))
+    const lines = Math.max(1, Math.ceil(text.length / charsPerLine))
+    const estimatedHeight = lines * fontSize * lineHeightFactor
+    if (estimatedHeight <= height) break
+    fontSize -= 1
+  }
+  return fontSize
+}
+
 export function findLayout(layoutId) {
   return NORMALIZED_LAYOUTS.find((l) => l.id === layoutId) || null
 }
@@ -201,8 +222,12 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
     const y = Math.round(r.y * canvasHeight)
     const width = Math.round(r.width * canvasWidth)
     const height = Math.round(r.height * canvasHeight)
-    const fontSize = Math.max(10, Math.round(r.fontSize * canvasHeight))
-    const text = copy[r.role] || ''
+    const baseFontSize = Math.max(10, Math.round(r.fontSize * canvasHeight))
+    const text = copy[r.role] || (r.type === 'button' ? 'Learn More' : '')
+    // Shrink the font (never grow it) until the AI-written copy is estimated to fit
+    // the role's box at this size — the fixed fractional size above is only a
+    // starting point and long copy at a large size was cropping at the bottom.
+    const fontSize = fitFontSize(text, width, height, baseFontSize, !!r.bold || r.type === 'button')
 
     if (r.type === 'button') {
       elements.push({
@@ -213,7 +238,7 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
       elements.push({
         type: 'text',
         x, y, width, height,
-        text: text || 'Learn More',
+        text,
         // Always computed against the button's own background — never a separate
         // brand field that could collide with it and make the label unreadable.
         fontSize, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,

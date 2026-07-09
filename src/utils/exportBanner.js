@@ -12,6 +12,10 @@ function buildElementCSS(el) {
     `z-index:${el.zIndex || 0}`,
   ]
   if (el.type === 'text') {
+    styles.push(`display:flex`)
+    styles.push(`flex-direction:column`)
+    styles.push(`justify-content:center`)
+    styles.push(`align-items:${el.textAlign === 'center' ? 'center' : el.textAlign === 'right' ? 'flex-end' : 'flex-start'}`)
     styles.push(`font-size:${el.fontSize || 16}px`)
     styles.push(`font-family:${el.fontFamily || 'Arial'},sans-serif`)
     styles.push(`color:${el.color || '#000'}`)
