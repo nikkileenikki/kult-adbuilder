@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 const QUALITY_OPTIONS = [
@@ -69,21 +69,20 @@ export default function VideoLibraryModal({
   const [customHeight, setCustomHeight] = useState(480)
   useEscapeKey(onClose)
 
-  // Linked width/height — editing one recalculates the other from the ratio
-  // implied by the current pair, so the aspect ratio stays constant.
+  // Linked width/height — editing one recalculates the other from a fixed aspect
+  // ratio held here, not from the other field's last *rounded* value. Deriving from
+  // the displayed (rounded) pair each time would compound rounding error on every
+  // keystroke until the ratio visibly drifted from the original.
+  const ratioRef = useRef(customWidth / customHeight)
   const onCustomWidthChange = (v) => {
     const w = Number(v)
     setCustomWidth(w)
-    if (w > 0 && customWidth > 0 && customHeight > 0) {
-      setCustomHeight(Math.max(1, Math.round((w / customWidth) * customHeight)))
-    }
+    if (w > 0) setCustomHeight(Math.max(1, Math.round(w / ratioRef.current)))
   }
   const onCustomHeightChange = (v) => {
     const h = Number(v)
     setCustomHeight(h)
-    if (h > 0 && customWidth > 0 && customHeight > 0) {
-      setCustomWidth(Math.max(1, Math.round((h / customHeight) * customWidth)))
-    }
+    if (h > 0) setCustomWidth(Math.max(1, Math.round(h * ratioRef.current)))
   }
   const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
   const statusColor = {
