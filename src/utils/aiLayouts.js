@@ -236,6 +236,10 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
       type: 'image',
       x: 0, y: 0, width: canvasWidth, height: canvasHeight,
       src: backgroundImage, filename: 'ai-background.png', borderRadius: 0, zIndex: z++,
+      // OpenAI only supports a few fixed image ratios, which rarely match the banner's
+      // exact size — 'cover' crops to fill the canvas without stretching/distorting,
+      // unlike the default 'fill' object-fit other image elements use.
+      objectFit: 'cover',
     })
   } else {
     const bgCss = buildBackgroundCss(backgroundStyle, palette, `${layoutId}-${canvasWidth}x${canvasHeight}`)

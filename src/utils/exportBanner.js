@@ -63,7 +63,7 @@ function buildElementHTML(el) {
     case 'text':
       return `<div id="${id}" style="${css}">${escapeHtml(el.text || 'Text')}</div>`
     case 'image':
-      return `<img id="${id}" src="${el.src || ''}" alt="${escapeHtml(el.filename || '')}" style="${css};display:block;object-fit:fill;" />`
+      return `<img id="${id}" src="${el.src || ''}" alt="${escapeHtml(el.filename || '')}" style="${css};display:block;object-fit:${el.objectFit || 'fill'};" />`
     case 'shape':
       return `<div id="${id}" style="${css}"></div>`
     case 'clickthrough':

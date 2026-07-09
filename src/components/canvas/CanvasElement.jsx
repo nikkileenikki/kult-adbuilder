@@ -168,7 +168,7 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
         <img
           src={element.src} alt={element.filename || ''}
           style={{
-            width: '100%', height: '100%', objectFit: 'fill',
+            width: '100%', height: '100%', objectFit: element.objectFit || 'fill',
             borderRadius: element.borderRadius || 0,
             display: 'block', pointerEvents: 'none', userSelect: 'none',
           }}
