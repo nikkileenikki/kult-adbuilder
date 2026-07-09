@@ -89,7 +89,7 @@ ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.j
           ...(guide.primary_color ? { bg: guide.primary_color } : {}),
           ...(guide.accent_color ? { accent: guide.accent_color } : {}),
           ...(guide.secondary_color ? { subtext: guide.secondary_color } : {}),
-          ...(guide.text_color ? { text: guide.text_color, accentText: guide.text_color } : {}),
+          ...(guide.text_color ? { text: guide.text_color } : {}),
         }
       : null
 
