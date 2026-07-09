@@ -23,7 +23,7 @@ const PRESET_SIZES = [
 export default function Toolbar({ onOpenUsers }) {
   const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
-  const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom, ftLibrary } = useUiStore()
+  const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom, ftLibrary, activeBrandId, setActiveBrandId } = useUiStore()
   const { user, token, clearAuth } = useAuthStore()
 
   const handleLogout = async () => {
@@ -53,6 +53,16 @@ export default function Toolbar({ onOpenUsers }) {
   const [showVideoAssets, setShowVideoAssets] = useState(false)
   const [showAiDesign, setShowAiDesign] = useState(false)
   const [showBrandGuide, setShowBrandGuide] = useState(false)
+  const [brands, setBrands] = useState([])
+
+  const loadBrands = () => {
+    fetch('/api/brand-guide', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => setBrands(data.brands || []))
+      .catch(() => {})
+  }
+
+  useEffect(loadBrands, [token])
   const menuRef = useRef(null)
   const loadInputRef = useRef(null)
 
@@ -217,6 +227,21 @@ export default function Toolbar({ onOpenUsers }) {
       {/* Right side */}
       <div className="ml-auto flex items-center gap-1.5">
 
+        {/* Brand select — used by Design with AI / Generate Image with AI */}
+        <select
+          value={activeBrandId || ''}
+          onChange={(e) => setActiveBrandId(e.target.value || null)}
+          title="Brand guide used by AI banner/image generation"
+          className={`px-2.5 py-1.5 rounded text-xs border transition-colors max-w-32 ${
+            activeBrandId
+              ? 'bg-purple-900/40 border-purple-600 text-purple-300'
+              : 'bg-gray-800 border-gray-600 text-gray-400'
+          }`}
+        >
+          <option value="">No Brand</option>
+          {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+
         {/* Library pill */}
         <button
           onClick={() => setShowLibraryPicker(true)}
@@ -345,7 +370,7 @@ export default function Toolbar({ onOpenUsers }) {
       )}
 
       {showBrandGuide && (
-        <BrandGuideModal onClose={() => setShowBrandGuide(false)} />
+        <BrandGuideModal onClose={() => { setShowBrandGuide(false); loadBrands() }} />
       )}
     </div>
   )
