@@ -18,12 +18,14 @@ function Modal({ children }) {
   )
 }
 
-function VideoRow({ video, actionLabel, onAction, actionDisabled, highlight }) {
+function VideoRow({ video, actionLabel, onAction, actionDisabled, highlight, ratioCheckbox }) {
   return (
     <div className="flex items-center justify-between bg-gray-800 rounded px-3 py-2">
+      {ratioCheckbox}
       <div className="min-w-0 mr-3">
         <p className="text-sm text-gray-200 truncate">{video.name}</p>
         <p className="text-xs text-gray-500">
+          {video.width && video.height ? `${video.width}×${video.height} · ` : ''}
           {video.sizeMb ? `${video.sizeMb} MB` : ''}
           {video.sizeMb && video.createdAt ? ' · ' : ''}
           {video.createdAt ? new Date(video.createdAt).toLocaleString() : ''}
@@ -65,14 +67,16 @@ export default function VideoLibraryModal({
   onUpload,
 }) {
   const [quality, setQuality] = useState('480p')
-  const [customWidth, setCustomWidth] = useState(854)
-  const [customHeight, setCustomHeight] = useState(480)
+  const [customWidth, setCustomWidth] = useState(1920)
+  const [customHeight, setCustomHeight] = useState(1080)
+  const [ratioVideoId, setRatioVideoId] = useState(null)
   useEscapeKey(onClose)
 
   // Linked width/height — editing one recalculates the other from a fixed aspect
   // ratio held here, not from the other field's last *rounded* value. Deriving from
   // the displayed (rounded) pair each time would compound rounding error on every
-  // keystroke until the ratio visibly drifted from the original.
+  // keystroke until the ratio visibly drifted from the original. Defaults to an
+  // exact 16:9 (1920/1080) until a specific source video is picked for its ratio.
   const ratioRef = useRef(customWidth / customHeight)
   const onCustomWidthChange = (v) => {
     const w = Number(v)
@@ -83,6 +87,14 @@ export default function VideoLibraryModal({
     const h = Number(v)
     setCustomHeight(h)
     if (h > 0) setCustomWidth(Math.max(1, Math.round(h * ratioRef.current)))
+  }
+  const pickRatioVideo = (video) => {
+    if (!video.width || !video.height) return
+    const isSame = ratioVideoId === video.id
+    setRatioVideoId(isSame ? null : video.id)
+    ratioRef.current = isSame ? 1920 / 1080 : video.width / video.height
+    setCustomWidth(isSame ? 1920 : video.width)
+    setCustomHeight(isSame ? 1080 : video.height)
   }
   const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
   const statusColor = {
@@ -182,6 +194,11 @@ export default function VideoLibraryModal({
               </select>
             </div>
           </div>
+          {quality === 'custom' && (
+            <p className="text-xs text-gray-500 mb-1.5 -mt-1">
+              Check a video below to calculate the ratio from its own dimensions.
+            </p>
+          )}
           <div className="space-y-1.5">
             {uploaded.length === 0 && <p className="text-xs text-gray-600 italic">No uploaded videos yet.</p>}
             {uploaded.map((v) => (
@@ -197,6 +214,15 @@ export default function VideoLibraryModal({
                   const width = quality === 'custom' ? customWidth : undefined
                   onTranscode(video, height, label, width)
                 }}
+                ratioCheckbox={quality === 'custom' && v.width && v.height ? (
+                  <input
+                    type="checkbox"
+                    checked={ratioVideoId === v.id}
+                    onChange={() => pickRatioVideo(v)}
+                    title="Use this video's dimensions to set the custom aspect ratio"
+                    className="mr-2 w-3.5 h-3.5 shrink-0"
+                  />
+                ) : null}
               />
             ))}
           </div>
