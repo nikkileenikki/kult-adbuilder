@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
@@ -21,8 +21,17 @@ export default function AiImageModal({ onClose }) {
   useEscapeKey(onClose)
 
   const [prompt, setPrompt] = useState('')
+  const [brands, setBrands] = useState([])
+  const [brandId, setBrandId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/brand-guide', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => setBrands(data.brands || []))
+      .catch(() => {})
+  }, [token])
 
   const handleGenerate = async () => {
     if (!prompt.trim()) { setError('Describe the image first'); return }
@@ -33,7 +42,7 @@ export default function AiImageModal({ onClose }) {
       const res = await fetch('/api/ai-image', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, width: canvasWidth, height: canvasHeight }),
+        body: JSON.stringify({ prompt, width: canvasWidth, height: canvasHeight, brandId: brandId || null }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Image generation failed')
@@ -75,6 +84,18 @@ export default function AiImageModal({ onClose }) {
         placeholder="e.g. Abstract watercolor splash in blue and orange, no text"
         className="w-full bg-gray-800 text-gray-100 rounded px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none resize-y mb-3"
       />
+
+      <label className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-gray-400">Brand</span>
+        <select
+          value={brandId}
+          onChange={(e) => setBrandId(e.target.value)}
+          className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
+        >
+          <option value="">None</option>
+          {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </label>
 
       {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 

@@ -28,6 +28,19 @@ export async function onRequestPost({ request, env }) {
 
   const size = pickSize(width, height)
 
+  let fullPrompt = prompt
+  if (body.brandId) {
+    const guide = await env.DB.prepare('SELECT * FROM brands WHERE id = ?').bind(body.brandId).first().catch(() => null)
+    if (guide) {
+      const parts = []
+      if (guide.tone) parts.push(`Tone/mood: ${guide.tone}`)
+      if (guide.notes) parts.push(`Brand notes: ${guide.notes}`)
+      const colors = [guide.primary_color, guide.secondary_color, guide.accent_color].filter(Boolean)
+      if (colors.length) parts.push(`Use a color palette consistent with: ${colors.join(', ')}`)
+      if (parts.length) fullPrompt = `${prompt}\n\n${parts.join('\n')}`
+    }
+  }
+
   try {
     const res = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -37,7 +50,7 @@ export async function onRequestPost({ request, env }) {
       },
       body: JSON.stringify({
         model: 'gpt-image-1',
-        prompt,
+        prompt: fullPrompt,
         size,
         n: 1,
       }),
