@@ -65,8 +65,26 @@ export default function VideoLibraryModal({
   onUpload,
 }) {
   const [quality, setQuality] = useState('480p')
+  const [customWidth, setCustomWidth] = useState(854)
   const [customHeight, setCustomHeight] = useState(480)
   useEscapeKey(onClose)
+
+  // Linked width/height — editing one recalculates the other from the ratio
+  // implied by the current pair, so the aspect ratio stays constant.
+  const onCustomWidthChange = (v) => {
+    const w = Number(v)
+    setCustomWidth(w)
+    if (w > 0 && customWidth > 0 && customHeight > 0) {
+      setCustomHeight(Math.max(1, Math.round((w / customWidth) * customHeight)))
+    }
+  }
+  const onCustomHeightChange = (v) => {
+    const h = Number(v)
+    setCustomHeight(h)
+    if (h > 0 && customWidth > 0 && customHeight > 0) {
+      setCustomWidth(Math.max(1, Math.round((h / customHeight) * customWidth)))
+    }
+  }
   const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
   const statusColor = {
     success: 'text-green-400',
@@ -132,15 +150,27 @@ export default function VideoLibraryModal({
             <p className="text-xs text-gray-400 font-medium">Uploaded ({uploaded.length})</p>
             <div className="flex items-center gap-1">
               {quality === 'custom' && (
-                <input
-                  type="number"
-                  min={16}
-                  max={4320}
-                  value={customHeight}
-                  onChange={(e) => setCustomHeight(Number(e.target.value))}
-                  title="Target height in pixels — width is derived automatically to keep the source aspect ratio"
-                  className="bg-gray-700 text-gray-200 text-xs rounded px-1.5 py-0.5 border border-gray-600 w-16"
-                />
+                <>
+                  <input
+                    type="number"
+                    min={1}
+                    max={7680}
+                    value={customWidth}
+                    onChange={(e) => onCustomWidthChange(e.target.value)}
+                    title="Target width in pixels — height adjusts automatically to keep the aspect ratio"
+                    className="bg-gray-700 text-gray-200 text-xs rounded px-1.5 py-0.5 border border-gray-600 w-14"
+                  />
+                  <span className="text-gray-500 text-xs">×</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={4320}
+                    value={customHeight}
+                    onChange={(e) => onCustomHeightChange(e.target.value)}
+                    title="Target height in pixels — width adjusts automatically to keep the aspect ratio"
+                    className="bg-gray-700 text-gray-200 text-xs rounded px-1.5 py-0.5 border border-gray-600 w-14"
+                  />
+                </>
               )}
               <select
                 value={quality}
@@ -160,12 +190,13 @@ export default function VideoLibraryModal({
                 key={v.id}
                 video={v}
                 actionLabel={encodingId === v.id ? 'Encoding…' : 'Transcode'}
-                actionDisabled={encodingId === v.id || (quality === 'custom' && !(customHeight > 0))}
+                actionDisabled={encodingId === v.id || (quality === 'custom' && !(customWidth > 0 && customHeight > 0))}
                 onAction={(video) => {
                   const q = QUALITY_OPTIONS.find((o) => o.value === quality)
                   const height = quality === 'custom' ? customHeight : q.height
-                  const label = quality === 'custom' ? `${customHeight}p` : q.value
-                  onTranscode(video, height, label)
+                  const label = quality === 'custom' ? `${customWidth}x${customHeight}` : q.value
+                  const width = quality === 'custom' ? customWidth : undefined
+                  onTranscode(video, height, label, width)
                 }}
               />
             ))}
