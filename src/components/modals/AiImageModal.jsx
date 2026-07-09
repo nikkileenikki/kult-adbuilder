@@ -15,6 +15,20 @@ function Modal({ children }) {
   )
 }
 
+// Optional stylistic direction appended to the prompt client-side — gives explicit
+// access to non-abstract results (real photos/scenes, illustration, 3D, ...) instead
+// of the model defaulting to abstract color blends when no style is specified.
+const STYLE_PRESETS = [
+  { value: '', label: "No preference (use my wording as-is)" },
+  { value: 'photo', label: 'Photo / real scene', modifier: 'Photorealistic photograph with natural lighting, shot in a real environment or setting relevant to the subject — not an abstract or illustrated look.' },
+  { value: 'illustration', label: 'Illustration', modifier: 'Digital illustration with clean linework and flat or lightly shaded color.' },
+  { value: 'render3d', label: '3D render', modifier: '3D rendered scene with studio lighting and realistic materials.' },
+  { value: 'flat', label: 'Flat design', modifier: 'Flat, minimal graphic design style with simple geometric shapes, no gradients or photorealism.' },
+  { value: 'gradient', label: 'Gradient', modifier: 'Smooth, minimal color gradient, no imagery or texture.' },
+  { value: 'abstract', label: 'Abstract', modifier: 'Abstract composition of shapes and blended colors.' },
+  { value: 'watercolor', label: 'Watercolor', modifier: 'Watercolor painting style with soft edges and visible paper texture.' },
+]
+
 export default function AiImageModal({ onClose }) {
   const { token } = useAuthStore()
   const { addElement, canvasWidth, canvasHeight } = useCanvasStore()
@@ -23,11 +37,15 @@ export default function AiImageModal({ onClose }) {
   useEscapeKey(onClose)
 
   const [prompt, setPrompt] = useState('')
+  const [style, setStyle] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const handleGenerate = async () => {
     if (!prompt.trim()) { setError('Describe the image first'); return }
+
+    const styleModifier = STYLE_PRESETS.find((s) => s.value === style)?.modifier
+    const fullPrompt = styleModifier ? `${prompt}\n\nStyle: ${styleModifier}` : prompt
 
     setLoading(true)
     setError(null)
@@ -35,7 +53,7 @@ export default function AiImageModal({ onClose }) {
       const res = await fetch('/api/ai-image', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, width: canvasWidth, height: canvasHeight, brandId: activeBrandId || null }),
+        body: JSON.stringify({ prompt: fullPrompt, width: canvasWidth, height: canvasHeight, brandId: activeBrandId || null }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Image generation failed')
@@ -74,9 +92,20 @@ export default function AiImageModal({ onClose }) {
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         rows={4}
-        placeholder="e.g. Abstract watercolor splash in blue and orange, no text"
+        placeholder="e.g. A sunlit outdoor running track, empty, morning light"
         className="w-full bg-gray-800 text-gray-100 rounded px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none resize-y mb-3"
       />
+
+      <label className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-gray-400">Style</span>
+        <select
+          value={style}
+          onChange={(e) => setStyle(e.target.value)}
+          className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
+        >
+          {STYLE_PRESETS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+      </label>
 
       {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 
