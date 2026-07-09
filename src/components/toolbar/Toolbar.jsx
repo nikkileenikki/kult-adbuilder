@@ -8,6 +8,7 @@ import FlashTalkingModal from '../modals/FlashTalkingModal.jsx'
 import LibraryPickerModal from '../modals/LibraryPickerModal.jsx'
 import VideoAssetsModal from '../modals/VideoAssetsModal.jsx'
 import AiDesignModal from '../modals/AiDesignModal.jsx'
+import BrandGuideModal from '../modals/BrandGuideModal.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -51,6 +52,7 @@ export default function Toolbar({ onOpenUsers }) {
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [showVideoAssets, setShowVideoAssets] = useState(false)
   const [showAiDesign, setShowAiDesign] = useState(false)
+  const [showBrandGuide, setShowBrandGuide] = useState(false)
   const menuRef = useRef(null)
   const loadInputRef = useRef(null)
 
@@ -249,6 +251,13 @@ export default function Toolbar({ onOpenUsers }) {
           <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: 12 }} /> Design with AI
         </button>
 
+        <button
+          onClick={() => setShowBrandGuide(true)}
+          title="View or edit the brand guide used by AI banner design"
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
+          <i className="fa-solid fa-swatchbook" style={{ fontSize: 12 }} /> Brand Guide
+        </button>
+
         {/* Export / Publish dropdown */}
         <div className="relative" ref={menuRef}>
           <button
@@ -333,6 +342,10 @@ export default function Toolbar({ onOpenUsers }) {
 
       {showAiDesign && (
         <AiDesignModal onClose={() => setShowAiDesign(false)} />
+      )}
+
+      {showBrandGuide && (
+        <BrandGuideModal onClose={() => setShowBrandGuide(false)} />
       )}
     </div>
   )

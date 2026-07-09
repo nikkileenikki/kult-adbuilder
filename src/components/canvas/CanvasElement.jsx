@@ -179,7 +179,7 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
       return (
         <div style={{
           width: '100%', height: '100%',
-          background: element.transparent ? 'transparent' : (element.fillColor || '#888'),
+          background: element.transparent ? 'transparent' : (element.cssBackground || element.fillColor || '#888'),
           borderRadius: isCircle ? '50%' : (element.borderRadius || 0),
           border: element.borderWidth ? `${element.borderWidth}px solid ${element.borderColor || '#000'}` : 'none',
           boxShadow,

@@ -81,8 +81,56 @@ export const NORMALIZED_LAYOUTS = [
   },
 ]
 
+export const BACKGROUND_STYLES = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'gradient', label: 'Gradient' },
+  { value: 'abstract', label: 'Abstract blobs' },
+  { value: 'watercolor', label: 'Watercolor' },
+]
+
 export function getPaletteFor(layout) {
   return PALETTES[layout.palette] || PALETTES.dark
+}
+
+// Deterministic pseudo-random in [0,1) seeded by a string, so the same layout+size
+// always produces the same background instead of reshuffling on every re-render.
+function seededRandom(seed) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0
+  return (n) => {
+    h = (h * 1103515245 + 12345 + n) | 0
+    return ((h >>> 0) % 10000) / 10000
+  }
+}
+
+// Builds a CSS `background` value for the given style, using only gradients — no
+// images/filters — so it renders identically on the canvas and in the exported HTML.
+export function buildBackgroundCss(style, palette, seed = 'bg') {
+  const { bg, accent, subtext } = palette
+  if (style === 'gradient') {
+    return `linear-gradient(135deg, ${bg} 0%, ${accent} 100%)`
+  }
+  if (style === 'abstract' || style === 'watercolor') {
+    const rand = seededRandom(seed + style)
+    const colors = [accent, subtext, bg]
+    const softness = style === 'watercolor' ? 70 : 45 // larger, softer blobs for watercolor
+    const blobs = Array.from({ length: 5 }, (_, i) => {
+      const x = Math.round(rand(i * 2) * 100)
+      const y = Math.round(rand(i * 2 + 1) * 100)
+      const color = colors[i % colors.length]
+      const alpha = style === 'watercolor' ? 0.35 : 0.5
+      return `radial-gradient(circle at ${x}% ${y}%, ${hexToRgba(color, alpha)} 0%, transparent ${softness}%)`
+    })
+    return `${blobs.join(', ')}, ${bg}`
+  }
+  return bg
+}
+
+function hexToRgba(hex, alpha) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (!m) return hex
+  const [, r, g, b] = m
+  return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}, ${alpha})`
 }
 
 export function findLayout(layoutId) {
@@ -105,18 +153,21 @@ export function layoutCatalogSummary() {
 
 // Expands a normalized layout + AI-generated copy into real canvasStore element
 // partials (no `id` — addElement()/direct insertion assigns those) for the given
-// canvas size.
-export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}) {
+// canvas size. `paletteOverride` (e.g. from a brand guide) replaces the layout's
+// built-in colors when provided. `backgroundStyle` picks how the background shape
+// is filled — 'solid' (default), 'gradient', 'abstract', or 'watercolor'.
+export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null) {
   const layout = findLayout(layoutId)
   if (!layout) return []
-  const palette = getPaletteFor(layout)
+  const palette = { ...getPaletteFor(layout), ...(paletteOverride || {}) }
   const elements = []
   let z = 10
 
+  const bgCss = buildBackgroundCss(backgroundStyle, palette, `${layoutId}-${canvasWidth}x${canvasHeight}`)
   elements.push({
     type: 'shape',
     x: 0, y: 0, width: canvasWidth, height: canvasHeight,
-    fillColor: palette.bg, borderRadius: 0, zIndex: z++,
+    fillColor: palette.bg, cssBackground: backgroundStyle === 'solid' ? undefined : bgCss, borderRadius: 0, zIndex: z++,
   })
 
   layout.roles.forEach((r) => {

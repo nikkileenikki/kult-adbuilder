@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
-import { buildElementsFromLayout } from '../../utils/aiLayouts.js'
+import { buildElementsFromLayout, BACKGROUND_STYLES } from '../../utils/aiLayouts.js'
 import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 function Modal({ children }) {
@@ -22,6 +22,7 @@ export default function AiDesignModal({ onClose }) {
   useEscapeKey(onClose)
 
   const [brief, setBrief] = useState('')
+  const [backgroundStyle, setBackgroundStyle] = useState('solid')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -40,7 +41,7 @@ export default function AiDesignModal({ onClose }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'AI design failed')
 
-      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy)
+      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette)
       if (!newElements.length) throw new Error('AI picked an unknown layout')
 
       saveState()
@@ -82,6 +83,17 @@ export default function AiDesignModal({ onClose }) {
         placeholder="e.g. Summer sale for a running shoe brand, 30% off, energetic and bold tone, CTA to shop now"
         className="w-full bg-gray-800 text-gray-100 rounded px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none resize-y mb-3"
       />
+
+      <label className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-gray-400">Background</span>
+        <select
+          value={backgroundStyle}
+          onChange={(e) => setBackgroundStyle(e.target.value)}
+          className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
+        >
+          {BACKGROUND_STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+      </label>
 
       {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 
