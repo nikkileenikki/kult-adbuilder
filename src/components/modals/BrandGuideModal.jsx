@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
+import { useUiStore } from '../../store/uiStore.js'
 import useEscapeKey from '../../hooks/useEscapeKey.js'
 
 const BLANK = {
@@ -41,8 +42,10 @@ function ColorField({ label, value, onChange, disabled }) {
 
 export default function BrandGuideModal({ onClose }) {
   const { token, user } = useAuthStore()
+  const { refreshBrandList } = useUiStore()
   const isAdmin = user?.role === 'admin'
-  useEscapeKey(onClose)
+  const handleClose = () => { refreshBrandList(); onClose() }
+  useEscapeKey(handleClose)
 
   const [brands, setBrands] = useState([])
   const [loading, setLoading] = useState(true)
@@ -133,7 +136,7 @@ export default function BrandGuideModal({ onClose }) {
           <i className="fa-solid fa-swatchbook text-purple-400" />
           Brand Guide
         </h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={handleClose} className="text-gray-400 hover:text-white transition-colors">
           <i className="fa-solid fa-xmark" />
         </button>
       </div>
@@ -233,7 +236,7 @@ export default function BrandGuideModal({ onClose }) {
             Delete
           </button>
         )}
-        <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs">
+        <button onClick={handleClose} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs">
           {isAdmin ? 'Cancel' : 'Close'}
         </button>
         {isAdmin && (
