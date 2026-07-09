@@ -30,7 +30,10 @@ export async function onRequestPost({ request, env }) {
   if (!brief) return json({ error: 'brief is required' }, 400)
   if (!width || !height) return json({ error: 'canvasWidth and canvasHeight are required' }, 400)
 
-  const guide = await env.DB.prepare('SELECT * FROM brand_guide WHERE id = ?').bind('default').first().catch(() => null)
+  const brandId = body.brandId || null
+  const guide = brandId
+    ? await env.DB.prepare('SELECT * FROM brands WHERE id = ?').bind(brandId).first().catch(() => null)
+    : null
   const brandContext = guide && (guide.tone || guide.notes)
     ? `\n\nBrand guide — write copy consistent with this:\n${guide.tone ? `Tone/voice: ${guide.tone}\n` : ''}${guide.notes ? `Notes: ${guide.notes}` : ''}`
     : ''
