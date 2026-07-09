@@ -30,13 +30,18 @@ export async function onRequestPost({ request, env }) {
   if (!brief) return json({ error: 'brief is required' }, 400)
   if (!width || !height) return json({ error: 'canvasWidth and canvasHeight are required' }, 400)
 
+  const guide = await env.DB.prepare('SELECT * FROM brand_guide WHERE id = ?').bind('default').first().catch(() => null)
+  const brandContext = guide && (guide.tone || guide.notes)
+    ? `\n\nBrand guide — write copy consistent with this:\n${guide.tone ? `Tone/voice: ${guide.tone}\n` : ''}${guide.notes ? `Notes: ${guide.notes}` : ''}`
+    : ''
+
   const system = `You design ad banner copy. You are given a fixed catalog of layouts, each with a list of "roles" (text slots). Pick the single best-fit layout for the brief and write short, punchy copy for each of its roles.
 Rules:
 - headline: max ~40 characters
 - subhead/body: max ~70 characters
 - cta: max ~20 characters, an action phrase (e.g. "Shop Now", "Get Started")
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}}
-- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.`
+- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}`
 
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}
@@ -76,7 +81,16 @@ ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.j
     const copy = {}
     layout.roles.forEach((role) => { copy[role] = String(parsed.copy?.[role] || '').trim() })
 
-    return json({ layoutId: layout.id, copy })
+    const palette = guide && (guide.primary_color || guide.secondary_color || guide.accent_color || guide.text_color)
+      ? {
+          ...(guide.primary_color ? { bg: guide.primary_color } : {}),
+          ...(guide.accent_color ? { accent: guide.accent_color } : {}),
+          ...(guide.secondary_color ? { subtext: guide.secondary_color } : {}),
+          ...(guide.text_color ? { text: guide.text_color, accentText: guide.text_color } : {}),
+        }
+      : null
+
+    return json({ layoutId: layout.id, copy, palette })
   } catch (err) {
     return json({ error: err.message || 'AI request failed' }, 502)
   }

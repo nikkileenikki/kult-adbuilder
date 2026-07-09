@@ -33,7 +33,7 @@ function buildElementCSS(el) {
   }
   if (el.type === 'shape') {
     const isCircle = el.shapeType === 'circle'
-    styles.push(`background:${el.transparent ? 'transparent' : (el.fillColor || '#888')}`)
+    styles.push(`background:${el.transparent ? 'transparent' : (el.cssBackground || el.fillColor || '#888')}`)
     styles.push(`border-radius:${isCircle ? '50%' : `${el.borderRadius || 0}px`}`)
     if (el.borderWidth) styles.push(`border:${el.borderWidth}px solid ${el.borderColor || '#000'}`)
     if (el.shadowBlur || el.shadowX || el.shadowY || el.glowBlur) {
