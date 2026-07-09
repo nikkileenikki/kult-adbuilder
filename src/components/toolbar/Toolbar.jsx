@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore.js'
 import { exportBannerZip, saveBannerJSON, loadBannerJSON } from '../../utils/exportBanner.js'
 import FlashTalkingModal from '../modals/FlashTalkingModal.jsx'
 import LibraryPickerModal from '../modals/LibraryPickerModal.jsx'
+import VideoAssetsModal from '../modals/VideoAssetsModal.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -47,6 +48,7 @@ export default function Toolbar({ onOpenUsers }) {
   }, [politeLoad])
   const [showPublish, setShowPublish] = useState(false)
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
+  const [showVideoAssets, setShowVideoAssets] = useState(false)
   const menuRef = useRef(null)
   const loadInputRef = useRef(null)
 
@@ -144,13 +146,6 @@ export default function Toolbar({ onOpenUsers }) {
   return (
     <div className="bg-gray-900 border-b border-gray-700 px-3 py-2 flex items-center gap-2 shrink-0">
 
-      {/* Brand */}
-      <span className="text-white font-bold text-sm tracking-wide mr-1 shrink-0" style={{ letterSpacing: '0.05em' }}>
-        <span className="text-purple-400">KULT</span> AD
-      </span>
-
-      <div className="w-px h-5 bg-gray-700 shrink-0" />
-
       {/* Banner name */}
       <input
         type="text" value={bannerName} onChange={(e) => setBannerName(e.target.value.replace(/ /g, '-'))}
@@ -219,12 +214,19 @@ export default function Toolbar({ onOpenUsers }) {
           <i className="fa-solid fa-table-columns" style={{ fontSize: 12 }} /> Templates
         </button>
 
+        <button
+          onClick={() => setShowVideoAssets(true)}
+          title="Upload and transcode videos for the selected library"
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
+          <i className="fa-solid fa-film" style={{ fontSize: 12 }} /> Video Assets
+        </button>
+
         <button onClick={resetCanvas} title="Reset canvas to a blank state"
           className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 hover:text-red-400 text-gray-300 px-2.5 py-1.5 rounded text-xs border border-gray-700 transition-colors">
           <i className="fa-solid fa-arrow-rotate-left" style={{ fontSize: 12 }} /> Reset Canvas
         </button>
 
-        {/* Import/Export dropdown */}
+        {/* File / Publish dropdown */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
@@ -252,6 +254,14 @@ export default function Toolbar({ onOpenUsers }) {
                 <span>Polite Load</span>
               </label>
               <MenuItem icon="fa-file-zipper" iconClass="text-green-400" label="Export as ZIP" onClick={handleExportZip} />
+              <MenuItem
+                icon="fa-cloud-arrow-up"
+                iconClass={ftLibrary ? 'text-purple-400' : 'text-gray-600'}
+                label="Publish to Flashtalking"
+                disabled={!ftLibrary}
+                title={ftLibrary ? undefined : 'Select a library first'}
+                onClick={() => { setMenuOpen(false); setShowPublish(true) }}
+              />
               <div className="border-t border-gray-700 my-1" />
               <MenuItem icon="fa-trash" iconClass="text-red-400" label="Clear All" onClick={() => { setMenuOpen(false); clearAll() }} />
             </div>
@@ -271,16 +281,6 @@ export default function Toolbar({ onOpenUsers }) {
           <i className="fa-solid fa-layer-group" style={{ fontSize: 11 }} />
           <span className="max-w-28 truncate">{ftLibrary ? ftLibrary.name : 'Select Library'}</span>
           <i className="fa-solid fa-chevron-down" style={{ fontSize: 9 }} />
-        </button>
-
-        <button
-          onClick={() => setShowPublish(true)}
-          disabled={!ftLibrary}
-          className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-2.5 py-1.5 rounded text-xs font-medium transition-colors"
-          title={ftLibrary ? 'Publish to Flashtalking' : 'Select a library first'}
-        >
-          <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 12 }} />
-          Publish
         </button>
 
         <div className="w-px h-5 bg-gray-700" />
@@ -318,6 +318,10 @@ export default function Toolbar({ onOpenUsers }) {
           activeTemplate={activeTemplate}
         />
       )}
+
+      {showVideoAssets && (
+        <VideoAssetsModal onClose={() => setShowVideoAssets(false)} />
+      )}
     </div>
   )
 }
@@ -342,9 +346,14 @@ function ZoomInput({ zoom, setZoom }) {
   )
 }
 
-function MenuItem({ icon, iconClass, label, onClick }) {
+function MenuItem({ icon, iconClass, label, onClick, disabled, title }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-700 transition-colors text-left text-gray-200">
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors text-left text-gray-200"
+    >
       <i className={`fa-solid ${icon} ${iconClass}`} style={{ fontSize: 13, width: 14 }} />
       {label}
     </button>
