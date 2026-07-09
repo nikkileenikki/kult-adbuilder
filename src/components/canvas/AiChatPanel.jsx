@@ -157,7 +157,8 @@ export default function AiChatPanel() {
               />
               <button
                 onClick={handleSend}
-                disabled={loading || !input.trim()}
+                disabled={loading || !input.trim() || (backgroundStyle === 'other' && !backgroundPrompt.trim())}
+                title={backgroundStyle === 'other' && !backgroundPrompt.trim() ? 'Describe the background image first' : undefined}
                 className="shrink-0 w-8 h-8 flex items-center justify-center bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded"
               >
                 <i className="fa-solid fa-paper-plane" style={{ fontSize: 12 }} />
