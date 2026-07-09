@@ -65,18 +65,20 @@ CREATE TABLE IF NOT EXISTS template_sizes (
   updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- Single-row brand guide (id is always 'default') referenced by AI banner design so
+-- Named brand guides (Nike, Uniqlo, ...) referenced by AI banner design so
 -- generations stay on-brand — colors, font, and a free-text tone/voice description.
-CREATE TABLE IF NOT EXISTS brand_guide (
-  id             TEXT PRIMARY KEY DEFAULT 'default',
-  primary_color  TEXT NOT NULL DEFAULT '',
+CREATE TABLE IF NOT EXISTS brands (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  primary_color   TEXT NOT NULL DEFAULT '',
   secondary_color TEXT NOT NULL DEFAULT '',
-  accent_color   TEXT NOT NULL DEFAULT '',
-  text_color     TEXT NOT NULL DEFAULT '',
-  font_family    TEXT NOT NULL DEFAULT '',
-  tone           TEXT NOT NULL DEFAULT '',   -- free-text voice/tone description for AI copy
-  notes          TEXT NOT NULL DEFAULT '',   -- any other brand notes (do/don't, taglines, etc.)
-  updated_at     INTEGER NOT NULL DEFAULT (unixepoch())
+  accent_color    TEXT NOT NULL DEFAULT '',
+  text_color      TEXT NOT NULL DEFAULT '',
+  font_family     TEXT NOT NULL DEFAULT '',
+  tone            TEXT NOT NULL DEFAULT '',   -- free-text voice/tone description for AI copy
+  notes           TEXT NOT NULL DEFAULT '',   -- any other brand notes (do/don't, taglines, etc.)
+  created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at      INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE INDEX IF NOT EXISTS idx_banners_user_id ON banners(user_id);

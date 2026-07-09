@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
@@ -23,8 +23,17 @@ export default function AiDesignModal({ onClose }) {
 
   const [brief, setBrief] = useState('')
   const [backgroundStyle, setBackgroundStyle] = useState('solid')
+  const [brands, setBrands] = useState([])
+  const [brandId, setBrandId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/brand-guide', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => setBrands(data.brands || []))
+      .catch(() => {})
+  }, [token])
 
   const handleGenerate = async () => {
     if (!brief.trim()) { setError('Describe the banner first (product, offer, tone, etc.)'); return }
@@ -36,7 +45,7 @@ export default function AiDesignModal({ onClose }) {
       const res = await fetch('/api/ai-design', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief, canvasWidth, canvasHeight }),
+        body: JSON.stringify({ brief, canvasWidth, canvasHeight, brandId: brandId || null }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'AI design failed')
@@ -84,16 +93,29 @@ export default function AiDesignModal({ onClose }) {
         className="w-full bg-gray-800 text-gray-100 rounded px-3 py-2 text-sm border border-gray-700 focus:border-purple-500 focus:outline-none resize-y mb-3"
       />
 
-      <label className="flex items-center gap-2 mb-3">
-        <span className="text-xs text-gray-400">Background</span>
-        <select
-          value={backgroundStyle}
-          onChange={(e) => setBackgroundStyle(e.target.value)}
-          className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
-        >
-          {BACKGROUND_STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-      </label>
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <label className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Background</span>
+          <select
+            value={backgroundStyle}
+            onChange={(e) => setBackgroundStyle(e.target.value)}
+            className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
+          >
+            {BACKGROUND_STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Brand</span>
+          <select
+            value={brandId}
+            onChange={(e) => setBrandId(e.target.value)}
+            className="bg-gray-800 rounded px-2 py-1 text-xs text-white border border-gray-700 focus:border-purple-500 focus:outline-none"
+          >
+            <option value="">None</option>
+            {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </label>
+      </div>
 
       {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
 

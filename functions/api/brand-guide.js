@@ -1,12 +1,36 @@
-// Single-row brand guide, referenced by AI banner design (functions/api/ai-design.js)
-// so generations stay on-brand. Any authenticated user can read it (needed by the
-// design flow); only admins can edit it.
+// Named brand guides (Nike, Uniqlo, ...) referenced by AI banner design so
+// generations stay on-brand. Any authenticated user can read the list; only admins
+// can create/edit/delete.
 export async function onRequestGet({ request, env }) {
   const session = await getSession(request, env)
   if (!session) return json({ error: 'Unauthorized' }, 401)
 
-  const row = await env.DB.prepare('SELECT * FROM brand_guide WHERE id = ?').bind('default').first()
-  return json({ guide: row || null })
+  const rows = await env.DB.prepare('SELECT * FROM brands ORDER BY name ASC').all()
+  return json({ brands: rows.results || [] })
+}
+
+export async function onRequestPost({ request, env }) {
+  const session = await getSession(request, env)
+  if (!session) return json({ error: 'Unauthorized' }, 401)
+
+  const caller = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(session.user_id).first()
+  if (!caller || caller.role !== 'admin') return json({ error: 'Forbidden' }, 403)
+
+  const body = await request.json()
+  const name = (body.name || '').trim()
+  if (!name) return json({ error: 'name is required' }, 400)
+
+  const id = crypto.randomUUID()
+  await env.DB.prepare(
+    `INSERT INTO brands (id, name, primary_color, secondary_color, accent_color, text_color, font_family, tone, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    id, name,
+    body.primaryColor || '', body.secondaryColor || '', body.accentColor || '', body.textColor || '',
+    body.fontFamily || '', body.tone || '', body.notes || ''
+  ).run()
+
+  return json({ ok: true, id })
 }
 
 export async function onRequestPut({ request, env }) {
@@ -16,25 +40,40 @@ export async function onRequestPut({ request, env }) {
   const caller = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(session.user_id).first()
   if (!caller || caller.role !== 'admin') return json({ error: 'Forbidden' }, 403)
 
+  const url = new URL(request.url)
+  const id = url.searchParams.get('id')
+  if (!id) return json({ error: 'id query param is required' }, 400)
+
+  const existing = await env.DB.prepare('SELECT id FROM brands WHERE id = ?').bind(id).first()
+  if (!existing) return json({ error: 'Brand not found' }, 404)
+
   const body = await request.json()
-  const { primaryColor, secondaryColor, accentColor, textColor, fontFamily, tone, notes } = body
+  const name = (body.name || '').trim()
+  if (!name) return json({ error: 'name is required' }, 400)
 
   await env.DB.prepare(
-    `INSERT INTO brand_guide (id, primary_color, secondary_color, accent_color, text_color, font_family, tone, notes, updated_at)
-     VALUES ('default', ?, ?, ?, ?, ?, ?, ?, unixepoch())
-     ON CONFLICT(id) DO UPDATE SET
-       primary_color = excluded.primary_color,
-       secondary_color = excluded.secondary_color,
-       accent_color = excluded.accent_color,
-       text_color = excluded.text_color,
-       font_family = excluded.font_family,
-       tone = excluded.tone,
-       notes = excluded.notes,
-       updated_at = unixepoch()`
+    `UPDATE brands SET name = ?, primary_color = ?, secondary_color = ?, accent_color = ?, text_color = ?,
+       font_family = ?, tone = ?, notes = ?, updated_at = unixepoch() WHERE id = ?`
   ).bind(
-    primaryColor || '', secondaryColor || '', accentColor || '', textColor || '', fontFamily || '', tone || '', notes || ''
+    name, body.primaryColor || '', body.secondaryColor || '', body.accentColor || '', body.textColor || '',
+    body.fontFamily || '', body.tone || '', body.notes || '', id
   ).run()
 
+  return json({ ok: true })
+}
+
+export async function onRequestDelete({ request, env }) {
+  const session = await getSession(request, env)
+  if (!session) return json({ error: 'Unauthorized' }, 401)
+
+  const caller = await env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(session.user_id).first()
+  if (!caller || caller.role !== 'admin') return json({ error: 'Forbidden' }, 403)
+
+  const url = new URL(request.url)
+  const id = url.searchParams.get('id')
+  if (!id) return json({ error: 'id query param is required' }, 400)
+
+  await env.DB.prepare('DELETE FROM brands WHERE id = ?').bind(id).run()
   return json({ ok: true })
 }
 
