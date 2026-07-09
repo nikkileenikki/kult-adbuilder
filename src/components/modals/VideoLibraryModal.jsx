@@ -5,6 +5,7 @@ const QUALITY_OPTIONS = [
   { value: '240p', label: '240p', height: 240 },
   { value: '360p', label: '360p', height: 360 },
   { value: '480p', label: '480p', height: 480 },
+  { value: 'custom', label: 'Custom', height: null },
 ]
 
 function Modal({ children }) {
@@ -64,6 +65,7 @@ export default function VideoLibraryModal({
   onUpload,
 }) {
   const [quality, setQuality] = useState('480p')
+  const [customHeight, setCustomHeight] = useState(480)
   useEscapeKey(onClose)
   const videoUrlFor = (v) => `${libraryId}/${v.name.replace(/\.[^.]+$/, '')}`
   const statusColor = {
@@ -128,15 +130,28 @@ export default function VideoLibraryModal({
         <div className="min-w-0">
           <div className="flex items-center justify-between mb-2 gap-2">
             <p className="text-xs text-gray-400 font-medium">Uploaded ({uploaded.length})</p>
-            <select
-              value={quality}
-              onChange={(e) => setQuality(e.target.value)}
-              className="bg-gray-700 text-gray-200 text-xs rounded px-1.5 py-0.5 border border-gray-600"
-            >
-              {QUALITY_OPTIONS.map((q) => (
-                <option key={q.value} value={q.value}>{q.label}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1">
+              {quality === 'custom' && (
+                <input
+                  type="number"
+                  min={16}
+                  max={4320}
+                  value={customHeight}
+                  onChange={(e) => setCustomHeight(Number(e.target.value))}
+                  title="Target height in pixels — width is derived automatically to keep the source aspect ratio"
+                  className="bg-gray-700 text-gray-200 text-xs rounded px-1.5 py-0.5 border border-gray-600 w-16"
+                />
+              )}
+              <select
+                value={quality}
+                onChange={(e) => setQuality(e.target.value)}
+                className="bg-gray-700 text-gray-200 text-xs rounded px-1.5 py-0.5 border border-gray-600"
+              >
+                {QUALITY_OPTIONS.map((q) => (
+                  <option key={q.value} value={q.value}>{q.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="space-y-1.5">
             {uploaded.length === 0 && <p className="text-xs text-gray-600 italic">No uploaded videos yet.</p>}
@@ -145,10 +160,12 @@ export default function VideoLibraryModal({
                 key={v.id}
                 video={v}
                 actionLabel={encodingId === v.id ? 'Encoding…' : 'Transcode'}
-                actionDisabled={encodingId === v.id}
+                actionDisabled={encodingId === v.id || (quality === 'custom' && !(customHeight > 0))}
                 onAction={(video) => {
                   const q = QUALITY_OPTIONS.find((o) => o.value === quality)
-                  onTranscode(video, q.height, q.value)
+                  const height = quality === 'custom' ? customHeight : q.height
+                  const label = quality === 'custom' ? `${customHeight}p` : q.value
+                  onTranscode(video, height, label)
                 }}
               />
             ))}
