@@ -28,15 +28,20 @@ export async function onRequestPost({ request, env }) {
 
   const size = pickSize(width, height)
 
+  // The user's own prompt always drives subject, composition, and style — brand
+  // guide info is supporting flavor only, never a literal constraint. Earlier
+  // wording ("use a color palette consistent with: #hex...") got over-indexed on,
+  // pushing every generation toward abstract color-blend renders regardless of what
+  // was actually asked for.
   let fullPrompt = prompt
   if (body.brandId) {
     const guide = await env.DB.prepare('SELECT * FROM brands WHERE id = ?').bind(body.brandId).first().catch(() => null)
     if (guide) {
       const parts = []
-      if (guide.tone) parts.push(`Tone/mood: ${guide.tone}`)
-      if (guide.notes) parts.push(`Brand notes: ${guide.notes}`)
+      if (guide.tone) parts.push(`Brand mood/tone for inspiration: ${guide.tone}`)
+      if (guide.notes) parts.push(`Brand notes for inspiration: ${guide.notes}`)
       const colors = [guide.primary_color, guide.secondary_color, guide.accent_color].filter(Boolean)
-      if (colors.length) parts.push(`Use a color palette consistent with: ${colors.join(', ')}`)
+      if (colors.length) parts.push(`These brand colors (${colors.join(', ')}) can subtly inform the palette if it fits naturally — do not force them literally, and prioritize the subject/style/composition described above over exact color matching.`)
       if (parts.length) fullPrompt = `${prompt}\n\n${parts.join('\n')}`
     }
   }

@@ -13,9 +13,9 @@
 export const SUPPORTED_SIZES = ['300x250', '300x600', '320x480', '800x600', '970x250']
 
 const PALETTES = {
-  dark: { bg: '#111827', text: '#ffffff', subtext: '#cbd5e1', accent: '#7c3aed', accentText: '#ffffff' },
-  light: { bg: '#ffffff', text: '#111827', subtext: '#4b5563', accent: '#111827', accentText: '#ffffff' },
-  brand: { bg: '#0ea5e9', text: '#ffffff', subtext: '#e0f2fe', accent: '#ffffff', accentText: '#0ea5e9' },
+  dark: { bg: '#111827', text: '#ffffff', subtext: '#cbd5e1', accent: '#7c3aed' },
+  light: { bg: '#ffffff', text: '#111827', subtext: '#4b5563', accent: '#111827' },
+  brand: { bg: '#0ea5e9', text: '#ffffff', subtext: '#e0f2fe', accent: '#ffffff' },
 }
 
 // x/y/width/height are fractions of canvas width/height. fontSize is a fraction of
@@ -133,6 +133,32 @@ function hexToRgba(hex, alpha) {
   return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}, ${alpha})`
 }
 
+// Picks black or white — whichever contrasts better — against a given background hex.
+// Used for CTA label text so it never inherits a brand's configured text color that
+// happens to be too close to (or the same as) the button's own background color.
+function luminance(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '')
+  if (!m) return null
+  const [, r, g, b] = m
+  return (0.299 * parseInt(r, 16) + 0.587 * parseInt(g, 16) + 0.114 * parseInt(b, 16)) / 255
+}
+
+function contrastColor(hex) {
+  const lum = luminance(hex)
+  return lum === null || lum > 0.6 ? '#111827' : '#ffffff'
+}
+
+// Uses `preferred` (e.g. a brand-guide color) as long as it actually reads clearly
+// against `bg` — a brand guide is a reference, not a literal constraint, so if the
+// configured text color is too close to its own background, fall back to whichever
+// of black/white contrasts best instead of rendering unreadable text.
+function readableColor(preferred, bg) {
+  const bgLum = luminance(bg)
+  const prefLum = luminance(preferred)
+  if (bgLum === null || prefLum === null) return preferred || contrastColor(bg)
+  return Math.abs(bgLum - prefLum) > 0.35 ? preferred : contrastColor(bg)
+}
+
 export function findLayout(layoutId) {
   return NORMALIZED_LAYOUTS.find((l) => l.id === layoutId) || null
 }
@@ -188,14 +214,17 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
         type: 'text',
         x, y, width, height,
         text: text || 'Learn More',
-        fontSize, textAlign: 'center', color: palette.accentText, bold: true, zIndex: z++,
+        // Always computed against the button's own background — never a separate
+        // brand field that could collide with it and make the label unreadable.
+        fontSize, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
       })
     } else {
+      const preferred = r.role === 'subhead' || r.role === 'body' ? palette.subtext : palette.text
       elements.push({
         type: 'text',
         x, y, width, height,
         text,
-        fontSize, textAlign: r.textAlign || 'left', color: r.role === 'subhead' || r.role === 'body' ? palette.subtext : palette.text,
+        fontSize, textAlign: r.textAlign || 'left', color: readableColor(preferred, palette.bg),
         bold: !!r.bold, zIndex: z++,
       })
     }
