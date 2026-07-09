@@ -150,14 +150,31 @@ function contrastColor(hex) {
 }
 
 // Uses `preferred` (e.g. a brand-guide color) as long as it actually reads clearly
-// against `bg` — a brand guide is a reference, not a literal constraint, so if the
-// configured text color is too close to its own background, fall back to whichever
-// of black/white contrasts best instead of rendering unreadable text.
-function readableColor(preferred, bg) {
-  const bgLum = luminance(bg)
+// against a background of luminance `bgLum` — a brand guide is a reference, not a
+// literal constraint, so if the configured text color is too close to its own
+// background, fall back to whichever of black/white contrasts best instead of
+// rendering unreadable text (no shadow/glow — a genuinely different, readable color).
+function readableColorForLum(preferred, bgLum) {
   const prefLum = luminance(preferred)
-  if (bgLum === null || prefLum === null) return preferred || contrastColor(bg)
-  return Math.abs(bgLum - prefLum) > 0.35 ? preferred : contrastColor(bg)
+  if (bgLum === null || prefLum === null) return preferred || (bgLum === null || bgLum > 0.6 ? '#111827' : '#ffffff')
+  return Math.abs(bgLum - prefLum) > 0.35 ? preferred : (bgLum > 0.6 ? '#111827' : '#ffffff')
+}
+
+function avgLuminance(hexes) {
+  const lums = hexes.map(luminance).filter((l) => l !== null)
+  if (!lums.length) return null
+  return lums.reduce((a, b) => a + b, 0) / lums.length
+}
+
+// The background text actually sits on is rarely a single flat color once you factor
+// in gradients/blob backgrounds — checking contrast against palette.bg alone missed
+// areas dominated by the accent/subtext colors instead. This estimates the overall
+// luminance actually in play for each background style so contrast holds across the
+// whole banner, not just wherever palette.bg happens to be.
+function effectiveBackgroundLuminance(style, palette) {
+  if (style === 'gradient') return avgLuminance([palette.bg, palette.accent])
+  if (style === 'abstract' || style === 'watercolor') return avgLuminance([palette.bg, palette.accent, palette.subtext])
+  return luminance(palette.bg)
 }
 
 const MIN_FONT_SIZE = 10
@@ -213,7 +230,8 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
   const elements = []
   let z = 10
 
-  if (backgroundImage) {
+  const isPhotoBackground = !!backgroundImage
+  if (isPhotoBackground) {
     elements.push({
       type: 'image',
       x: 0, y: 0, width: canvasWidth, height: canvasHeight,
@@ -227,6 +245,12 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
       fillColor: palette.bg, cssBackground: backgroundStyle === 'solid' ? undefined : bgCss, borderRadius: 0, zIndex: z++,
     })
   }
+
+  // A real AI-generated photo's actual pixel colors are unknowable up front, so
+  // contrast math can't help there — instead give text a translucent dark panel to
+  // sit on (not a shadow/glow on the text itself) so it reads regardless of what's
+  // underneath, and always pair it with white text.
+  const bgLum = effectiveBackgroundLuminance(backgroundStyle, palette)
 
   layout.roles.forEach((r) => {
     const x = Math.round(r.x * canvasWidth)
@@ -255,12 +279,21 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
         fontSize, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
       })
     } else {
+      if (isPhotoBackground) {
+        const pad = Math.round(height * 0.15)
+        elements.push({
+          type: 'shape',
+          x: x - pad, y: y - pad, width: width + pad * 2, height: height + pad * 2,
+          cssBackground: 'rgba(0,0,0,0.45)', borderRadius: 6, zIndex: z++,
+        })
+      }
       const preferred = r.role === 'subhead' || r.role === 'body' ? palette.subtext : palette.text
       elements.push({
         type: 'text',
         x, y, width, height,
         text,
-        fontSize, textAlign: r.textAlign || 'left', color: readableColor(preferred, palette.bg),
+        fontSize, textAlign: r.textAlign || 'left',
+        color: isPhotoBackground ? '#ffffff' : readableColorForLum(preferred, bgLum),
         bold: !!r.bold, zIndex: z++,
       })
     }
