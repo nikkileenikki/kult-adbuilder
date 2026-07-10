@@ -26,6 +26,7 @@ function buildElementCSS(el) {
     styles.push(`white-space:pre-wrap`)
     styles.push(`word-break:break-word`)
     styles.push(`overflow:hidden`)
+    styles.push(`text-wrap:balance`)
     if (el.textShadowBlur || el.textShadowX || el.textShadowY || el.textGlowBlur) {
       const parts = []
       if (el.textShadowBlur || el.textShadowX || el.textShadowY)

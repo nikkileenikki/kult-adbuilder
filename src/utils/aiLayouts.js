@@ -32,7 +32,7 @@ export const NORMALIZED_LAYOUTS = [
     roles: [
       { role: 'headline', type: 'text', x: 0.08, y: 0.12, width: 0.84, height: 0.28, fontSize: 0.115, textAlign: 'center', bold: true },
       { role: 'subhead', type: 'text', x: 0.08, y: 0.42, width: 0.84, height: 0.16, fontSize: 0.055, textAlign: 'center' },
-      { role: 'cta', type: 'button', x: 0.28, y: 0.76, width: 0.44, height: 0.14, fontSize: 0.06 },
+      { role: 'cta', type: 'button', x: 0.28, y: 0.76, width: 0.44, height: 0.14, fontSize: 0.06, align: 'center' },
     ],
   },
   {
@@ -43,7 +43,7 @@ export const NORMALIZED_LAYOUTS = [
     roles: [
       { role: 'headline', type: 'text', x: 0.06, y: 0.12, width: 0.88, height: 0.26, fontSize: 0.10, textAlign: 'left', bold: true },
       { role: 'subhead', type: 'text', x: 0.06, y: 0.40, width: 0.88, height: 0.18, fontSize: 0.05, textAlign: 'left' },
-      { role: 'cta', type: 'button', x: 0.06, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055 },
+      { role: 'cta', type: 'button', x: 0.06, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055, align: 'left' },
     ],
   },
   {
@@ -53,7 +53,7 @@ export const NORMALIZED_LAYOUTS = [
     logo: { x: 0.06, y: 0.03, width: 0.22, height: 0.09 },
     roles: [
       { role: 'headline', type: 'text', x: 0.08, y: 0.24, width: 0.84, height: 0.38, fontSize: 0.15, textAlign: 'center', bold: true },
-      { role: 'cta', type: 'button', x: 0.30, y: 0.72, width: 0.40, height: 0.16, fontSize: 0.065 },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.72, width: 0.40, height: 0.16, fontSize: 0.065, align: 'center' },
     ],
   },
   {
@@ -64,7 +64,7 @@ export const NORMALIZED_LAYOUTS = [
     roles: [
       { role: 'headline', type: 'text', x: 0.06, y: 0.10, width: 0.88, height: 0.32, fontSize: 0.11, textAlign: 'center', bold: true },
       { role: 'subhead', type: 'text', x: 0.06, y: 0.44, width: 0.88, height: 0.22, fontSize: 0.05, textAlign: 'center' },
-      { role: 'cta', type: 'button', x: 0.0, y: 0.84, width: 1.0, height: 0.16, fontSize: 0.06 },
+      { role: 'cta', type: 'button', x: 0.0, y: 0.84, width: 1.0, height: 0.16, fontSize: 0.06, align: 'center' },
     ],
   },
   {
@@ -74,7 +74,7 @@ export const NORMALIZED_LAYOUTS = [
     logo: { x: 0.05, y: 0.03, width: 0.22, height: 0.09 },
     roles: [
       { role: 'headline', type: 'text', x: 0.05, y: 0.17, width: 0.55, height: 0.48, fontSize: 0.095, textAlign: 'left', bold: true },
-      { role: 'cta', type: 'button', x: 0.66, y: 0.32, width: 0.30, height: 0.36, fontSize: 0.05 },
+      { role: 'cta', type: 'button', x: 0.66, y: 0.32, width: 0.30, height: 0.36, fontSize: 0.05, align: 'center' },
     ],
   },
   {
@@ -85,18 +85,18 @@ export const NORMALIZED_LAYOUTS = [
     roles: [
       { role: 'headline', type: 'text', x: 0.07, y: 0.10, width: 0.86, height: 0.20, fontSize: 0.09, textAlign: 'center', bold: true },
       { role: 'body', type: 'text', x: 0.07, y: 0.32, width: 0.86, height: 0.34, fontSize: 0.045, textAlign: 'center' },
-      { role: 'cta', type: 'button', x: 0.30, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055 },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055, align: 'center' },
     ],
   },
   {
-    id: 'top-bar-cta',
-    label: 'Top CTA bar, headline below',
-    palette: 'light',
-    logo: { x: 0.06, y: 0.19, width: 0.22, height: 0.07 },
+    id: 'side-strip-cta',
+    label: 'Full-height CTA strip on the right',
+    palette: 'dark',
+    logo: { x: 0.05, y: 0.03, width: 0.20, height: 0.08 },
     roles: [
-      { role: 'cta', type: 'button', x: 0.0, y: 0.0, width: 1.0, height: 0.16, fontSize: 0.06 },
-      { role: 'headline', type: 'text', x: 0.06, y: 0.28, width: 0.88, height: 0.34, fontSize: 0.10, textAlign: 'center', bold: true },
-      { role: 'subhead', type: 'text', x: 0.06, y: 0.66, width: 0.88, height: 0.24, fontSize: 0.05, textAlign: 'center' },
+      { role: 'headline', type: 'text', x: 0.05, y: 0.16, width: 0.58, height: 0.34, fontSize: 0.09, textAlign: 'left', bold: true },
+      { role: 'subhead', type: 'text', x: 0.05, y: 0.54, width: 0.58, height: 0.20, fontSize: 0.045, textAlign: 'left' },
+      { role: 'cta', type: 'button', x: 0.68, y: 0.0, width: 0.32, height: 1.0, fontSize: 0.055, align: 'center' },
     ],
   },
   {
@@ -105,9 +105,9 @@ export const NORMALIZED_LAYOUTS = [
     palette: 'brand',
     logo: { x: 0.68, y: 0.06, width: 0.27, height: 0.12 },
     roles: [
-      { role: 'badge', type: 'button', x: 0.05, y: 0.06, width: 0.32, height: 0.14, fontSize: 0.045 },
+      { role: 'badge', type: 'button', x: 0.05, y: 0.06, width: 0.32, height: 0.14, fontSize: 0.045, align: 'left' },
       { role: 'headline', type: 'text', x: 0.06, y: 0.30, width: 0.88, height: 0.32, fontSize: 0.105, textAlign: 'left', bold: true },
-      { role: 'cta', type: 'button', x: 0.06, y: 0.74, width: 0.40, height: 0.16, fontSize: 0.06 },
+      { role: 'cta', type: 'button', x: 0.06, y: 0.74, width: 0.40, height: 0.16, fontSize: 0.06, align: 'left' },
     ],
   },
   {
@@ -118,7 +118,7 @@ export const NORMALIZED_LAYOUTS = [
     roles: [
       { role: 'headline', type: 'text', x: 0.42, y: 0.16, width: 0.52, height: 0.28, fontSize: 0.09, textAlign: 'right', bold: true },
       { role: 'subhead', type: 'text', x: 0.42, y: 0.46, width: 0.52, height: 0.18, fontSize: 0.045, textAlign: 'right' },
-      { role: 'cta', type: 'button', x: 0.54, y: 0.72, width: 0.40, height: 0.16, fontSize: 0.055 },
+      { role: 'cta', type: 'button', x: 0.54, y: 0.72, width: 0.40, height: 0.16, fontSize: 0.055, align: 'right' },
     ],
   },
   {
@@ -128,7 +128,7 @@ export const NORMALIZED_LAYOUTS = [
     logo: { x: 0.38, y: 0.015, width: 0.24, height: 0.055 },
     roles: [
       { role: 'headline', type: 'text', x: 0.08, y: 0.12, width: 0.84, height: 0.20, fontSize: 0.07, textAlign: 'center', bold: true },
-      { role: 'cta', type: 'button', x: 0.14, y: 0.42, width: 0.72, height: 0.34, fontSize: 0.08 },
+      { role: 'cta', type: 'button', x: 0.14, y: 0.42, width: 0.72, height: 0.34, fontSize: 0.08, align: 'center', minWidthRatio: 0.7 },
     ],
   },
   {
@@ -137,10 +137,10 @@ export const NORMALIZED_LAYOUTS = [
     palette: 'brand',
     logo: { x: 0.06, y: 0.04, width: 0.22, height: 0.07 },
     roles: [
-      { role: 'price', type: 'button', x: 0.68, y: 0.06, width: 0.27, height: 0.14, fontSize: 0.05 },
+      { role: 'price', type: 'button', x: 0.68, y: 0.06, width: 0.27, height: 0.14, fontSize: 0.05, align: 'right' },
       { role: 'headline', type: 'text', x: 0.06, y: 0.30, width: 0.60, height: 0.30, fontSize: 0.09, textAlign: 'left', bold: true },
       { role: 'subhead', type: 'text', x: 0.06, y: 0.60, width: 0.60, height: 0.16, fontSize: 0.045, textAlign: 'left' },
-      { role: 'cta', type: 'button', x: 0.06, y: 0.78, width: 0.42, height: 0.14, fontSize: 0.055 },
+      { role: 'cta', type: 'button', x: 0.06, y: 0.78, width: 0.42, height: 0.14, fontSize: 0.055, align: 'left' },
     ],
   },
   {
@@ -149,7 +149,7 @@ export const NORMALIZED_LAYOUTS = [
     palette: 'light',
     logo: { x: 0.72, y: 0.03, width: 0.22, height: 0.09 },
     roles: [
-      { role: 'cta', type: 'button', x: 0.05, y: 0.32, width: 0.30, height: 0.36, fontSize: 0.05 },
+      { role: 'cta', type: 'button', x: 0.05, y: 0.32, width: 0.30, height: 0.36, fontSize: 0.05, align: 'left' },
       { role: 'headline', type: 'text', x: 0.40, y: 0.17, width: 0.55, height: 0.48, fontSize: 0.095, textAlign: 'right', bold: true },
     ],
   },
@@ -161,7 +161,7 @@ export const NORMALIZED_LAYOUTS = [
     roles: [
       { role: 'body', type: 'text', x: 0.10, y: 0.16, width: 0.80, height: 0.40, fontSize: 0.06, textAlign: 'center', italic: true },
       { role: 'headline', type: 'text', x: 0.10, y: 0.60, width: 0.80, height: 0.14, fontSize: 0.045, textAlign: 'center', bold: true },
-      { role: 'cta', type: 'button', x: 0.30, y: 0.78, width: 0.40, height: 0.14, fontSize: 0.055 },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.78, width: 0.40, height: 0.14, fontSize: 0.055, align: 'center' },
     ],
   },
   {
@@ -172,7 +172,7 @@ export const NORMALIZED_LAYOUTS = [
     roles: [
       { role: 'headline', type: 'text', x: 0.04, y: 0.30, width: 0.40, height: 0.40, fontSize: 0.11, textAlign: 'left', bold: true },
       { role: 'subhead', type: 'text', x: 0.46, y: 0.34, width: 0.30, height: 0.32, fontSize: 0.05, textAlign: 'left' },
-      { role: 'cta', type: 'button', x: 0.80, y: 0.36, width: 0.17, height: 0.28, fontSize: 0.05 },
+      { role: 'cta', type: 'button', x: 0.80, y: 0.36, width: 0.17, height: 0.28, fontSize: 0.05, align: 'right' },
     ],
   },
   {
@@ -182,7 +182,7 @@ export const NORMALIZED_LAYOUTS = [
     logo: { x: 0.38, y: 0.06, width: 0.24, height: 0.07 },
     roles: [
       { role: 'headline', type: 'text', x: 0.14, y: 0.30, width: 0.72, height: 0.24, fontSize: 0.085, textAlign: 'center', bold: true },
-      { role: 'cta', type: 'button', x: 0.32, y: 0.66, width: 0.36, height: 0.14, fontSize: 0.055 },
+      { role: 'cta', type: 'button', x: 0.32, y: 0.66, width: 0.36, height: 0.14, fontSize: 0.055, align: 'center' },
     ],
   },
 ]
@@ -303,6 +303,35 @@ function fitFontSize(text, width, height, startSize, bold) {
   return fontSize
 }
 
+// A button's role box is only the *maximum* footprint it's allowed to claim without
+// colliding with neighboring elements — rendering it at that full fixed size made
+// short CTAs ("Buy") look like an oversized empty pill and long ones ("Get 20% Off
+// Today") overflow past their own background. This sizes the pill to the actual text
+// at a comfortable font size (shrinking the font only if even the max width can't fit
+// it), then re-anchors it inside the original box per the role's `align` ('left' |
+// 'center' | 'right', default 'center'). Full-width/full-height roles are deliberate
+// bars (e.g. a CTA strip spanning the whole banner) and keep their fixed footprint.
+function fitButtonBox(r, text, x, y, width, height, baseFontSize) {
+  const isBar = r.width >= 0.95 || r.height >= 0.95
+  if (isBar) {
+    return { x, width, fontSize: fitFontSize(text, width, height, baseFontSize, true) }
+  }
+
+  const charWidthFactor = 0.62
+  const minWidth = Math.round(Math.max(height * 1.6, width * (r.minWidthRatio || 0.32)))
+  let fontSize = baseFontSize
+  let natural = Math.round(text.length * fontSize * charWidthFactor) + Math.round(fontSize * 1.5)
+  while (natural > width && fontSize > MIN_FONT_SIZE) {
+    fontSize -= 1
+    natural = Math.round(text.length * fontSize * charWidthFactor) + Math.round(fontSize * 1.5)
+  }
+
+  const btnWidth = Math.min(width, Math.max(minWidth, natural))
+  const align = r.align || 'center'
+  const btnX = align === 'left' ? x : align === 'right' ? x + width - btnWidth : x + Math.round((width - btnWidth) / 2)
+  return { x: btnX, width: btnWidth, fontSize }
+}
+
 export function findLayout(layoutId) {
   return NORMALIZED_LAYOUTS.find((l) => l.id === layoutId) || null
 }
@@ -368,26 +397,27 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
     const height = Math.round(r.height * canvasHeight)
     const baseFontSize = Math.max(10, Math.round(r.fontSize * canvasHeight))
     const text = copy[r.role] || (r.type === 'button' ? 'Learn More' : '')
-    // Shrink the font (never grow it) until the AI-written copy is estimated to fit
-    // the role's box at this size — the fixed fractional size above is only a
-    // starting point and long copy at a large size was cropping at the bottom.
-    const fontSize = fitFontSize(text, width, height, baseFontSize, !!r.bold || r.type === 'button')
 
     if (r.type === 'button') {
+      const btn = fitButtonBox(r, text, x, y, width, height, baseFontSize)
       elements.push({
         type: 'shape',
-        x, y, width, height,
+        x: btn.x, y, width: btn.width, height,
         fillColor: palette.accent, borderRadius: Math.round(height / 2), zIndex: z++,
       })
       elements.push({
         type: 'text',
-        x, y, width, height,
+        x: btn.x, y, width: btn.width, height,
         text,
         // Always computed against the button's own background — never a separate
         // brand field that could collide with it and make the label unreadable.
-        fontSize, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
+        fontSize: btn.fontSize, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
       })
     } else {
+      // Shrink the font (never grow it) until the AI-written copy is estimated to fit
+      // the role's box at this size — the fixed fractional size above is only a
+      // starting point and long copy at a large size was cropping at the bottom.
+      const fontSize = fitFontSize(text, width, height, baseFontSize, !!r.bold)
       const preferred = r.role === 'subhead' || r.role === 'body' ? palette.subtext : palette.text
       elements.push({
         type: 'text',

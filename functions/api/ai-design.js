@@ -13,7 +13,7 @@ const LAYOUT_CATALOG = [
   { id: 'top-headline-bottom-cta', label: 'Top headline, full-width CTA bar', roles: ['headline', 'subhead', 'cta'] },
   { id: 'split-text-cta-right', label: 'Headline left, CTA pinned right', roles: ['headline', 'cta'] },
   { id: 'body-copy-block', label: 'Headline + short body copy', roles: ['headline', 'body', 'cta'] },
-  { id: 'top-bar-cta', label: 'Top CTA bar, headline below', roles: ['cta', 'headline', 'subhead'] },
+  { id: 'side-strip-cta', label: 'Full-height CTA strip on the right', roles: ['headline', 'subhead', 'cta'] },
   { id: 'corner-badge', label: 'Corner badge with headline', roles: ['badge', 'headline', 'cta'] },
   { id: 'right-panel-stack', label: 'Right-aligned text panel', roles: ['headline', 'subhead', 'cta'] },
   { id: 'big-cta-focus', label: 'Small headline, oversized CTA', roles: ['headline', 'cta'] },
@@ -49,8 +49,13 @@ export async function onRequestPost({ request, env }) {
 
   // `history`: prior turns in this chat, each { brief, layoutId, copy } — lets a
   // follow-up like "make the headline shorter" refine the last result instead of
-  // generating an unrelated new one from scratch.
-  const history = Array.isArray(body.history) ? body.history.slice(-5) : []
+  // generating an unrelated new one from scratch. Turns referencing a layoutId that
+  // no longer exists (e.g. a layout was renamed/removed since the turn was recorded)
+  // are dropped rather than telling the model to "keep" an id it can't pick — that
+  // mismatch was the main cause of the "AI picked an unknown layout" error.
+  const history = Array.isArray(body.history)
+    ? body.history.filter((h) => LAYOUT_CATALOG.some((l) => l.id === h?.layoutId)).slice(-5)
+    : []
   const followUpContext = history.length
     ? `\n\nThis is a follow-up in an ongoing chat. Prior turns (most recent last):\n${history.map((h, i) =>
         `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}`
@@ -92,15 +97,31 @@ ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.j
     const data = await res.json()
     if (!res.ok) return json({ error: data.error?.message || 'AI request failed' }, 502)
 
-    const raw = (data.content || []).map((c) => c.text || '').join('').trim()
+    let raw = (data.content || []).map((c) => c.text || '').join('').trim()
+    // The model is told "no markdown fences", but strip them defensively if present —
+    // a stray ```json wrapper otherwise fails JSON.parse entirely and surfaces as a
+    // confusing error even though the payload itself is fine.
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    if (fenced) raw = fenced[1]
     let parsed
     try {
       parsed = JSON.parse(raw)
     } catch {
-      return json({ error: 'AI returned an unparseable response' }, 502)
+      // Last resort: grab the first {...} block in case there's leading/trailing prose.
+      const braced = raw.match(/\{[\s\S]*\}/)
+      if (!braced) return json({ error: 'AI returned an unparseable response' }, 502)
+      try {
+        parsed = JSON.parse(braced[0])
+      } catch {
+        return json({ error: 'AI returned an unparseable response' }, 502)
+      }
     }
 
-    const layout = LAYOUT_CATALOG.find((l) => l.id === parsed.layoutId)
+    const requestedId = String(parsed.layoutId || '').trim()
+    // Case/whitespace-insensitive match — the catalog only ever has one id per
+    // spelling, so this can't accidentally match the wrong layout.
+    const layout = LAYOUT_CATALOG.find((l) => l.id === requestedId)
+      || LAYOUT_CATALOG.find((l) => l.id.toLowerCase() === requestedId.toLowerCase())
     if (!layout) return json({ error: `AI picked an unknown layout: ${parsed.layoutId}` }, 502)
 
     const copy = {}
