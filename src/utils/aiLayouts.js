@@ -131,6 +131,60 @@ export const NORMALIZED_LAYOUTS = [
       { role: 'cta', type: 'button', x: 0.14, y: 0.42, width: 0.72, height: 0.34, fontSize: 0.08 },
     ],
   },
+  {
+    id: 'price-tag-callout',
+    label: 'Price badge, headline left',
+    palette: 'brand',
+    logo: { x: 0.06, y: 0.04, width: 0.22, height: 0.07 },
+    roles: [
+      { role: 'price', type: 'button', x: 0.68, y: 0.06, width: 0.27, height: 0.14, fontSize: 0.05 },
+      { role: 'headline', type: 'text', x: 0.06, y: 0.30, width: 0.60, height: 0.30, fontSize: 0.09, textAlign: 'left', bold: true },
+      { role: 'subhead', type: 'text', x: 0.06, y: 0.60, width: 0.60, height: 0.16, fontSize: 0.045, textAlign: 'left' },
+      { role: 'cta', type: 'button', x: 0.06, y: 0.78, width: 0.42, height: 0.14, fontSize: 0.055 },
+    ],
+  },
+  {
+    id: 'mirrored-split',
+    label: 'CTA left, headline right',
+    palette: 'light',
+    logo: { x: 0.72, y: 0.03, width: 0.22, height: 0.09 },
+    roles: [
+      { role: 'cta', type: 'button', x: 0.05, y: 0.32, width: 0.30, height: 0.36, fontSize: 0.05 },
+      { role: 'headline', type: 'text', x: 0.40, y: 0.17, width: 0.55, height: 0.48, fontSize: 0.095, textAlign: 'right', bold: true },
+    ],
+  },
+  {
+    id: 'quote-callout',
+    label: 'Quote-style body with attribution',
+    palette: 'dark',
+    logo: { x: 0.06, y: 0.03, width: 0.22, height: 0.08 },
+    roles: [
+      { role: 'body', type: 'text', x: 0.10, y: 0.16, width: 0.80, height: 0.40, fontSize: 0.06, textAlign: 'center', italic: true },
+      { role: 'headline', type: 'text', x: 0.10, y: 0.60, width: 0.80, height: 0.14, fontSize: 0.045, textAlign: 'center', bold: true },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.78, width: 0.40, height: 0.14, fontSize: 0.055 },
+    ],
+  },
+  {
+    id: 'row-banner',
+    label: 'Single row: headline, subhead, CTA',
+    palette: 'light',
+    logo: { x: 0.04, y: 0.06, width: 0.18, height: 0.16 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.04, y: 0.30, width: 0.40, height: 0.40, fontSize: 0.11, textAlign: 'left', bold: true },
+      { role: 'subhead', type: 'text', x: 0.46, y: 0.34, width: 0.30, height: 0.32, fontSize: 0.05, textAlign: 'left' },
+      { role: 'cta', type: 'button', x: 0.80, y: 0.36, width: 0.17, height: 0.28, fontSize: 0.05 },
+    ],
+  },
+  {
+    id: 'minimal-teaser',
+    label: 'Minimal teaser, generous whitespace',
+    palette: 'brand',
+    logo: { x: 0.38, y: 0.06, width: 0.24, height: 0.07 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.14, y: 0.30, width: 0.72, height: 0.24, fontSize: 0.085, textAlign: 'center', bold: true },
+      { role: 'cta', type: 'button', x: 0.32, y: 0.66, width: 0.36, height: 0.14, fontSize: 0.055 },
+    ],
+  },
 ]
 
 export const BACKGROUND_STYLES = [
@@ -341,7 +395,7 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
         text,
         fontSize, textAlign: r.textAlign || 'left',
         color: readableColorForLum(preferred, bgLum),
-        bold: !!r.bold, zIndex: z++,
+        bold: !!r.bold, italic: !!r.italic, zIndex: z++,
       })
     }
   })
