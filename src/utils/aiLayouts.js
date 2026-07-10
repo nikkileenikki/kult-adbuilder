@@ -79,6 +79,45 @@ export const NORMALIZED_LAYOUTS = [
       { role: 'cta', type: 'button', x: 0.30, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055 },
     ],
   },
+  {
+    id: 'top-bar-cta',
+    label: 'Top CTA bar, headline below',
+    palette: 'light',
+    roles: [
+      { role: 'cta', type: 'button', x: 0.0, y: 0.0, width: 1.0, height: 0.16, fontSize: 0.06 },
+      { role: 'headline', type: 'text', x: 0.06, y: 0.28, width: 0.88, height: 0.34, fontSize: 0.10, textAlign: 'center', bold: true },
+      { role: 'subhead', type: 'text', x: 0.06, y: 0.66, width: 0.88, height: 0.24, fontSize: 0.05, textAlign: 'center' },
+    ],
+  },
+  {
+    id: 'corner-badge',
+    label: 'Corner badge with headline',
+    palette: 'brand',
+    roles: [
+      { role: 'badge', type: 'button', x: 0.05, y: 0.06, width: 0.32, height: 0.14, fontSize: 0.045 },
+      { role: 'headline', type: 'text', x: 0.06, y: 0.30, width: 0.88, height: 0.32, fontSize: 0.105, textAlign: 'left', bold: true },
+      { role: 'cta', type: 'button', x: 0.06, y: 0.74, width: 0.40, height: 0.16, fontSize: 0.06 },
+    ],
+  },
+  {
+    id: 'right-panel-stack',
+    label: 'Right-aligned text panel',
+    palette: 'dark',
+    roles: [
+      { role: 'headline', type: 'text', x: 0.42, y: 0.14, width: 0.52, height: 0.30, fontSize: 0.09, textAlign: 'right', bold: true },
+      { role: 'subhead', type: 'text', x: 0.42, y: 0.46, width: 0.52, height: 0.18, fontSize: 0.045, textAlign: 'right' },
+      { role: 'cta', type: 'button', x: 0.54, y: 0.72, width: 0.40, height: 0.16, fontSize: 0.055 },
+    ],
+  },
+  {
+    id: 'big-cta-focus',
+    label: 'Small headline, oversized CTA',
+    palette: 'brand',
+    roles: [
+      { role: 'headline', type: 'text', x: 0.08, y: 0.10, width: 0.84, height: 0.22, fontSize: 0.07, textAlign: 'center', bold: true },
+      { role: 'cta', type: 'button', x: 0.14, y: 0.42, width: 0.72, height: 0.34, fontSize: 0.08 },
+    ],
+  },
 ]
 
 export const BACKGROUND_STYLES = [
