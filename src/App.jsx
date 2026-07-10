@@ -16,10 +16,13 @@ import TemplateBuilderBar from './components/toolbar/TemplateBuilderBar.jsx'
 export default function App({ onOpenSettings }) {
   const { activeModal, templateBuilder } = useUiStore()
   const { undo, redo } = useHistoryStore()
-  const { selectedId, deleteElement } = useCanvasStore()
+  const { selectedId, deleteElement, elements, updateElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
 
+  const ARROW_DELTA = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }
+
   useEffect(() => {
+    let lastArrowSave = 0
     const onKey = (e) => {
       if (activeModal) return
       // Ignore when typing in an input / contenteditable
@@ -33,10 +36,22 @@ export default function App({ onOpenSettings }) {
         saveState()
         deleteElement(selectedId)
       }
+      if (ARROW_DELTA[e.key] && selectedId) {
+        const el = elements.find((el2) => el2.id === selectedId)
+        if (!el || el.locked) return
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 1
+        const [dx, dy] = ARROW_DELTA[e.key]
+        // One history entry per nudge "session" (a burst of key repeats), not one per
+        // pixel — saving on every keydown would make undo take forever to back out of.
+        const now = Date.now()
+        if (now - lastArrowSave > 500) { saveState(); lastArrowSave = now }
+        updateElement(selectedId, { x: el.x + dx * step, y: el.y + dy * step })
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeModal, undo, redo, selectedId, deleteElement, saveState])
+  }, [activeModal, undo, redo, selectedId, deleteElement, saveState, elements, updateElement])
 
   return (
     // App Shell — full-height flex row: Left Panel sidebar + the main column (Toolbar,
