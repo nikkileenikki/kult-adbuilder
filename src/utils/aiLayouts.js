@@ -185,6 +185,61 @@ export const NORMALIZED_LAYOUTS = [
       { role: 'cta', type: 'button', x: 0.32, y: 0.66, width: 0.36, height: 0.14, fontSize: 0.055, align: 'center' },
     ],
   },
+  {
+    id: 'double-cta-choice',
+    label: 'Headline with two CTA choices',
+    palette: 'light',
+    logo: { x: 0.06, y: 0.02, width: 0.22, height: 0.07 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.08, y: 0.16, width: 0.84, height: 0.28, fontSize: 0.10, textAlign: 'center', bold: true },
+      { role: 'cta', type: 'button', x: 0.08, y: 0.62, width: 0.38, height: 0.16, fontSize: 0.055, align: 'center' },
+      { role: 'secondaryCta', type: 'button', x: 0.54, y: 0.62, width: 0.38, height: 0.16, fontSize: 0.055, align: 'center' },
+    ],
+  },
+  {
+    id: 'stat-callout',
+    label: 'Big stat/number callout',
+    palette: 'brand',
+    logo: { x: 0.38, y: 0.02, width: 0.24, height: 0.07 },
+    roles: [
+      { role: 'stat', type: 'text', x: 0.10, y: 0.14, width: 0.80, height: 0.34, fontSize: 0.18, textAlign: 'center', bold: true },
+      { role: 'subhead', type: 'text', x: 0.10, y: 0.52, width: 0.80, height: 0.16, fontSize: 0.05, textAlign: 'center' },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.74, width: 0.40, height: 0.14, fontSize: 0.055, align: 'center' },
+    ],
+  },
+  {
+    id: 'bottom-corner-cta',
+    label: 'Headline top-left, CTA bottom-right corner',
+    palette: 'dark',
+    logo: { x: 0.06, y: 0.02, width: 0.22, height: 0.07 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.06, y: 0.12, width: 0.70, height: 0.30, fontSize: 0.10, textAlign: 'left', bold: true },
+      { role: 'subhead', type: 'text', x: 0.06, y: 0.44, width: 0.70, height: 0.18, fontSize: 0.048, textAlign: 'left' },
+      { role: 'cta', type: 'button', x: 0.66, y: 0.80, width: 0.28, height: 0.14, fontSize: 0.05, align: 'right' },
+    ],
+  },
+  {
+    id: 'logo-forward',
+    label: 'Large logo area, compact copy below',
+    palette: 'light',
+    logo: { x: 0.25, y: 0.06, width: 0.50, height: 0.30 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.10, y: 0.46, width: 0.80, height: 0.24, fontSize: 0.08, textAlign: 'center', bold: true },
+      { role: 'cta', type: 'button', x: 0.32, y: 0.76, width: 0.36, height: 0.14, fontSize: 0.055, align: 'center' },
+    ],
+  },
+  {
+    id: 'two-line-features',
+    label: 'Headline with two feature lines',
+    palette: 'dark',
+    logo: { x: 0.72, y: 0.015, width: 0.22, height: 0.055 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.06, y: 0.08, width: 0.88, height: 0.18, fontSize: 0.08, textAlign: 'center', bold: true },
+      { role: 'body1', type: 'text', x: 0.06, y: 0.30, width: 0.88, height: 0.14, fontSize: 0.042, textAlign: 'left' },
+      { role: 'body2', type: 'text', x: 0.06, y: 0.46, width: 0.88, height: 0.14, fontSize: 0.042, textAlign: 'left' },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055, align: 'center' },
+    ],
+  },
 ]
 
 export const BACKGROUND_STYLES = [
