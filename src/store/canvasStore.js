@@ -67,22 +67,47 @@ export const useCanvasStore = create(persist((set, get) => ({
     set((s) => ({ elements: [...s.elements, copy], selectedId: copy.id }))
   },
 
-  // Reorders by element id against the zIndex-sorted (top-of-stack-first) order — the
-  // same order the timeline/layers list actually displays — rather than by raw index
-  // into the underlying elements array. Those two orders silently diverge as soon as
-  // elements are added/grouped out of their original insertion order, which is exactly
-  // why dragging to reorder (especially inside a group) used to produce a result that
-  // didn't match the direction/position of the drag at all.
-  reorderElements: (fromId, toId) => set((s) => {
-    const sorted = [...s.elements].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
-    const fromIdx = sorted.findIndex((e) => e.id === fromId)
-    const toIdx = sorted.findIndex((e) => e.id === toId)
-    if (fromIdx === -1 || toIdx === -1) return {}
-    const [moved] = sorted.splice(fromIdx, 1)
-    sorted.splice(toIdx, 0, moved)
+  // Reorders the timeline's layer stack, where a "layer" is either a single ungrouped
+  // element or an entire group moved as one atomic block (so a group can be dragged up
+  // or down and interleaved with individual layers, not just reordered among other
+  // groups). `fromKey`/`toKey` are either an element id or "group:<id>". Blocks are
+  // ordered against each other by their current max zIndex — the same order the
+  // timeline/layers list actually displays — rather than by raw index into the
+  // underlying elements array; those two orders silently diverge as soon as elements
+  // are added/grouped out of insertion order, which is what made dragging (especially
+  // inside/around a group) produce a result that didn't match the drag at all.
+  // zIndex is reassigned across the *entire* flattened result so canvas stacking order
+  // always matches what the layer list shows, including each group's own internal
+  // (unchanged) child order.
+  reorderElements: (fromKey, toKey) => set((s) => {
+    const byGroup = {}
+    const ungrouped = []
+    s.elements.forEach((el) => {
+      if (el.folderId && s.groups.some((g) => g.id === el.folderId)) {
+        ;(byGroup[el.folderId] ||= []).push(el)
+      } else {
+        ungrouped.push(el)
+      }
+    })
+    Object.values(byGroup).forEach((els) => els.sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0)))
+
+    const blocks = [
+      ...ungrouped.map((el) => ({ key: el.id, els: [el] })),
+      ...s.groups.filter((g) => byGroup[g.id]?.length).map((g) => ({ key: `group:${g.id}`, els: byGroup[g.id] })),
+    ]
+    const maxZ = (b) => Math.max(...b.els.map((el) => el.zIndex || 0))
+    blocks.sort((a, b) => maxZ(b) - maxZ(a))
+
+    const fromIdx = blocks.findIndex((b) => b.key === fromKey)
+    const toIdx = blocks.findIndex((b) => b.key === toKey)
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return {}
+    const [moved] = blocks.splice(fromIdx, 1)
+    blocks.splice(toIdx, 0, moved)
+
+    const flat = blocks.flatMap((b) => b.els)
     const zMap = {}
-    sorted.forEach((el, i) => { zMap[el.id] = sorted.length - i })
-    return { elements: s.elements.map((el) => ({ ...el, zIndex: zMap[el.id] })) }
+    flat.forEach((el, i) => { zMap[el.id] = flat.length - i })
+    return { elements: s.elements.map((el) => zMap[el.id] ? { ...el, zIndex: zMap[el.id] } : el) }
   }),
 
   toggleVisibility: (id) => set((s) => ({
@@ -114,16 +139,6 @@ export const useCanvasStore = create(persist((set, get) => ({
   toggleGroupCollapsed: (id) => set((s) => ({
     groups: s.groups.map((g) => g.id === id ? { ...g, collapsed: !g.collapsed } : g),
   })),
-
-  reorderGroups: (fromId, toId) => set((s) => {
-    const groups = [...s.groups]
-    const fromIdx = groups.findIndex((g) => g.id === fromId)
-    const toIdx = groups.findIndex((g) => g.id === toId)
-    if (fromIdx === -1 || toIdx === -1) return {}
-    const [moved] = groups.splice(fromIdx, 1)
-    groups.splice(toIdx, 0, moved)
-    return { groups }
-  }),
 }), {
   name: 'kult-adbuilder-canvas',
   // IndexedDB instead of localStorage — elements can carry large base64 images

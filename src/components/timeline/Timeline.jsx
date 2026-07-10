@@ -10,7 +10,7 @@ const BASE_PX_PER_SEC = 80
 export default function Timeline() {
   const {
     elements, groups, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility,
-    reorderElements, reorderGroups, updateElement, createGroup: createGroupInStore, deleteGroup: deleteGroupInStore,
+    reorderElements, updateElement, createGroup: createGroupInStore, deleteGroup: deleteGroupInStore,
     toggleGroupCollapsed, animDuration: duration, animLoop: loop, setAnimDuration: setDuration, setAnimLoop: setLoop,
   } = useCanvasStore()
   const { saveState } = useHistoryStore()
@@ -221,25 +221,27 @@ export default function Timeline() {
   const onGroupDragStart = (e, groupId) => { rowDragIdx.current = `group:${groupId}`; e.dataTransfer.effectAllowed = 'move' }
   const onRowDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
 
-  // Drop an element onto another element row → reorders (via zIndex, matching the
-  // displayed order) and adopts the drop target's group membership, so dragging an
-  // element next to an ungrouped element pulls it out of its group, and dragging it
-  // next to a grouped element joins that group — arranging order and grouping in one
-  // motion instead of needing a separate dedicated "ungroup" drop target.
+  // Drop an element onto another element row: reorders (via zIndex, matching the
+  // displayed order); if a plain element was dragged, it also adopts the drop target's
+  // group membership, so dropping next to an ungrouped element pulls it out of its
+  // group and dropping next to a grouped element joins that group — arranging order
+  // and grouping in one motion. If a whole group was dragged, it moves as one block to
+  // that position, interleaving with individual layers, and its members keep their
+  // group membership unchanged.
   const onRowDrop = (e, toElId) => {
     e.preventDefault()
     const from = rowDragIdx.current
     rowDragIdx.current = null
-    if (!from || from === toElId || from.startsWith('group:')) return
+    if (!from || from === toElId) return
     const toEl = elements.find((el) => el.id === toElId)
     if (!toEl) return
     saveState()
     reorderElements(from, toElId)
-    updateElement(from, { folderId: toEl.folderId ?? null })
+    if (!from.startsWith('group:')) updateElement(from, { folderId: toEl.folderId ?? null })
   }
 
-  // Drop on a group header → assign the dragged element to that group (append, no
-  // specific position within it), or reorder groups if a group header was dragged.
+  // Drop on a group header: a dragged element joins that group (appended, no specific
+  // position within it); a dragged group moves as a block to that position instead.
   const onGroupDrop = (e, groupId) => {
     e.preventDefault()
     const from = rowDragIdx.current
@@ -247,8 +249,7 @@ export default function Timeline() {
     if (!from) return
     saveState()
     if (from.startsWith('group:')) {
-      const fromGroupId = from.slice('group:'.length)
-      if (fromGroupId !== groupId) reorderGroups(fromGroupId, groupId)
+      if (from !== `group:${groupId}`) reorderElements(from, `group:${groupId}`)
     } else {
       updateElement(from, { folderId: groupId })
     }
@@ -269,30 +270,37 @@ export default function Timeline() {
 
   const playheadLeft = playhead * PX_PER_SEC
 
-  // Build rows: groups (with their children) then ungrouped elements
+  // Build rows in actual stacking order: a group is one block (positioned by the
+  // highest zIndex among its current members) interleaved with individual ungrouped
+  // elements, so a group can sit anywhere in the stack — not pinned above or below
+  // everything else — matching how reorderElements treats them.
   const rows = []
-  groups.forEach((grp) => {
-    rows.push({ type: 'group', grp })
-    if (!grp.collapsed) {
-      sorted.filter((el) => el.folderId === grp.id).forEach((el) => {
+  const groupedIds = new Set(elements.filter((el) => el.folderId && groups.some((g) => g.id === el.folderId)).map((el) => el.id))
+  const blockItems = [
+    ...sorted.filter((el) => !groupedIds.has(el.id)).map((el) => ({ kind: 'element', el, maxZ: el.zIndex || 0 })),
+    ...groups.map((grp) => {
+      const members = sorted.filter((el) => el.folderId === grp.id)
+      return members.length ? { kind: 'group', grp, members, maxZ: Math.max(...members.map((el) => el.zIndex || 0)) } : null
+    }).filter(Boolean),
+  ].sort((a, b) => b.maxZ - a.maxZ)
+
+  blockItems.forEach((item) => {
+    if (item.kind === 'element') {
+      rows.push({ type: 'element', el: item.el, idx: sorted.indexOf(item.el), inGroup: false })
+      return
+    }
+    rows.push({ type: 'group', grp: item.grp })
+    if (!item.grp.collapsed) {
+      item.members.forEach((el) => {
         rows.push({ type: 'element', el, idx: sorted.indexOf(el), inGroup: true })
       })
     }
   })
-  const ungrouped = sorted.filter((el) => !el.folderId)
-  if (groups.length > 0) rows.push({ type: 'ungrouped-header' })
-  ungrouped.forEach((el) => {
-    rows.push({ type: 'element', el, idx: sorted.indexOf(el), inGroup: false })
+  // Empty groups (no members yet) never appear via blockItems above — show them at
+  // the end so they're still visible/droppable even before anything's assigned to them.
+  groups.filter((g) => !sorted.some((el) => el.folderId === g.id)).forEach((grp) => {
+    rows.push({ type: 'group', grp })
   })
-
-  const onUngroupDrop = (e) => {
-    e.preventDefault()
-    const from = rowDragIdx.current
-    rowDragIdx.current = null
-    if (!from || from.startsWith('group:')) return
-    saveState()
-    updateElement(from, { folderId: null })
-  }
 
   return (
     <div className="flex-shrink-0 bg-gray-800 border-t border-gray-700">
@@ -410,22 +418,6 @@ export default function Timeline() {
             </div>
           )}
           {rows.map((row, rowIdx) => {
-            if (row.type === 'ungrouped-header') {
-              return (
-                <div key="ungrouped-header"
-                  onDragOver={onRowDragOver}
-                  onDrop={onUngroupDrop}
-                  className="flex border-b border-gray-700 bg-gray-900/60"
-                  style={{ minHeight: 22, minWidth: totalWidth + 250, userSelect: 'none' }}>
-                  <div className="flex items-center px-2 border-r border-gray-700 shrink-0 sticky left-0 z-10 bg-gray-900/60"
-                    style={{ width: 250 }}>
-                    <span className="text-xs text-gray-500 font-semibold tracking-wide">UNGROUPED</span>
-                  </div>
-                  <div className="flex-1" style={{ minWidth: totalWidth }} />
-                </div>
-              )
-            }
-
             if (row.type === 'group') {
               const { grp } = row
               return (
