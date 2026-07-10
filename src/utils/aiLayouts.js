@@ -20,13 +20,17 @@ const PALETTES = {
 
 // x/y/width/height are fractions of canvas width/height. fontSize is a fraction of
 // canvas height. type: 'text' | 'button' (expands to a shape + text label pair).
+// `logo` is a fixed reserved zone (fraction coordinates), the same on every layout
+// variant regardless of copy — it's never a role the AI fills, just empty space kept
+// clear of text/CTA so a client logo can be dropped in without overlapping anything.
 export const NORMALIZED_LAYOUTS = [
   {
     id: 'stack-center',
     label: 'Centered stack',
     palette: 'dark',
+    logo: { x: 0.38, y: 0.02, width: 0.24, height: 0.07 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.08, y: 0.10, width: 0.84, height: 0.30, fontSize: 0.115, textAlign: 'center', bold: true },
+      { role: 'headline', type: 'text', x: 0.08, y: 0.12, width: 0.84, height: 0.28, fontSize: 0.115, textAlign: 'center', bold: true },
       { role: 'subhead', type: 'text', x: 0.08, y: 0.42, width: 0.84, height: 0.16, fontSize: 0.055, textAlign: 'center' },
       { role: 'cta', type: 'button', x: 0.28, y: 0.76, width: 0.44, height: 0.14, fontSize: 0.06 },
     ],
@@ -35,8 +39,9 @@ export const NORMALIZED_LAYOUTS = [
     id: 'left-align-stack',
     label: 'Left-aligned stack',
     palette: 'light',
+    logo: { x: 0.06, y: 0.02, width: 0.22, height: 0.07 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.06, y: 0.10, width: 0.88, height: 0.28, fontSize: 0.10, textAlign: 'left', bold: true },
+      { role: 'headline', type: 'text', x: 0.06, y: 0.12, width: 0.88, height: 0.26, fontSize: 0.10, textAlign: 'left', bold: true },
       { role: 'subhead', type: 'text', x: 0.06, y: 0.40, width: 0.88, height: 0.18, fontSize: 0.05, textAlign: 'left' },
       { role: 'cta', type: 'button', x: 0.06, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055 },
     ],
@@ -45,8 +50,9 @@ export const NORMALIZED_LAYOUTS = [
     id: 'headline-only-bold',
     label: 'Bold headline, no subhead',
     palette: 'brand',
+    logo: { x: 0.06, y: 0.03, width: 0.22, height: 0.09 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.08, y: 0.22, width: 0.84, height: 0.40, fontSize: 0.15, textAlign: 'center', bold: true },
+      { role: 'headline', type: 'text', x: 0.08, y: 0.24, width: 0.84, height: 0.38, fontSize: 0.15, textAlign: 'center', bold: true },
       { role: 'cta', type: 'button', x: 0.30, y: 0.72, width: 0.40, height: 0.16, fontSize: 0.065 },
     ],
   },
@@ -54,8 +60,9 @@ export const NORMALIZED_LAYOUTS = [
     id: 'top-headline-bottom-cta',
     label: 'Top headline, full-width CTA bar',
     palette: 'dark',
+    logo: { x: 0.72, y: 0.015, width: 0.22, height: 0.055 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.06, y: 0.08, width: 0.88, height: 0.34, fontSize: 0.11, textAlign: 'center', bold: true },
+      { role: 'headline', type: 'text', x: 0.06, y: 0.10, width: 0.88, height: 0.32, fontSize: 0.11, textAlign: 'center', bold: true },
       { role: 'subhead', type: 'text', x: 0.06, y: 0.44, width: 0.88, height: 0.22, fontSize: 0.05, textAlign: 'center' },
       { role: 'cta', type: 'button', x: 0.0, y: 0.84, width: 1.0, height: 0.16, fontSize: 0.06 },
     ],
@@ -64,8 +71,9 @@ export const NORMALIZED_LAYOUTS = [
     id: 'split-text-cta-right',
     label: 'Headline left, CTA pinned right',
     palette: 'light',
+    logo: { x: 0.05, y: 0.03, width: 0.22, height: 0.09 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.05, y: 0.15, width: 0.55, height: 0.5, fontSize: 0.095, textAlign: 'left', bold: true },
+      { role: 'headline', type: 'text', x: 0.05, y: 0.17, width: 0.55, height: 0.48, fontSize: 0.095, textAlign: 'left', bold: true },
       { role: 'cta', type: 'button', x: 0.66, y: 0.32, width: 0.30, height: 0.36, fontSize: 0.05 },
     ],
   },
@@ -73,8 +81,9 @@ export const NORMALIZED_LAYOUTS = [
     id: 'body-copy-block',
     label: 'Headline + short body copy',
     palette: 'brand',
+    logo: { x: 0.72, y: 0.015, width: 0.22, height: 0.05 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.07, y: 0.08, width: 0.86, height: 0.22, fontSize: 0.09, textAlign: 'center', bold: true },
+      { role: 'headline', type: 'text', x: 0.07, y: 0.10, width: 0.86, height: 0.20, fontSize: 0.09, textAlign: 'center', bold: true },
       { role: 'body', type: 'text', x: 0.07, y: 0.32, width: 0.86, height: 0.34, fontSize: 0.045, textAlign: 'center' },
       { role: 'cta', type: 'button', x: 0.30, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055 },
     ],
@@ -83,6 +92,7 @@ export const NORMALIZED_LAYOUTS = [
     id: 'top-bar-cta',
     label: 'Top CTA bar, headline below',
     palette: 'light',
+    logo: { x: 0.06, y: 0.19, width: 0.22, height: 0.07 },
     roles: [
       { role: 'cta', type: 'button', x: 0.0, y: 0.0, width: 1.0, height: 0.16, fontSize: 0.06 },
       { role: 'headline', type: 'text', x: 0.06, y: 0.28, width: 0.88, height: 0.34, fontSize: 0.10, textAlign: 'center', bold: true },
@@ -93,6 +103,7 @@ export const NORMALIZED_LAYOUTS = [
     id: 'corner-badge',
     label: 'Corner badge with headline',
     palette: 'brand',
+    logo: { x: 0.68, y: 0.06, width: 0.27, height: 0.12 },
     roles: [
       { role: 'badge', type: 'button', x: 0.05, y: 0.06, width: 0.32, height: 0.14, fontSize: 0.045 },
       { role: 'headline', type: 'text', x: 0.06, y: 0.30, width: 0.88, height: 0.32, fontSize: 0.105, textAlign: 'left', bold: true },
@@ -103,8 +114,9 @@ export const NORMALIZED_LAYOUTS = [
     id: 'right-panel-stack',
     label: 'Right-aligned text panel',
     palette: 'dark',
+    logo: { x: 0.05, y: 0.05, width: 0.28, height: 0.10 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.42, y: 0.14, width: 0.52, height: 0.30, fontSize: 0.09, textAlign: 'right', bold: true },
+      { role: 'headline', type: 'text', x: 0.42, y: 0.16, width: 0.52, height: 0.28, fontSize: 0.09, textAlign: 'right', bold: true },
       { role: 'subhead', type: 'text', x: 0.42, y: 0.46, width: 0.52, height: 0.18, fontSize: 0.045, textAlign: 'right' },
       { role: 'cta', type: 'button', x: 0.54, y: 0.72, width: 0.40, height: 0.16, fontSize: 0.055 },
     ],
@@ -113,8 +125,9 @@ export const NORMALIZED_LAYOUTS = [
     id: 'big-cta-focus',
     label: 'Small headline, oversized CTA',
     palette: 'brand',
+    logo: { x: 0.38, y: 0.015, width: 0.24, height: 0.055 },
     roles: [
-      { role: 'headline', type: 'text', x: 0.08, y: 0.10, width: 0.84, height: 0.22, fontSize: 0.07, textAlign: 'center', bold: true },
+      { role: 'headline', type: 'text', x: 0.08, y: 0.12, width: 0.84, height: 0.20, fontSize: 0.07, textAlign: 'center', bold: true },
       { role: 'cta', type: 'button', x: 0.14, y: 0.42, width: 0.72, height: 0.34, fontSize: 0.08 },
     ],
   },
@@ -276,6 +289,23 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
   })
 
   const bgLum = effectiveBackgroundLuminance(backgroundStyle, palette)
+
+  if (layout.logo) {
+    const lx = Math.round(layout.logo.x * canvasWidth)
+    const ly = Math.round(layout.logo.y * canvasHeight)
+    const lw = Math.round(layout.logo.width * canvasWidth)
+    const lh = Math.round(layout.logo.height * canvasHeight)
+    const logoColor = readableColorForLum(palette.text, bgLum)
+    elements.push({
+      type: 'shape', x: lx, y: ly, width: lw, height: lh,
+      transparent: true, borderWidth: 1, borderColor: hexToRgba(logoColor, 0.4), borderRadius: 4, zIndex: z++,
+    })
+    elements.push({
+      type: 'text', x: lx, y: ly, width: lw, height: lh,
+      text: 'Your Logo', fontSize: Math.max(10, Math.round(lh * 0.45)), textAlign: 'center',
+      color: hexToRgba(logoColor, 0.55), zIndex: z++,
+    })
+  }
 
   layout.roles.forEach((r) => {
     const x = Math.round(r.x * canvasWidth)
