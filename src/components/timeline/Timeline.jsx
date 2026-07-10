@@ -270,19 +270,17 @@ export default function Timeline() {
 
   const playheadLeft = playhead * PX_PER_SEC
 
-  // Build rows in actual stacking order: a group is one block (positioned by the
-  // highest zIndex among its current members) interleaved with individual ungrouped
-  // elements, so a group can sit anywhere in the stack — not pinned above or below
-  // everything else — matching how reorderElements treats them.
+  // Build rows in actual stacking order: a group is one block (positioned by its own
+  // zIndex — independent of its members' so an *empty* group still sorts/drags
+  // correctly) interleaved with individual ungrouped elements, so a group can sit
+  // anywhere in the stack, not pinned above or below everything else — matching how
+  // reorderElements treats them (see canvasStore.js's buildBlocks).
   const rows = []
   const groupedIds = new Set(elements.filter((el) => el.folderId && groups.some((g) => g.id === el.folderId)).map((el) => el.id))
   const blockItems = [
-    ...sorted.filter((el) => !groupedIds.has(el.id)).map((el) => ({ kind: 'element', el, maxZ: el.zIndex || 0 })),
-    ...groups.map((grp) => {
-      const members = sorted.filter((el) => el.folderId === grp.id)
-      return members.length ? { kind: 'group', grp, members, maxZ: Math.max(...members.map((el) => el.zIndex || 0)) } : null
-    }).filter(Boolean),
-  ].sort((a, b) => b.maxZ - a.maxZ)
+    ...sorted.filter((el) => !groupedIds.has(el.id)).map((el) => ({ kind: 'element', el, sortZ: el.zIndex || 0 })),
+    ...groups.map((grp) => ({ kind: 'group', grp, members: sorted.filter((el) => el.folderId === grp.id), sortZ: grp.zIndex ?? 0 })),
+  ].sort((a, b) => b.sortZ - a.sortZ)
 
   blockItems.forEach((item) => {
     if (item.kind === 'element') {
@@ -295,11 +293,6 @@ export default function Timeline() {
         rows.push({ type: 'element', el, idx: sorted.indexOf(el), inGroup: true })
       })
     }
-  })
-  // Empty groups (no members yet) never appear via blockItems above — show them at
-  // the end so they're still visible/droppable even before anything's assigned to them.
-  groups.filter((g) => !sorted.some((el) => el.folderId === g.id)).forEach((grp) => {
-    rows.push({ type: 'group', grp })
   })
 
   return (

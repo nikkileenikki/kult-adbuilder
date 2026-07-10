@@ -7,9 +7,60 @@ const uid = (type) => `${type}_${nextId++}`
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
 
+// A "layer" in the timeline is either a single ungrouped element or an entire group
+// (moved/positioned as one atomic unit). Groups carry their own `zIndex` — independent
+// of their members' — specifically so an *empty* group still has a real position to
+// sort/insert against; without it, an empty group had nothing to compare against and
+// could never participate in a reorder (drop) at all.
+function buildBlocks(elements, groups) {
+  const groupIds = new Set(groups.map((g) => g.id))
+  const byGroup = {}
+  const ungrouped = []
+  elements.forEach((el) => {
+    if (el.folderId && groupIds.has(el.folderId)) {
+      ;(byGroup[el.folderId] ||= []).push(el)
+    } else {
+      ungrouped.push(el)
+    }
+  })
+  Object.values(byGroup).forEach((els) => els.sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0)))
+
+  const blocks = [
+    ...ungrouped.map((el) => ({ key: el.id, kind: 'element', els: [el] })),
+    ...groups.map((g) => ({ key: `group:${g.id}`, kind: 'group', grp: g, els: byGroup[g.id] || [] })),
+  ]
+  const sortZ = (b) => b.kind === 'group' ? (b.grp.zIndex ?? 0) : (b.els[0].zIndex || 0)
+  blocks.sort((a, b) => sortZ(b) - sortZ(a))
+  return blocks
+}
+
+// Flattens an ordered block list back into fresh zIndex values — one "slot" per block
+// (so an empty group still consumes a slot and keeps a real position), then one slot
+// per element inside a group block, most-slots-at-the-top. This keeps canvas stacking
+// (element zIndex) exactly matching what the timeline/layers list displays, and keeps
+// groups and elements comparable in the same numeric space for future reorders.
+function applyBlockOrder(blocks) {
+  let z = blocks.reduce((n, b) => n + 1 + (b.kind === 'group' ? b.els.length : 0), 0)
+  const elZ = {}
+  const grpZ = {}
+  blocks.forEach((b) => {
+    if (b.kind === 'group') {
+      grpZ[b.grp.id] = z; z -= 1
+      b.els.forEach((el) => { elZ[el.id] = z; z -= 1 })
+    } else {
+      elZ[b.els[0].id] = z; z -= 1
+    }
+  })
+  return { elZ, grpZ }
+}
+
+function topZIndex(elements, groups) {
+  return Math.max(0, ...elements.map((e) => e.zIndex || 0), ...groups.map((g) => g.zIndex || 0))
+}
+
 export const useCanvasStore = create(persist((set, get) => ({
   elements: [],
-  groups: [],
+  groups: [], // {id, name, collapsed, zIndex}
   selectedId: null,
   canvasWidth: 300,
   canvasHeight: 250,
@@ -35,7 +86,7 @@ export const useCanvasStore = create(persist((set, get) => ({
       id: uid(partial.type || 'element'),
       x: 20, y: 20, width: 200, height: 50,
       rotation: 0, opacity: 1,
-      zIndex: get().elements.length + 1,
+      zIndex: topZIndex(get().elements, get().groups) + 1,
       visible: true, locked: false,
       folderId: null,
       animations: [],
@@ -62,52 +113,32 @@ export const useCanvasStore = create(persist((set, get) => ({
       id: uid(el.type),
       x: el.x + 10,
       y: el.y + 10,
-      zIndex: get().elements.length + 1,
+      zIndex: topZIndex(get().elements, get().groups) + 1,
     }
     set((s) => ({ elements: [...s.elements, copy], selectedId: copy.id }))
   },
 
-  // Reorders the timeline's layer stack, where a "layer" is either a single ungrouped
-  // element or an entire group moved as one atomic block (so a group can be dragged up
-  // or down and interleaved with individual layers, not just reordered among other
-  // groups). `fromKey`/`toKey` are either an element id or "group:<id>". Blocks are
-  // ordered against each other by their current max zIndex — the same order the
-  // timeline/layers list actually displays — rather than by raw index into the
-  // underlying elements array; those two orders silently diverge as soon as elements
-  // are added/grouped out of insertion order, which is what made dragging (especially
-  // inside/around a group) produce a result that didn't match the drag at all.
-  // zIndex is reassigned across the *entire* flattened result so canvas stacking order
-  // always matches what the layer list shows, including each group's own internal
-  // (unchanged) child order.
+  // Reorders the timeline's layer stack by id — `fromKey`/`toKey` are either an element
+  // id or "group:<id>" — moving the dragged layer to sit at the dropped-on layer's
+  // position. Blocks are ordered against each other by their current zIndex (elements)
+  // or the group's own dedicated zIndex (see buildBlocks), the same order the timeline
+  // actually displays, rather than by raw index into the underlying elements array;
+  // those two orders silently diverge as soon as elements are added/grouped out of
+  // insertion order, which is what made dragging (especially inside/around a group)
+  // produce a result that didn't match the drag at all.
   reorderElements: (fromKey, toKey) => set((s) => {
-    const byGroup = {}
-    const ungrouped = []
-    s.elements.forEach((el) => {
-      if (el.folderId && s.groups.some((g) => g.id === el.folderId)) {
-        ;(byGroup[el.folderId] ||= []).push(el)
-      } else {
-        ungrouped.push(el)
-      }
-    })
-    Object.values(byGroup).forEach((els) => els.sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0)))
-
-    const blocks = [
-      ...ungrouped.map((el) => ({ key: el.id, els: [el] })),
-      ...s.groups.filter((g) => byGroup[g.id]?.length).map((g) => ({ key: `group:${g.id}`, els: byGroup[g.id] })),
-    ]
-    const maxZ = (b) => Math.max(...b.els.map((el) => el.zIndex || 0))
-    blocks.sort((a, b) => maxZ(b) - maxZ(a))
-
+    const blocks = buildBlocks(s.elements, s.groups)
     const fromIdx = blocks.findIndex((b) => b.key === fromKey)
     const toIdx = blocks.findIndex((b) => b.key === toKey)
     if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return {}
     const [moved] = blocks.splice(fromIdx, 1)
     blocks.splice(toIdx, 0, moved)
 
-    const flat = blocks.flatMap((b) => b.els)
-    const zMap = {}
-    flat.forEach((el, i) => { zMap[el.id] = flat.length - i })
-    return { elements: s.elements.map((el) => zMap[el.id] ? { ...el, zIndex: zMap[el.id] } : el) }
+    const { elZ, grpZ } = applyBlockOrder(blocks)
+    return {
+      elements: s.elements.map((el) => elZ[el.id] ? { ...el, zIndex: elZ[el.id] } : el),
+      groups: s.groups.map((g) => grpZ[g.id] ? { ...g, zIndex: grpZ[g.id] } : g),
+    }
   }),
 
   toggleVisibility: (id) => set((s) => ({
@@ -121,9 +152,25 @@ export const useCanvasStore = create(persist((set, get) => ({
   // Groups (timeline layer folders). Membership lives on each element's own `folderId`
   // rather than a separate id-map, so it can't drift out of sync with the elements
   // array and survives element add/duplicate/delete without extra bookkeeping.
+  // A new group is inserted directly above the currently selected layer (its own block,
+  // whether that's a plain element or another group) rather than always landing at the
+  // very bottom of the stack.
   createGroup: (name) => {
     const id = uid('grp')
-    set((s) => ({ groups: [...s.groups, { id, name: name || `Group ${s.groups.length + 1}`, collapsed: false }] }))
+    set((s) => {
+      const newGroup = { id, name: name || `Group ${s.groups.length + 1}`, collapsed: false, zIndex: 0 }
+      const blocks = buildBlocks(s.elements, [...s.groups, newGroup])
+      const newIdx = blocks.findIndex((b) => b.key === `group:${id}`)
+      const [newBlock] = blocks.splice(newIdx, 1)
+      const selIdx = s.selectedId ? blocks.findIndex((b) => b.els.some((el) => el.id === s.selectedId)) : -1
+      blocks.splice(selIdx === -1 ? 0 : selIdx, 0, newBlock)
+
+      const { elZ, grpZ } = applyBlockOrder(blocks)
+      return {
+        elements: s.elements.map((el) => elZ[el.id] ? { ...el, zIndex: elZ[el.id] } : el),
+        groups: [...s.groups.map((g) => grpZ[g.id] ? { ...g, zIndex: grpZ[g.id] } : g), { ...newGroup, zIndex: grpZ[id] }],
+      }
+    })
     return id
   },
 

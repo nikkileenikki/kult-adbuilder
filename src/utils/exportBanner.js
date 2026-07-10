@@ -84,6 +84,35 @@ function buildElementHTML(el) {
   }
 }
 
+// Wraps each group's member elements in their own <div id="group_<id>"> — grouped
+// elements still get their usual absolute positioning inline (unchanged), and the
+// wrapper itself carries no layout/stacking-context-creating CSS (no position/opacity/
+// transform), so it's invisible to both layout and z-index comparisons; it exists
+// purely so a group is addressable/stylable as one DOM node (e.g. by custom JS/CSS)
+// rather than being just an authoring-time grouping concept. Each group contributes
+// exactly one wrapper, placed at its topmost (highest zIndex) member's position in the
+// stack, containing all its members in their relative z-order — this doesn't assume
+// group members are contiguous in `sorted`, since a plain "assign to group" drag drop
+// doesn't renumber zIndex to make that true until the next explicit reorder.
+function buildElementsHTML(sorted, groups) {
+  const groupIds = new Set((groups || []).map((g) => g.id))
+  const seen = new Set()
+  const parts = []
+  sorted.forEach((el) => {
+    if (el.folderId && groupIds.has(el.folderId)) {
+      if (seen.has(el.folderId)) return
+      seen.add(el.folderId)
+      const groupEls = sorted.filter((e) => e.folderId === el.folderId)
+      const inner = groupEls.map(buildElementHTML).filter(Boolean).join('\n      ')
+      if (inner) parts.push(`<div id="group_${el.folderId}">\n      ${inner}\n    </div>`)
+      return
+    }
+    const html = buildElementHTML(el)
+    if (html) parts.push(html)
+  })
+  return parts.join('\n    ')
+}
+
 function buildAnimationJS(elements) {
   const lines = ['var tl = gsap.timeline({ repeat: 0 });']
   elements.forEach((el) => {
@@ -341,12 +370,12 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
-export async function buildBannerZipBlob({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
-  return _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
+export async function buildBannerZipBlob({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
+  return _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
 }
 
-export async function exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
-  const blob = await _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
+export async function exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
+  const blob = await _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -371,9 +400,9 @@ function substituteTemplateTokens(activeTemplate) {
 
 // Builds the exported index.html as a string. Used for both the real ZIP export and the
 // live canvas preview (which skips the base64->file swap since there's no zip to reference).
-async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, customHtml, customJs, customCss, imageFiles, inlineTemplateCss }) {
+async function _buildHTML({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, customHtml, customJs, customCss, imageFiles, inlineTemplateCss }) {
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
-  const elementsHTML = sorted.map(buildElementHTML).filter(Boolean).join('\n    ')
+  const elementsHTML = buildElementsHTML(sorted, groups)
   const animJS = buildAnimationJS(sorted)
   const clickTagJS = buildClickTagJS(sorted)
   const trackingJS = buildTrackingJS(sorted)
@@ -485,7 +514,7 @@ ${videoCueJS}
   return { html, templateCss }
 }
 
-async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
+async function _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate }) {
   const zip = new JSZip()
 
   // Extract base64 images into root folder
@@ -519,7 +548,7 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
   })
 
   const { html, templateCss } = await _buildHTML({
-    elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate,
+    elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate,
     customHtml, customJs, customCss, imageFiles, inlineTemplateCss: false,
   })
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
@@ -534,16 +563,16 @@ async function _buildZip({ elements, canvasWidth, canvasHeight, bannerName, poli
 
 // Live preview HTML for the canvas — same rendering path as export, base64 images kept inline
 // (no zip to reference files from) and template CSS inlined as a <style> tag.
-export async function buildPreviewHtml({ elements, canvasWidth, canvasHeight, bannerName, activeTemplate }) {
+export async function buildPreviewHtml({ elements, groups, canvasWidth, canvasHeight, bannerName, activeTemplate }) {
   const { customHtml, customJs, customCss } = substituteTemplateTokens(activeTemplate)
   const { html } = await _buildHTML({
-    elements, canvasWidth, canvasHeight, bannerName: bannerName || 'preview', politeLoad: false,
+    elements, groups, canvasWidth, canvasHeight, bannerName: bannerName || 'preview', politeLoad: false,
     activeTemplate, customHtml, customJs, customCss, imageFiles: [], inlineTemplateCss: true,
   })
   return html
 }
 
-export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, activeTemplate }) {
+export function saveBannerJSON({ elements, groups, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, activeTemplate }) {
   const template = activeTemplate ? {
     id: activeTemplate.id,
     name: activeTemplate.name,
@@ -556,7 +585,7 @@ export function saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName
     tokenValues: activeTemplate.tokenValues || {},
     sizes: activeTemplate.sizes || {},
   } : null
-  const data = JSON.stringify({ version: 1, bannerName, canvasWidth, canvasHeight, animDuration, animLoop, elements, template }, null, 2)
+  const data = JSON.stringify({ version: 1, bannerName, canvasWidth, canvasHeight, animDuration, animLoop, elements, groups, template }, null, 2)
   const blob = new Blob([data], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

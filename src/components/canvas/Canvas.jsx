@@ -6,7 +6,7 @@ import AiChatPanel from './AiChatPanel.jsx'
 import { buildPreviewHtml } from '../../utils/exportBanner.js'
 
 export default function Canvas() {
-  const { elements, canvasWidth, canvasHeight, setSelected, snapLines, activeTemplate } = useCanvasStore()
+  const { elements, groups, canvasWidth, canvasHeight, setSelected, snapLines, activeTemplate } = useCanvasStore()
   const { canvasZoom } = useUiStore()
   const containerRef = useRef(null)
   const scale = canvasZoom / 100
@@ -23,11 +23,11 @@ export default function Canvas() {
   useEffect(() => {
     if (!isAdvanced) return
     let cancelled = false
-    buildPreviewHtml({ elements, canvasWidth, canvasHeight, activeTemplate })
+    buildPreviewHtml({ elements, groups, canvasWidth, canvasHeight, activeTemplate })
       .then((html) => { if (!cancelled) setPreviewHtml(html) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [isAdvanced, elements, canvasWidth, canvasHeight, activeTemplate])
+  }, [isAdvanced, elements, groups, canvasWidth, canvasHeight, activeTemplate])
 
   const handleRefreshPreview = useCallback(() => {
     setPreviewKey((k) => k + 1)
