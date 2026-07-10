@@ -227,6 +227,7 @@ function buildHoverEffectJS(elements) {
   function ktHoverScale(id, entering, factor, rotation) {
     var node = document.getElementById(id);
     if (!node) return;
+    node.style.transformOrigin = 'center center';
     node.style.transition = 'transform 0.15s ease';
     node.style.transform = 'rotate(' + rotation + 'deg) scale(' + (entering ? factor : 1) + ')';
   }`]
