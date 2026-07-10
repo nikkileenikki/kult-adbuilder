@@ -79,7 +79,7 @@ export default function AiChatPanel() {
       {open && (
         <div
           className="absolute bg-gray-900 border border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden"
-          style={{ bottom: 66, right: 16, width: 340, height: 460, zIndex: 9300 }}
+          style={{ bottom: 66, right: 16, width: 340, height: 360, maxHeight: 'calc(100% - 76px)', zIndex: 9300 }}
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700 shrink-0">
             <span className="text-white text-xs font-semibold flex items-center gap-1.5">
