@@ -86,7 +86,6 @@ export const BACKGROUND_STYLES = [
   { value: 'gradient', label: 'Gradient' },
   { value: 'abstract', label: 'Abstract blobs' },
   { value: 'watercolor', label: 'Watercolor' },
-  { value: 'other', label: 'Other (AI-generated image)' },
 ]
 
 export function getPaletteFor(layout) {
@@ -220,40 +219,23 @@ export function layoutCatalogSummary() {
 // partials (no `id` — addElement()/direct insertion assigns those) for the given
 // canvas size. `paletteOverride` (e.g. from a brand guide) replaces the layout's
 // built-in colors when provided. `backgroundStyle` picks how the background shape
-// is filled — 'solid' (default), 'gradient', 'abstract', or 'watercolor'.
-// `backgroundImage` (a data URI from /api/ai-image), when given, replaces the CSS
-// background entirely with a real full-bleed image element.
-export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null, backgroundImage = null) {
+// is filled — 'solid' (default), 'gradient', 'abstract', or 'watercolor'. All
+// backgrounds are CSS-only (no generated images), so text contrast can always be
+// computed from the palette's own colors — no shadow/glow or panel behind the text.
+export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null) {
   const layout = findLayout(layoutId)
   if (!layout) return []
   const palette = { ...getPaletteFor(layout), ...(paletteOverride || {}) }
   const elements = []
   let z = 10
 
-  const isPhotoBackground = !!backgroundImage
-  if (isPhotoBackground) {
-    elements.push({
-      type: 'image',
-      x: 0, y: 0, width: canvasWidth, height: canvasHeight,
-      src: backgroundImage, filename: 'ai-background.png', borderRadius: 0, zIndex: z++,
-      // OpenAI only supports a few fixed image ratios, which rarely match the banner's
-      // exact size — 'cover' crops to fill the canvas without stretching/distorting,
-      // unlike the default 'fill' object-fit other image elements use.
-      objectFit: 'cover',
-    })
-  } else {
-    const bgCss = buildBackgroundCss(backgroundStyle, palette, `${layoutId}-${canvasWidth}x${canvasHeight}`)
-    elements.push({
-      type: 'shape',
-      x: 0, y: 0, width: canvasWidth, height: canvasHeight,
-      fillColor: palette.bg, cssBackground: backgroundStyle === 'solid' ? undefined : bgCss, borderRadius: 0, zIndex: z++,
-    })
-  }
+  const bgCss = buildBackgroundCss(backgroundStyle, palette, `${layoutId}-${canvasWidth}x${canvasHeight}`)
+  elements.push({
+    type: 'shape',
+    x: 0, y: 0, width: canvasWidth, height: canvasHeight,
+    fillColor: palette.bg, cssBackground: backgroundStyle === 'solid' ? undefined : bgCss, borderRadius: 0, zIndex: z++,
+  })
 
-  // A real AI-generated photo's actual pixel colors are unknowable up front, so
-  // contrast math can't help there — instead give text a translucent dark panel to
-  // sit on (not a shadow/glow on the text itself) so it reads regardless of what's
-  // underneath, and always pair it with white text.
   const bgLum = effectiveBackgroundLuminance(backgroundStyle, palette)
 
   layout.roles.forEach((r) => {
@@ -283,21 +265,13 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
         fontSize, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
       })
     } else {
-      if (isPhotoBackground) {
-        const pad = Math.round(height * 0.15)
-        elements.push({
-          type: 'shape',
-          x: x - pad, y: y - pad, width: width + pad * 2, height: height + pad * 2,
-          cssBackground: 'rgba(0,0,0,0.45)', borderRadius: 6, zIndex: z++,
-        })
-      }
       const preferred = r.role === 'subhead' || r.role === 'body' ? palette.subtext : palette.text
       elements.push({
         type: 'text',
         x, y, width, height,
         text,
         fontSize, textAlign: r.textAlign || 'left',
-        color: isPhotoBackground ? '#ffffff' : readableColorForLum(preferred, bgLum),
+        color: readableColorForLum(preferred, bgLum),
         bold: !!r.bold, zIndex: z++,
       })
     }

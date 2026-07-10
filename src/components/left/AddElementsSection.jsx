@@ -1,15 +1,13 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
-import AiImageModal from '../modals/AiImageModal.jsx'
 
 export default function AddElementsSection() {
   const { addElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { openModal } = useUiStore()
   const fileRef = useRef(null)
-  const [showAiImage, setShowAiImage] = useState(false)
 
   const readFiles = (files) => {
     const { canvasWidth, canvasHeight } = useCanvasStore.getState()
@@ -70,8 +68,6 @@ export default function AddElementsSection() {
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp" multiple className="hidden" onChange={onFileChange} />
 
-        <AddBtn onClick={() => setShowAiImage(true)} icon="fa-wand-magic-sparkles" className="bg-purple-600 hover:bg-purple-700 w-full">Generate Image with AI</AddBtn>
-
         <div className="grid grid-cols-2 gap-2">
           <AddBtn onClick={() => openModal('addText')} icon="fa-t" className="bg-blue-600 hover:bg-blue-700">Text</AddBtn>
           <AddBtn onClick={() => openModal('addShape')} icon="fa-shapes" className="bg-teal-600 hover:bg-teal-700">Shape</AddBtn>
@@ -81,8 +77,6 @@ export default function AddElementsSection() {
         <AddBtn onClick={addInvisible} icon="fa-eye-slash" className="bg-gray-600 hover:bg-gray-700 w-full">Add Invisible Layer</AddBtn>
         <AddBtn onClick={addClickthrough} icon="fa-arrow-pointer" className="bg-purple-600 hover:bg-purple-700 w-full">Add Clickthrough</AddBtn>
       </div>
-
-      {showAiImage && <AiImageModal onClose={() => setShowAiImage(false)} />}
     </div>
   )
 }

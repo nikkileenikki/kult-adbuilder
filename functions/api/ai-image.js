@@ -1,8 +1,9 @@
-// Generates an image from a text prompt via OpenAI's image API and returns it as a
-// base64 data URI, ready to drop straight into an image element's `src`. Requires an
-// OPENAI_API_KEY secret (separate from ANTHROPIC_API_KEY, which is only used for the
-// layout/copy design endpoint) — not yet configured, add via
-// `wrangler pages secret put OPENAI_API_KEY`.
+// Generates an image from a text prompt via OpenAI's image API. Currently disabled
+// project-wide — AI features are copy/layout-only (see ai-design.js); no image
+// generation is exposed anywhere in the UI. Left in place, hard-disabled, rather than
+// deleted in case it's re-enabled later.
+const IMAGE_GENERATION_ENABLED = false
+
 const SUPPORTED_SIZES = ['1024x1024', '1536x1024', '1024x1536']
 
 function pickSize(width, height) {
@@ -15,6 +16,10 @@ function pickSize(width, height) {
 export async function onRequestPost({ request, env }) {
   const session = await getSession(request, env)
   if (!session) return json({ error: 'Unauthorized' }, 401)
+
+  if (!IMAGE_GENERATION_ENABLED) {
+    return json({ error: 'Image generation is currently disabled' }, 403)
+  }
 
   if (!env.OPENAI_API_KEY) {
     return json({ error: 'AI image generation is not configured (missing OPENAI_API_KEY)' }, 500)
