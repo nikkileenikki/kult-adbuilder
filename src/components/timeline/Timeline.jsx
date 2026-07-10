@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
+import { layerLabel } from '../../utils/layerLabel.js'
 
 const BASE_PX_PER_SEC = 80
 
@@ -653,12 +654,3 @@ function TrackBtn({ title, onClick, children, danger }) {
   )
 }
 
-function layerLabel(el) {
-  if (el.name) return el.name
-  if (el.type === 'text') return el.text?.slice(0, 20) || 'Text'
-  if (el.type === 'image') return el.filename || 'Image'
-  if (el.type === 'video') return el.videoName || 'Video'
-  if (el.type === 'clickthrough') return `Clickthrough ${el.clickIndex || 1}`
-  if (el.type === 'shape') return el.shapeType === 'circle' ? 'Circle' : 'Rectangle'
-  return el.type.charAt(0).toUpperCase() + el.type.slice(1)
-}

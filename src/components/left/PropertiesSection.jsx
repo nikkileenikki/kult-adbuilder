@@ -103,7 +103,7 @@ export default function PropertiesSection() {
         {el.type === 'text' && <TextProperties el={el} update={update} save={save} />}
         {el.type === 'shape' && <ShapeProperties el={el} update={update} save={save} />}
         {el.type === 'image' && <ImageProperties el={el} update={update} save={save} />}
-        {el.type === 'video' && <VideoProperties el={el} update={update} save={save} />}
+        {el.type === 'video' && <VideoProperties el={el} update={update} save={save} elements={elements} />}
         {el.type === 'clickthrough' && <ClickthroughProperties el={el} update={update} save={save} />}
         {el.type === 'invisible' && <InvisibleProperties el={el} update={update} save={save} elements={elements} />}
       </div>

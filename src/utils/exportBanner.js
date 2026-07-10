@@ -124,6 +124,61 @@ function buildAnimationJS(elements) {
   return lines.join('\n')
 }
 
+// Video elements can carry `timeCues` — animations triggered by the video's own
+// playback position rather than the banner's fixed GSAP timeline (e.g. "fade in
+// Text A at 3s into this video"). Reuses the exact same tween vocabulary as
+// buildAnimationJS, but fires each tween immediately via gsap.to/fromTo instead of
+// scheduling it on the shared timeline. `fired` is tracked per cue and recomputed from
+// currentTime on every timeupdate (not a one-way latch), so seeking backward or a
+// looping video naturally re-arms and replays cues on the way forward again.
+function buildVideoCueJS(elements) {
+  const videos = elements.filter((el) => el.visible && el.type === 'video' && (el.timeCues || []).length)
+  if (!videos.length) return ''
+
+  const lines = []
+  videos.forEach((video) => {
+    const cues = video.timeCues.filter((c) => c.targetId && elements.some((e) => e.id === c.targetId))
+    if (!cues.length) return
+
+    const v = `document.getElementById('${video.id}')`
+    lines.push(`  (function() {`)
+    lines.push(`    var v = ${v};`)
+    lines.push(`    if (!v) return;`)
+    lines.push(`    var fired = {};`)
+    lines.push(`    v.addEventListener('timeupdate', function() {`)
+    cues.forEach((cue) => {
+      const t = `document.getElementById('${cue.targetId}')`
+      const dur = cue.duration || 1
+      const ease = 'power1.out'
+      const targetEl = elements.find((e) => e.id === cue.targetId)
+      const op = targetEl?.opacity ?? 1
+      const off = 400
+      let tween = ''
+      switch (cue.type) {
+        case 'fadeIn':       tween = `gsap.fromTo(${t},{autoAlpha:0},{autoAlpha:${op},duration:${dur},ease:'${ease}'})`; break
+        case 'fadeOut':      tween = `gsap.to(${t},{autoAlpha:0,duration:${dur},ease:'${ease}'})`; break
+        case 'slideLeft':    tween = `gsap.fromTo(${t},{x:-${off}},{x:0,duration:${dur},ease:'${ease}'})`; break
+        case 'slideRight':   tween = `gsap.fromTo(${t},{x:${off}},{x:0,duration:${dur},ease:'${ease}'})`; break
+        case 'slideUp':      tween = `gsap.fromTo(${t},{y:-${off}},{y:0,duration:${dur},ease:'${ease}'})`; break
+        case 'slideDown':    tween = `gsap.fromTo(${t},{y:${off}},{y:0,duration:${dur},ease:'${ease}'})`; break
+        case 'slideToLeft':  tween = `gsap.to(${t},{x:-${off},duration:${dur},ease:'${ease}'})`; break
+        case 'slideToRight': tween = `gsap.to(${t},{x:${off},duration:${dur},ease:'${ease}'})`; break
+        case 'slideToUp':    tween = `gsap.to(${t},{y:-${off},duration:${dur},ease:'${ease}'})`; break
+        case 'slideToDown':  tween = `gsap.to(${t},{y:${off},duration:${dur},ease:'${ease}'})`; break
+        case 'scaleIn':      tween = `gsap.fromTo(${t},{scale:0},{scale:1,duration:${dur},ease:'${ease}'})`; break
+        case 'scaleOut':     tween = `gsap.to(${t},{scale:0,duration:${dur},ease:'${ease}'})`; break
+        default: return
+      }
+      lines.push(`      var passed_${cue.id} = v.currentTime >= ${cue.time};`)
+      lines.push(`      if (passed_${cue.id} && !fired['${cue.id}']) { fired['${cue.id}'] = true; ${tween}; }`)
+      lines.push(`      else if (!passed_${cue.id} && fired['${cue.id}']) { fired['${cue.id}'] = false; }`)
+    })
+    lines.push(`    });`)
+    lines.push(`  })();`)
+  })
+  return lines.join('\n')
+}
+
 function buildClickTagJS(elements) {
   const clicks = elements.filter((el) => el.visible && el.type === 'clickthrough')
   if (!clicks.length) return ''
@@ -310,6 +365,7 @@ async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, pol
   const clickTagJS = buildClickTagJS(sorted)
   const trackingJS = buildTrackingJS(sorted)
   const hoverEffectJS = buildHoverEffectJS(sorted)
+  const videoCueJS = buildVideoCueJS(sorted)
 
   // customHtml present -> "advanced mode": bespoke markup replaces the element-based
   // container entirely, and customJs runs standalone (own window.onload, no wrapper).
@@ -392,6 +448,7 @@ async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, pol
 ${clickTagJS}
 ${trackingJS}
 ${hoverEffectJS}
+${videoCueJS}
     animate();${customJsCall}
   }
 

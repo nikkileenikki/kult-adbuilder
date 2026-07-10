@@ -1,13 +1,39 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { Field, TextInput, SelectInput } from '../left/PropertiesSection.jsx'
+import { Field, TextInput, SelectInput, NumInput } from '../left/PropertiesSection.jsx'
 import { useUiStore } from '../../store/uiStore.js'
 import { useAuthStore } from '../../store/authStore.js'
+import { layerLabel } from '../../utils/layerLabel.js'
 import VideoLibraryModal from '../modals/VideoLibraryModal.jsx'
 
 const MAX_FILE_MB = 100
 const SIZE_WARNING_MB = 10
 
-export default function VideoProperties({ el, update, save }) {
+const CUE_EFFECTS = [
+  { label: 'Fade', options: [
+    { value: 'fadeIn', label: 'Fade In' },
+    { value: 'fadeOut', label: 'Fade Out' },
+  ]},
+  { label: 'Slide In', options: [
+    { value: 'slideLeft', label: 'From Left' },
+    { value: 'slideRight', label: 'From Right' },
+    { value: 'slideUp', label: 'From Top' },
+    { value: 'slideDown', label: 'From Bottom' },
+  ]},
+  { label: 'Slide Out', options: [
+    { value: 'slideToLeft', label: 'To Left' },
+    { value: 'slideToRight', label: 'To Right' },
+    { value: 'slideToUp', label: 'To Top' },
+    { value: 'slideToDown', label: 'To Bottom' },
+  ]},
+  { label: 'Scale', options: [
+    { value: 'scaleIn', label: 'Scale In' },
+    { value: 'scaleOut', label: 'Scale Out' },
+  ]},
+]
+
+let nextCueId = Date.now()
+
+export default function VideoProperties({ el, update, save, elements = [] }) {
   const { ftLibrary } = useUiStore()
   const { token } = useAuthStore()
   const fileRef = useRef(null)
@@ -166,6 +192,21 @@ export default function VideoProperties({ el, update, save }) {
     setUploadStatus({ type: 'success', message: `Selected "${video.name}" for this element.` })
   }
 
+  const targetEls = [...elements]
+    .filter((e) => e.id !== el.id)
+    .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
+
+  const addCue = () => {
+    const cue = { id: `cue_${nextCueId++}`, time: 0, targetId: '', type: 'fadeIn', duration: 1 }
+    save({ timeCues: [...(el.timeCues || []), cue] })
+  }
+  const updateCue = (id, patch) => {
+    save({ timeCues: (el.timeCues || []).map((c) => c.id === id ? { ...c, ...patch } : c) })
+  }
+  const removeCue = (id) => {
+    save({ timeCues: (el.timeCues || []).filter((c) => c.id !== id) })
+  }
+
   return (
     <div className="space-y-2 pb-2 border-b border-gray-700">
       {!ftLibrary ? (
@@ -202,6 +243,44 @@ export default function VideoProperties({ el, update, save }) {
           <input type="checkbox" checked={!!el.controls} onChange={(e) => save({ controls: e.target.checked })} className="w-4 h-4" />
           Controls
         </label>
+      </div>
+
+      <div className="pt-2 border-t border-gray-700 space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-gray-300">Time-based Animations</p>
+          <button onClick={addCue} className="text-xs text-purple-400 hover:text-purple-300">+ Add</button>
+        </div>
+        <p className="text-xs text-gray-500">
+          Trigger an animation on another element at a specific point in this video's playback — e.g. fade in Text A at 3s, fade out Shape B at 8s.
+        </p>
+        {(el.timeCues || []).map((cue) => (
+          <div key={cue.id} className="space-y-1.5 bg-gray-800/50 rounded p-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400 shrink-0">At</span>
+              <NumInput value={cue.time} min={0} onChange={(v) => updateCue(cue.id, { time: v })} />
+              <span className="text-xs text-gray-400 shrink-0">sec</span>
+              <button onClick={() => removeCue(cue.id)} className="ml-auto text-gray-500 hover:text-red-400 shrink-0">
+                <i className="fa-solid fa-trash" style={{ fontSize: 12 }} />
+              </button>
+            </div>
+            <SelectInput value={cue.targetId} onChange={(v) => updateCue(cue.id, { targetId: v })}>
+              <option value="">Target element…</option>
+              {targetEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+            </SelectInput>
+            <div className="flex items-center gap-1.5">
+              <SelectInput value={cue.type} onChange={(v) => updateCue(cue.id, { type: v })}>
+                {CUE_EFFECTS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </optgroup>
+                ))}
+              </SelectInput>
+              <span className="text-xs text-gray-400 shrink-0">for</span>
+              <NumInput value={cue.duration} min={0.1} max={10} onChange={(v) => updateCue(cue.id, { duration: v })} />
+              <span className="text-xs text-gray-400 shrink-0">sec</span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {showLibrary && (
