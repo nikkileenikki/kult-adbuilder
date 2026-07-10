@@ -197,8 +197,12 @@ export default function Timeline() {
   useEffect(() => {
     const handler = (e) => {
       if (e.code !== 'Space') return
-      const tag = document.activeElement?.tagName
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
+      const active = document.activeElement
+      // Excludes contentEditable too — the canvas text editor is a contentEditable
+      // <div> (tagName "DIV"), which the tag-name-only check let straight through,
+      // so pressing Space while editing text toggled timeline play/stop and
+      // swallowed the keystroke instead of typing a space.
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(active?.tagName) || active?.isContentEditable) return
       e.preventDefault()
       if (playing) stop(); else play()
     }
