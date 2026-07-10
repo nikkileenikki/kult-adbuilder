@@ -29,17 +29,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at  INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- Flashtalking credentials (one per user)
-CREATE TABLE IF NOT EXISTS flashtalking_credentials (
-  user_id            TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  ft_email           TEXT NOT NULL,
-  ft_password        TEXT NOT NULL,
-  library_id         TEXT NOT NULL DEFAULT '',
-  library_name       TEXT NOT NULL DEFAULT '',
-  library_advertiser TEXT NOT NULL DEFAULT '',
-  updated_at         INTEGER NOT NULL DEFAULT (unixepoch())
-);
-
 -- Admin-created reusable templates (one row per template family)
 CREATE TABLE IF NOT EXISTS templates (
   id          TEXT PRIMARY KEY,
