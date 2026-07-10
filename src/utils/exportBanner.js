@@ -137,7 +137,7 @@ function buildVideoCueJS(elements) {
 
   const lines = []
   videos.forEach((video) => {
-    const cues = video.timeCues.filter((c) => c.targetId && elements.some((e) => e.id === c.targetId))
+    const cues = video.timeCues.filter((c) => c.targetId && resolveTargetElements(c.targetId, elements).length)
     if (!cues.length) return
 
     const v = `document.getElementById('${video.id}')`
@@ -147,30 +147,32 @@ function buildVideoCueJS(elements) {
     lines.push(`    var fired = {};`)
     lines.push(`    v.addEventListener('timeupdate', function() {`)
     cues.forEach((cue) => {
-      const t = `document.getElementById('${cue.targetId}')`
+      const targetEls = resolveTargetElements(cue.targetId, elements)
       const dur = cue.duration || 1
       const ease = 'power1.out'
-      const targetEl = elements.find((e) => e.id === cue.targetId)
-      const op = targetEl?.opacity ?? 1
       const off = 400
-      let tween = ''
-      switch (cue.type) {
-        case 'fadeIn':       tween = `gsap.fromTo(${t},{autoAlpha:0},{autoAlpha:${op},duration:${dur},ease:'${ease}'})`; break
-        case 'fadeOut':      tween = `gsap.to(${t},{autoAlpha:0,duration:${dur},ease:'${ease}'})`; break
-        case 'slideLeft':    tween = `gsap.fromTo(${t},{x:-${off}},{x:0,duration:${dur},ease:'${ease}'})`; break
-        case 'slideRight':   tween = `gsap.fromTo(${t},{x:${off}},{x:0,duration:${dur},ease:'${ease}'})`; break
-        case 'slideUp':      tween = `gsap.fromTo(${t},{y:-${off}},{y:0,duration:${dur},ease:'${ease}'})`; break
-        case 'slideDown':    tween = `gsap.fromTo(${t},{y:${off}},{y:0,duration:${dur},ease:'${ease}'})`; break
-        case 'slideToLeft':  tween = `gsap.to(${t},{x:-${off},duration:${dur},ease:'${ease}'})`; break
-        case 'slideToRight': tween = `gsap.to(${t},{x:${off},duration:${dur},ease:'${ease}'})`; break
-        case 'slideToUp':    tween = `gsap.to(${t},{y:-${off},duration:${dur},ease:'${ease}'})`; break
-        case 'slideToDown':  tween = `gsap.to(${t},{y:${off},duration:${dur},ease:'${ease}'})`; break
-        case 'scaleIn':      tween = `gsap.fromTo(${t},{scale:0},{scale:1,duration:${dur},ease:'${ease}'})`; break
-        case 'scaleOut':     tween = `gsap.to(${t},{scale:0,duration:${dur},ease:'${ease}'})`; break
-        default: return
-      }
+      const tweens = targetEls.map((targetEl) => {
+        const t = `document.getElementById('${targetEl.id}')`
+        const op = targetEl.opacity ?? 1
+        switch (cue.type) {
+          case 'fadeIn':       return `gsap.fromTo(${t},{autoAlpha:0},{autoAlpha:${op},duration:${dur},ease:'${ease}'})`
+          case 'fadeOut':      return `gsap.to(${t},{autoAlpha:0,duration:${dur},ease:'${ease}'})`
+          case 'slideLeft':    return `gsap.fromTo(${t},{x:-${off}},{x:0,duration:${dur},ease:'${ease}'})`
+          case 'slideRight':   return `gsap.fromTo(${t},{x:${off}},{x:0,duration:${dur},ease:'${ease}'})`
+          case 'slideUp':      return `gsap.fromTo(${t},{y:-${off}},{y:0,duration:${dur},ease:'${ease}'})`
+          case 'slideDown':    return `gsap.fromTo(${t},{y:${off}},{y:0,duration:${dur},ease:'${ease}'})`
+          case 'slideToLeft':  return `gsap.to(${t},{x:-${off},duration:${dur},ease:'${ease}'})`
+          case 'slideToRight': return `gsap.to(${t},{x:${off},duration:${dur},ease:'${ease}'})`
+          case 'slideToUp':    return `gsap.to(${t},{y:-${off},duration:${dur},ease:'${ease}'})`
+          case 'slideToDown':  return `gsap.to(${t},{y:${off},duration:${dur},ease:'${ease}'})`
+          case 'scaleIn':      return `gsap.fromTo(${t},{scale:0},{scale:1,duration:${dur},ease:'${ease}'})`
+          case 'scaleOut':     return `gsap.to(${t},{scale:0,duration:${dur},ease:'${ease}'})`
+          default: return null
+        }
+      }).filter(Boolean)
+      if (!tweens.length) return
       lines.push(`      var passed_${cue.id} = v.currentTime >= ${cue.time};`)
-      lines.push(`      if (passed_${cue.id} && !fired['${cue.id}']) { fired['${cue.id}'] = true; ${tween}; }`)
+      lines.push(`      if (passed_${cue.id} && !fired['${cue.id}']) { fired['${cue.id}'] = true; ${tweens.join('; ')}; }`)
       lines.push(`      else if (!passed_${cue.id} && fired['${cue.id}']) { fired['${cue.id}'] = false; }`)
     })
     lines.push(`    });`)
@@ -261,12 +263,26 @@ function buildTrackingJS(elements) {
   return lines.join('\n')
 }
 
+// A target id is either a concrete element id, or "group:<id>" to mean "every element
+// currently in that timeline group" (group membership = element.folderId) — resolved
+// here into concrete elements so callers never need to know which form they got.
+function resolveTargetElements(targetId, elements) {
+  if (!targetId) return []
+  if (targetId.startsWith('group:')) {
+    const groupId = targetId.slice('group:'.length)
+    return elements.filter((e) => e.folderId === groupId)
+  }
+  const el = elements.find((e) => e.id === targetId)
+  return el ? [el] : []
+}
+
 // An invisible layer with Event Type "none" is a pure hover interaction, not a tracking
 // pixel: on mouse in, its configured background color / text color / scale apply to
-// whichever target elements were picked; on mouse out, each reverts to its own known
-// original value — the original background/text color and rotation come from the
-// elements array (baked into the generated JS as literals) rather than read back from
-// the DOM, so revert is exact regardless of which effects are enabled.
+// whichever target elements (or group of elements) were picked; on mouse out, each
+// reverts to its own known original value — the original background/text color and
+// rotation come from the elements array (baked into the generated JS as literals)
+// rather than read back from the DOM, so revert is exact regardless of which effects
+// are enabled, and regardless of how many elements a group target expands to.
 function buildHoverEffectJS(elements) {
   const hoverLayers = elements.filter((el) =>
     el.visible && el.type === 'invisible' && el.trackingType === 'none' &&
@@ -290,31 +306,28 @@ function buildHoverEffectJS(elements) {
     const target = `document.getElementById('${el.id}')`
 
     if (el.hoverBgId && el.hoverBgColor) {
-      const bgEl = elements.find((e) => e.id === el.hoverBgId)
-      if (bgEl) {
+      resolveTargetElements(el.hoverBgId, elements).forEach((bgEl) => {
         const origBg = bgEl.transparent ? 'transparent' : (bgEl.cssBackground || bgEl.fillColor || '#888')
-        const args = `'${el.hoverBgId}', 'background', %ENTERING%, '${el.hoverBgColor}', '${origBg}'`
+        const args = `'${bgEl.id}', 'background', %ENTERING%, '${el.hoverBgColor}', '${origBg}'`
         lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColor(${args.replace('%ENTERING%', 'true')}); });`)
         lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColor(${args.replace('%ENTERING%', 'false')}); });`)
-      }
+      })
     }
     if (el.hoverTextId && el.hoverTextColor) {
-      const txtEl = elements.find((e) => e.id === el.hoverTextId)
-      if (txtEl) {
+      resolveTargetElements(el.hoverTextId, elements).forEach((txtEl) => {
         const origText = txtEl.color || '#000'
-        const args = `'${el.hoverTextId}', 'color', %ENTERING%, '${el.hoverTextColor}', '${origText}'`
+        const args = `'${txtEl.id}', 'color', %ENTERING%, '${el.hoverTextColor}', '${origText}'`
         lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColor(${args.replace('%ENTERING%', 'true')}); });`)
         lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColor(${args.replace('%ENTERING%', 'false')}); });`)
-      }
+      })
     }
     if (el.hoverScaleId && el.hoverScaleFactor) {
-      const scaleEl = elements.find((e) => e.id === el.hoverScaleId)
-      if (scaleEl) {
+      resolveTargetElements(el.hoverScaleId, elements).forEach((scaleEl) => {
         const rotation = scaleEl.rotation || 0
-        const args = `'${el.hoverScaleId}', %ENTERING%, ${el.hoverScaleFactor}, ${rotation}`
+        const args = `'${scaleEl.id}', %ENTERING%, ${el.hoverScaleFactor}, ${rotation}`
         lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverScale(${args.replace('%ENTERING%', 'true')}); });`)
         lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverScale(${args.replace('%ENTERING%', 'false')}); });`)
-      }
+      })
     }
   })
   return lines.join('\n')

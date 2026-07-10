@@ -67,11 +67,22 @@ export const useCanvasStore = create(persist((set, get) => ({
     set((s) => ({ elements: [...s.elements, copy], selectedId: copy.id }))
   },
 
-  reorderElements: (fromIndex, toIndex) => set((s) => {
-    const els = [...s.elements]
-    const [moved] = els.splice(fromIndex, 1)
-    els.splice(toIndex, 0, moved)
-    return { elements: els.map((el, i) => ({ ...el, zIndex: i + 1 })) }
+  // Reorders by element id against the zIndex-sorted (top-of-stack-first) order — the
+  // same order the timeline/layers list actually displays — rather than by raw index
+  // into the underlying elements array. Those two orders silently diverge as soon as
+  // elements are added/grouped out of their original insertion order, which is exactly
+  // why dragging to reorder (especially inside a group) used to produce a result that
+  // didn't match the direction/position of the drag at all.
+  reorderElements: (fromId, toId) => set((s) => {
+    const sorted = [...s.elements].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
+    const fromIdx = sorted.findIndex((e) => e.id === fromId)
+    const toIdx = sorted.findIndex((e) => e.id === toId)
+    if (fromIdx === -1 || toIdx === -1) return {}
+    const [moved] = sorted.splice(fromIdx, 1)
+    sorted.splice(toIdx, 0, moved)
+    const zMap = {}
+    sorted.forEach((el, i) => { zMap[el.id] = sorted.length - i })
+    return { elements: s.elements.map((el) => ({ ...el, zIndex: zMap[el.id] })) }
   }),
 
   toggleVisibility: (id) => set((s) => ({
@@ -81,6 +92,38 @@ export const useCanvasStore = create(persist((set, get) => ({
   toggleLock: (id) => set((s) => ({
     elements: s.elements.map((el) => el.id === id ? { ...el, locked: !el.locked } : el),
   })),
+
+  // Groups (timeline layer folders). Membership lives on each element's own `folderId`
+  // rather than a separate id-map, so it can't drift out of sync with the elements
+  // array and survives element add/duplicate/delete without extra bookkeeping.
+  createGroup: (name) => {
+    const id = uid('grp')
+    set((s) => ({ groups: [...s.groups, { id, name: name || `Group ${s.groups.length + 1}`, collapsed: false }] }))
+    return id
+  },
+
+  deleteGroup: (id) => set((s) => ({
+    groups: s.groups.filter((g) => g.id !== id),
+    elements: s.elements.map((el) => el.folderId === id ? { ...el, folderId: null } : el),
+  })),
+
+  renameGroup: (id, name) => set((s) => ({
+    groups: s.groups.map((g) => g.id === id ? { ...g, name } : g),
+  })),
+
+  toggleGroupCollapsed: (id) => set((s) => ({
+    groups: s.groups.map((g) => g.id === id ? { ...g, collapsed: !g.collapsed } : g),
+  })),
+
+  reorderGroups: (fromId, toId) => set((s) => {
+    const groups = [...s.groups]
+    const fromIdx = groups.findIndex((g) => g.id === fromId)
+    const toIdx = groups.findIndex((g) => g.id === toId)
+    if (fromIdx === -1 || toIdx === -1) return {}
+    const [moved] = groups.splice(fromIdx, 1)
+    groups.splice(toIdx, 0, moved)
+    return { groups }
+  }),
 }), {
   name: 'kult-adbuilder-canvas',
   // IndexedDB instead of localStorage — elements can carry large base64 images

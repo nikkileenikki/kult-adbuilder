@@ -1,8 +1,22 @@
 import React from 'react'
 import { Field, TextInput, SelectInput, NumInput } from '../left/PropertiesSection.jsx'
+import { useCanvasStore } from '../../store/canvasStore.js'
 import { layerLabel } from '../../utils/layerLabel.js'
 
+// A target can be a single element id, or "group:<id>" to apply the effect to every
+// element in that timeline group at once — resolved into concrete elements at export
+// time (see buildHoverEffectJS in exportBanner.js).
+function GroupOptions({ groups }) {
+  if (!groups.length) return null
+  return (
+    <optgroup label="Groups">
+      {groups.map((g) => <option key={g.id} value={`group:${g.id}`}>{g.name}</option>)}
+    </optgroup>
+  )
+}
+
 export default function InvisibleProperties({ el, update, save, elements = [] }) {
+  const { groups } = useCanvasStore()
   const trackingType = el.trackingType || 'standard'
   const isHoverEffect = trackingType === 'none'
   // Sorted by zIndex (top of stack first) to match the layer list's own ordering, so the
@@ -34,6 +48,7 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
               <SelectInput value={el.hoverBgId || ''} onChange={(v) => save({ hoverBgId: v || null })}>
                 <option value="">None</option>
                 {shapeEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+                <GroupOptions groups={groups} />
               </SelectInput>
             </Field>
             {el.hoverBgId && (
@@ -50,6 +65,7 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
               <SelectInput value={el.hoverTextId || ''} onChange={(v) => save({ hoverTextId: v || null })}>
                 <option value="">None</option>
                 {textEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+                <GroupOptions groups={groups} />
               </SelectInput>
             </Field>
             {el.hoverTextId && (
@@ -70,6 +86,7 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
               <SelectInput value={el.hoverScaleId || ''} onChange={(v) => save({ hoverScaleId: v || null })}>
                 <option value="">None</option>
                 {allEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+                <GroupOptions groups={groups} />
               </SelectInput>
             </Field>
             {el.hoverScaleId && (

@@ -8,14 +8,16 @@ import { layerLabel } from '../../utils/layerLabel.js'
 const BASE_PX_PER_SEC = 80
 
 export default function Timeline() {
-  const { elements, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility, reorderElements, updateElement, animDuration: duration, animLoop: loop, setAnimDuration: setDuration, setAnimLoop: setLoop } = useCanvasStore()
+  const {
+    elements, groups, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility,
+    reorderElements, reorderGroups, updateElement, createGroup: createGroupInStore, deleteGroup: deleteGroupInStore,
+    toggleGroupCollapsed, animDuration: duration, animLoop: loop, setAnimDuration: setDuration, setAnimLoop: setLoop,
+  } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { openModal } = useUiStore()
   const [playing, setPlaying] = useState(false)
   const [playhead, setPlayhead] = useState(0)
   const [timeZoom, setTimeZoom] = useState(1)          // 0.5x … 4x
-  const [groups, setGroups] = useState([])              // [{id, name, collapsed}]
-  const [elementGroups, setElementGroups] = useState({}) // {elementId: groupId}
   const [collapsed, setCollapsed] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
@@ -205,61 +207,51 @@ export default function Timeline() {
   }, [playing, play, stop])
 
   // ── Groups ──────────────────────────────────────────────────────────────────
-  const createGroup = () => {
-    const id = `grp_${Date.now()}`
-    const name = `Group ${groups.length + 1}`
-    setGroups((g) => [...g, { id, name, collapsed: false }])
-  }
-
-  const deleteGroup = (id) => {
-    setGroups((g) => g.filter((grp) => grp.id !== id))
-    // Unassign all elements that were in this group
-    setElementGroups((eg) => {
-      const next = { ...eg }
-      Object.keys(next).forEach((k) => { if (next[k] === id) delete next[k] })
-      return next
-    })
-  }
-
-  const toggleGroup = (id) => {
-    setGroups((g) => g.map((grp) => grp.id === id ? { ...grp, collapsed: !grp.collapsed } : grp))
-  }
+  // Persisted in canvasStore (group list + each element's own folderId) rather than
+  // component state, so groups survive a refresh and can be targeted from elsewhere
+  // (e.g. the hover-effect / video time-cue "target group" pickers).
+  const createGroup = () => { saveState(); createGroupInStore() }
+  const deleteGroup = (id) => { saveState(); deleteGroupInStore(id) }
+  const toggleGroup = (id) => toggleGroupCollapsed(id)
 
   // ── Row drag ────────────────────────────────────────────────────────────────
-  // rowDragIdx tracks the sorted[] index of the element being dragged
+  // rowDragIdx holds either an element id, or a group marker ('group:<id>') when
+  // dragging a group header to reorder groups relative to each other.
   const onRowDragStart = (e, elId) => { rowDragIdx.current = elId; e.dataTransfer.effectAllowed = 'move' }
+  const onGroupDragStart = (e, groupId) => { rowDragIdx.current = `group:${groupId}`; e.dataTransfer.effectAllowed = 'move' }
   const onRowDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
 
-  // Drop on another element row → reorder in elements array
+  // Drop an element onto another element row → reorders (via zIndex, matching the
+  // displayed order) and adopts the drop target's group membership, so dragging an
+  // element next to an ungrouped element pulls it out of its group, and dragging it
+  // next to a grouped element joins that group — arranging order and grouping in one
+  // motion instead of needing a separate dedicated "ungroup" drop target.
   const onRowDrop = (e, toElId) => {
     e.preventDefault()
-    const fromElId = rowDragIdx.current
-    if (!fromElId || fromElId === toElId) return
-    // Only reorder, don't reassign group
-    const fromReal = elements.findIndex((el) => el.id === fromElId)
-    const toReal = elements.findIndex((el) => el.id === toElId)
-    if (fromReal === -1 || toReal === -1) return
-    saveState()
-    reorderElements(fromReal, toReal)
+    const from = rowDragIdx.current
     rowDragIdx.current = null
+    if (!from || from === toElId || from.startsWith('group:')) return
+    const toEl = elements.find((el) => el.id === toElId)
+    if (!toEl) return
+    saveState()
+    reorderElements(from, toElId)
+    updateElement(from, { folderId: toEl.folderId ?? null })
   }
 
-  // Drop on a group header → assign element to that group
+  // Drop on a group header → assign the dragged element to that group (append, no
+  // specific position within it), or reorder groups if a group header was dragged.
   const onGroupDrop = (e, groupId) => {
     e.preventDefault()
-    const fromElId = rowDragIdx.current
-    if (!fromElId) return
-    setElementGroups((eg) => ({ ...eg, [fromElId]: groupId }))
+    const from = rowDragIdx.current
     rowDragIdx.current = null
-  }
-
-  // Drop on the "ungrouped" zone → remove from group
-  const onUngroupDrop = (e) => {
-    e.preventDefault()
-    const fromElId = rowDragIdx.current
-    if (!fromElId) return
-    setElementGroups((eg) => { const next = { ...eg }; delete next[fromElId]; return next })
-    rowDragIdx.current = null
+    if (!from) return
+    saveState()
+    if (from.startsWith('group:')) {
+      const fromGroupId = from.slice('group:'.length)
+      if (fromGroupId !== groupId) reorderGroups(fromGroupId, groupId)
+    } else {
+      updateElement(from, { folderId: groupId })
+    }
   }
 
   const onDelete = (id) => { saveState(); deleteElement(id) }
@@ -282,14 +274,25 @@ export default function Timeline() {
   groups.forEach((grp) => {
     rows.push({ type: 'group', grp })
     if (!grp.collapsed) {
-      sorted.filter((el) => elementGroups[el.id] === grp.id).forEach((el, idx) => {
+      sorted.filter((el) => el.folderId === grp.id).forEach((el) => {
         rows.push({ type: 'element', el, idx: sorted.indexOf(el), inGroup: true })
       })
     }
   })
-  sorted.filter((el) => !elementGroups[el.id]).forEach((el, idx) => {
+  const ungrouped = sorted.filter((el) => !el.folderId)
+  if (groups.length > 0) rows.push({ type: 'ungrouped-header' })
+  ungrouped.forEach((el) => {
     rows.push({ type: 'element', el, idx: sorted.indexOf(el), inGroup: false })
   })
+
+  const onUngroupDrop = (e) => {
+    e.preventDefault()
+    const from = rowDragIdx.current
+    rowDragIdx.current = null
+    if (!from || from.startsWith('group:')) return
+    saveState()
+    updateElement(from, { folderId: null })
+  }
 
   return (
     <div className="flex-shrink-0 bg-gray-800 border-t border-gray-700">
@@ -407,10 +410,28 @@ export default function Timeline() {
             </div>
           )}
           {rows.map((row, rowIdx) => {
+            if (row.type === 'ungrouped-header') {
+              return (
+                <div key="ungrouped-header"
+                  onDragOver={onRowDragOver}
+                  onDrop={onUngroupDrop}
+                  className="flex border-b border-gray-700 bg-gray-900/60"
+                  style={{ minHeight: 22, minWidth: totalWidth + 250, userSelect: 'none' }}>
+                  <div className="flex items-center px-2 border-r border-gray-700 shrink-0 sticky left-0 z-10 bg-gray-900/60"
+                    style={{ width: 250 }}>
+                    <span className="text-xs text-gray-500 font-semibold tracking-wide">UNGROUPED</span>
+                  </div>
+                  <div className="flex-1" style={{ minWidth: totalWidth }} />
+                </div>
+              )
+            }
+
             if (row.type === 'group') {
               const { grp } = row
               return (
                 <div key={grp.id}
+                  draggable
+                  onDragStart={(e) => onGroupDragStart(e, grp.id)}
                   onDragOver={onRowDragOver}
                   onDrop={(e) => onGroupDrop(e, grp.id)}
                   className="flex border-b border-gray-700 bg-yellow-900/20"
