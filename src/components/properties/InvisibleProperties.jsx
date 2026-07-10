@@ -1,15 +1,6 @@
 import React from 'react'
 import { Field, TextInput, SelectInput, NumInput } from '../left/PropertiesSection.jsx'
-
-// Matches Timeline.jsx's layerLabel so an element reads the same name here as it does
-// in the layer list (including any name the user set there via double-click rename) —
-// a bare "Rectangle (a1b2c)" id suffix wasn't enough to tell which shape was which.
-function layerLabel(el) {
-  if (el.name) return el.name
-  if (el.type === 'text') return el.text?.slice(0, 20) || 'Text'
-  if (el.type === 'shape') return el.shapeType === 'circle' ? 'Circle' : 'Rectangle'
-  return el.type.charAt(0).toUpperCase() + el.type.slice(1)
-}
+import { layerLabel } from '../../utils/layerLabel.js'
 
 export default function InvisibleProperties({ el, update, save, elements = [] }) {
   const trackingType = el.trackingType || 'standard'
