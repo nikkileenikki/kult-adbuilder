@@ -240,6 +240,64 @@ export const NORMALIZED_LAYOUTS = [
       { role: 'cta', type: 'button', x: 0.30, y: 0.76, width: 0.40, height: 0.14, fontSize: 0.055, align: 'center' },
     ],
   },
+  {
+    id: 'video-full-bg',
+    label: 'Full-bleed video, caption overlay',
+    palette: 'dark',
+    video: { x: 0.0, y: 0.0, width: 1.0, height: 1.0 },
+    logo: { x: 0.05, y: 0.03, width: 0.20, height: 0.07 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.08, y: 0.58, width: 0.84, height: 0.16, fontSize: 0.085, textAlign: 'center', bold: true },
+      { role: 'subhead', type: 'text', x: 0.08, y: 0.76, width: 0.84, height: 0.10, fontSize: 0.04, textAlign: 'center' },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.88, width: 0.40, height: 0.10, fontSize: 0.045, align: 'center' },
+    ],
+  },
+  {
+    id: 'video-left-text-right',
+    label: 'Video left half, copy right half',
+    palette: 'light',
+    video: { x: 0.0, y: 0.0, width: 0.55, height: 1.0 },
+    logo: { x: 0.60, y: 0.03, width: 0.34, height: 0.08 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.60, y: 0.16, width: 0.34, height: 0.30, fontSize: 0.075, textAlign: 'left', bold: true },
+      { role: 'subhead', type: 'text', x: 0.60, y: 0.48, width: 0.34, height: 0.18, fontSize: 0.04, textAlign: 'left' },
+      { role: 'cta', type: 'button', x: 0.60, y: 0.70, width: 0.34, height: 0.14, fontSize: 0.05, align: 'left' },
+    ],
+  },
+  {
+    id: 'video-top-text-bottom',
+    label: 'Video top, headline + CTA bottom strip',
+    palette: 'brand',
+    video: { x: 0.0, y: 0.0, width: 1.0, height: 0.62 },
+    logo: { x: 0.38, y: 0.64, width: 0.24, height: 0.07 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.08, y: 0.72, width: 0.84, height: 0.16, fontSize: 0.07, textAlign: 'center', bold: true },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.88, width: 0.40, height: 0.10, fontSize: 0.045, align: 'center' },
+    ],
+  },
+  {
+    id: 'video-frame-center',
+    label: 'Centered video frame, headline + CTA',
+    palette: 'dark',
+    video: { x: 0.20, y: 0.30, width: 0.60, height: 0.42 },
+    logo: { x: 0.05, y: 0.03, width: 0.20, height: 0.07 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.08, y: 0.12, width: 0.84, height: 0.16, fontSize: 0.075, textAlign: 'center', bold: true },
+      { role: 'cta', type: 'button', x: 0.30, y: 0.78, width: 0.40, height: 0.14, fontSize: 0.055, align: 'center' },
+    ],
+  },
+  {
+    id: 'video-side-strip',
+    label: 'Video strip right, copy left',
+    palette: 'dark',
+    video: { x: 0.66, y: 0.0, width: 0.34, height: 1.0 },
+    logo: { x: 0.05, y: 0.03, width: 0.20, height: 0.07 },
+    roles: [
+      { role: 'headline', type: 'text', x: 0.06, y: 0.20, width: 0.56, height: 0.34, fontSize: 0.09, textAlign: 'left', bold: true },
+      { role: 'subhead', type: 'text', x: 0.06, y: 0.56, width: 0.56, height: 0.18, fontSize: 0.042, textAlign: 'left' },
+      { role: 'cta', type: 'button', x: 0.06, y: 0.80, width: 0.40, height: 0.14, fontSize: 0.05, align: 'left' },
+    ],
+  },
 ]
 
 export const BACKGROUND_STYLES = [
@@ -427,6 +485,21 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
   })
 
   const bgLum = effectiveBackgroundLuminance(backgroundStyle, palette)
+
+  // A reserved video zone renders as a real (empty) video element rather than a
+  // placeholder shape, so the user can immediately assign a Flashtalking library
+  // video to it — same idea as the logo zone below, but pushed first so it sits
+  // *under* the logo/text for full-bleed layouts where video and logo overlap.
+  if (layout.video) {
+    const vx = Math.round(layout.video.x * canvasWidth)
+    const vy = Math.round(layout.video.y * canvasHeight)
+    const vw = Math.round(layout.video.width * canvasWidth)
+    const vh = Math.round(layout.video.height * canvasHeight)
+    elements.push({
+      type: 'video', x: vx, y: vy, width: vw, height: vh,
+      videoUrl: null, videoName: 'Your Video', muted: true, playTrigger: 'autoplay', zIndex: z++,
+    })
+  }
 
   if (layout.logo) {
     const lx = Math.round(layout.logo.x * canvasWidth)

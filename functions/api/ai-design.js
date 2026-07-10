@@ -27,6 +27,11 @@ const LAYOUT_CATALOG = [
   { id: 'bottom-corner-cta', label: 'Headline top-left, CTA bottom-right corner', roles: ['headline', 'subhead', 'cta'] },
   { id: 'logo-forward', label: 'Large logo area, compact copy below', roles: ['headline', 'cta'] },
   { id: 'two-line-features', label: 'Headline with two feature lines', roles: ['headline', 'body1', 'body2', 'cta'] },
+  { id: 'video-full-bg', label: 'Full-bleed video, caption overlay', roles: ['headline', 'subhead', 'cta'] },
+  { id: 'video-left-text-right', label: 'Video left half, copy right half', roles: ['headline', 'subhead', 'cta'] },
+  { id: 'video-top-text-bottom', label: 'Video top, headline + CTA bottom strip', roles: ['headline', 'cta'] },
+  { id: 'video-frame-center', label: 'Centered video frame, headline + CTA', roles: ['headline', 'cta'] },
+  { id: 'video-side-strip', label: 'Video strip right, copy left', roles: ['headline', 'subhead', 'cta'] },
 ]
 
 export async function onRequestPost({ request, env }) {
