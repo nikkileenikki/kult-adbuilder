@@ -22,6 +22,11 @@ const LAYOUT_CATALOG = [
   { id: 'quote-callout', label: 'Quote-style body with attribution', roles: ['body', 'headline', 'cta'] },
   { id: 'row-banner', label: 'Single row: headline, subhead, CTA', roles: ['headline', 'subhead', 'cta'] },
   { id: 'minimal-teaser', label: 'Minimal teaser, generous whitespace', roles: ['headline', 'cta'] },
+  { id: 'double-cta-choice', label: 'Headline with two CTA choices', roles: ['headline', 'cta', 'secondaryCta'] },
+  { id: 'stat-callout', label: 'Big stat/number callout', roles: ['stat', 'subhead', 'cta'] },
+  { id: 'bottom-corner-cta', label: 'Headline top-left, CTA bottom-right corner', roles: ['headline', 'subhead', 'cta'] },
+  { id: 'logo-forward', label: 'Large logo area, compact copy below', roles: ['headline', 'cta'] },
+  { id: 'two-line-features', label: 'Headline with two feature lines', roles: ['headline', 'body1', 'body2', 'cta'] },
 ]
 
 export async function onRequestPost({ request, env }) {
@@ -69,6 +74,9 @@ Rules:
 - cta: max ~20 characters, an action phrase (e.g. "Shop Now", "Get Started")
 - badge: max ~14 characters, a short label/callout (e.g. "New", "Limited Time", "50% Off")
 - price: max ~12 characters, a price or discount (e.g. "$49", "30% Off", "From $9/mo")
+- secondaryCta: max ~20 characters, an alternate action distinct from "cta" (e.g. cta "Buy Now", secondaryCta "Learn More")
+- stat: max ~10 characters, a standout number or statistic (e.g. "50% Off", "4.9★", "10,000+")
+- body1/body2: max ~50 characters each, short standalone feature/benefit lines (e.g. "Free shipping", "24/7 support") — not a continuation of one sentence across both
 - In "quote-callout", the "body" role is a short customer quote (include the quotation marks) and the "headline" role is the attribution (e.g. "— Jane D., Verified Buyer"), not a headline
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}}
 - "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}${followUpContext}`
