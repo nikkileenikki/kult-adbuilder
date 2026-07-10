@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Field, TextInput, SelectInput, NumInput } from '../left/PropertiesSection.jsx'
 import { useUiStore } from '../../store/uiStore.js'
 import { useAuthStore } from '../../store/authStore.js'
+import { useCanvasStore } from '../../store/canvasStore.js'
 import { layerLabel } from '../../utils/layerLabel.js'
 import VideoLibraryModal from '../modals/VideoLibraryModal.jsx'
 
@@ -36,6 +37,7 @@ let nextCueId = Date.now()
 export default function VideoProperties({ el, update, save, elements = [] }) {
   const { ftLibrary } = useUiStore()
   const { token } = useAuthStore()
+  const { groups } = useCanvasStore()
   const fileRef = useRef(null)
 
   const [uploadStatus, setUploadStatus] = useState(null) // { type, message }
@@ -266,6 +268,11 @@ export default function VideoProperties({ el, update, save, elements = [] }) {
             <SelectInput value={cue.targetId} onChange={(v) => updateCue(cue.id, { targetId: v })}>
               <option value="">Target element…</option>
               {targetEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+              {groups.length > 0 && (
+                <optgroup label="Groups">
+                  {groups.map((g) => <option key={g.id} value={`group:${g.id}`}>{g.name}</option>)}
+                </optgroup>
+              )}
             </SelectInput>
             <div className="flex items-center gap-1.5">
               <SelectInput value={cue.type} onChange={(v) => updateCue(cue.id, { type: v })}>
