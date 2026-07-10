@@ -206,6 +206,31 @@ function buildTrackingJS(elements) {
   return lines.join('\n')
 }
 
+// An invisible layer with Event Type "none" and both a background + text target set
+// is a pure hover interaction, not a tracking pixel: on mouse in, the two targets'
+// background/text colors swap; on mouse out, swapping the same pair again restores
+// the originals — no separate "before" state needs to be stored.
+function buildHoverEffectJS(elements) {
+  const hoverLayers = elements.filter((el) =>
+    el.visible && el.type === 'invisible' && el.trackingType === 'none' && el.hoverBgId && el.hoverTextId
+  )
+  if (!hoverLayers.length) return ''
+
+  const lines = [`  function ktSwapColors(bgId, textId) {
+    var bg = document.getElementById(bgId), txt = document.getElementById(textId);
+    if (!bg || !txt) return;
+    var bgColor = bg.style.background, txtColor = txt.style.color;
+    bg.style.background = txtColor;
+    txt.style.color = bgColor;
+  }`]
+  hoverLayers.forEach((el) => {
+    const target = `document.getElementById('${el.id}')`
+    lines.push(`  ${target}.addEventListener('mouseenter', function() { ktSwapColors('${el.hoverBgId}', '${el.hoverTextId}'); });`)
+    lines.push(`  ${target}.addEventListener('mouseleave', function() { ktSwapColors('${el.hoverBgId}', '${el.hoverTextId}'); });`)
+  })
+  return lines.join('\n')
+}
+
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -250,6 +275,7 @@ async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, pol
   const animJS = buildAnimationJS(sorted)
   const clickTagJS = buildClickTagJS(sorted)
   const trackingJS = buildTrackingJS(sorted)
+  const hoverEffectJS = buildHoverEffectJS(sorted)
 
   // customHtml present -> "advanced mode": bespoke markup replaces the element-based
   // container entirely, and customJs runs standalone (own window.onload, no wrapper).
@@ -331,6 +357,7 @@ async function _buildHTML({ elements, canvasWidth, canvasHeight, bannerName, pol
   function addEvent() {
 ${clickTagJS}
 ${trackingJS}
+${hoverEffectJS}
     animate();${customJsCall}
   }
 

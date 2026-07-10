@@ -105,7 +105,7 @@ export default function PropertiesSection() {
         {el.type === 'image' && <ImageProperties el={el} update={update} save={save} />}
         {el.type === 'video' && <VideoProperties el={el} update={update} save={save} />}
         {el.type === 'clickthrough' && <ClickthroughProperties el={el} update={update} save={save} />}
-        {el.type === 'invisible' && <InvisibleProperties el={el} update={update} save={save} />}
+        {el.type === 'invisible' && <InvisibleProperties el={el} update={update} save={save} elements={elements} />}
       </div>
 
       {isLocked && (
