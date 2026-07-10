@@ -7,12 +7,14 @@ import { useAiChatStore } from '../../store/aiChatStore.js'
 import { buildElementsFromLayout, BACKGROUND_STYLES, findLayout } from '../../utils/aiLayouts.js'
 
 // "Design with AI" as a chat, pinned to the bottom-right of the canvas viewport (see
-// Canvas.jsx). Conversation state lives in aiChatStore (a plain, non-persisted zustand
-// store) rather than component state, so it survives this panel's host component
-// unmounting (e.g. navigating to Settings and back) — it's still cleared on an actual
-// page refresh, matching what was asked: kept for the session, lost on reload. It's
-// sent back to /api/ai-design on every turn so follow-ups ("make the headline
-// shorter") refine the previous result instead of generating an unrelated new one.
+// Canvas.jsx). Copy/layout only — Claude picks a pre-built layout and writes the copy,
+// no image generation is involved anywhere in this flow. Conversation state lives in
+// aiChatStore (a plain, non-persisted zustand store) rather than component state, so
+// it survives this panel's host component unmounting (e.g. navigating to Settings and
+// back) — it's still cleared on an actual page refresh, matching what was asked: kept
+// for the session, lost on reload. It's sent back to /api/ai-design on every turn so
+// follow-ups ("make the headline shorter") refine the previous result instead of
+// generating an unrelated new one.
 export default function AiChatPanel() {
   const { token } = useAuthStore()
   const { elements, canvasWidth, canvasHeight } = useCanvasStore()
@@ -22,7 +24,6 @@ export default function AiChatPanel() {
 
   const [input, setInput] = useState('')
   const [backgroundStyle, setBackgroundStyle] = useState('solid')
-  const [backgroundPrompt, setBackgroundPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const scrollRef = useRef(null)
 
@@ -33,10 +34,6 @@ export default function AiChatPanel() {
   const handleSend = async () => {
     const brief = input.trim()
     if (!brief) return
-    if (backgroundStyle === 'other' && !backgroundPrompt.trim()) {
-      addMessage({ role: 'error', text: 'Describe the background image you want first.' })
-      return
-    }
 
     addMessage({ role: 'user', text: brief })
     setInput('')
@@ -51,19 +48,7 @@ export default function AiChatPanel() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'AI design failed')
 
-      let backgroundImage = null
-      if (backgroundStyle === 'other') {
-        const imgRes = await fetch('/api/ai-image', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: backgroundPrompt, width: canvasWidth, height: canvasHeight, brandId: activeBrandId || null }),
-        })
-        const imgData = await imgRes.json()
-        if (!imgRes.ok) throw new Error(imgData.error || 'Background image generation failed')
-        backgroundImage = imgData.image
-      }
-
-      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette, backgroundImage)
+      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette)
       if (!newElements.length) throw new Error('AI picked an unknown layout')
 
       saveState()
@@ -129,7 +114,8 @@ export default function AiChatPanel() {
           </div>
 
           <div className="border-t border-gray-700 p-2 space-y-1.5 shrink-0">
-            <div className="flex items-center gap-1.5">
+            <label className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Background</span>
               <select
                 value={backgroundStyle}
                 onChange={(e) => setBackgroundStyle(e.target.value)}
@@ -137,16 +123,7 @@ export default function AiChatPanel() {
               >
                 {BACKGROUND_STYLES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
-              {backgroundStyle === 'other' && (
-                <input
-                  type="text"
-                  value={backgroundPrompt}
-                  onChange={(e) => setBackgroundPrompt(e.target.value)}
-                  placeholder="Background image prompt…"
-                  className="flex-1 min-w-0 bg-gray-800 text-gray-100 rounded px-2 py-1 text-xs border border-gray-700 focus:border-purple-500 focus:outline-none"
-                />
-              )}
-            </div>
+            </label>
             <div className="flex items-end gap-1.5">
               <textarea
                 value={input}
@@ -158,8 +135,7 @@ export default function AiChatPanel() {
               />
               <button
                 onClick={handleSend}
-                disabled={loading || !input.trim() || (backgroundStyle === 'other' && !backgroundPrompt.trim())}
-                title={backgroundStyle === 'other' && !backgroundPrompt.trim() ? 'Describe the background image first' : undefined}
+                disabled={loading || !input.trim()}
                 className="shrink-0 w-8 h-8 flex items-center justify-center bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded"
               >
                 <i className="fa-solid fa-paper-plane" style={{ fontSize: 12 }} />
