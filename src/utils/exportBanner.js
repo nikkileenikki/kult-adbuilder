@@ -207,26 +207,36 @@ function buildTrackingJS(elements) {
 }
 
 // An invisible layer with Event Type "none" and both a background + text target set
-// is a pure hover interaction, not a tracking pixel: on mouse in, the two targets'
-// background/text colors swap; on mouse out, swapping the same pair again restores
-// the originals — no separate "before" state needs to be stored.
+// is a pure hover interaction, not a tracking pixel: on mouse in, the picked color(s)
+// swap between the two targets; on mouse out, they revert. The original colors are
+// each target's own known color from the elements array (baked into the generated JS
+// as literals) rather than read back from the DOM at hover time — re-applying a "swap"
+// twice only round-trips correctly when *both* properties toggle together, which broke
+// as soon as "swap fill color" and "swap text color" became independent checkboxes.
 function buildHoverEffectJS(elements) {
   const hoverLayers = elements.filter((el) =>
     el.visible && el.type === 'invisible' && el.trackingType === 'none' && el.hoverBgId && el.hoverTextId
   )
   if (!hoverLayers.length) return ''
 
-  const lines = [`  function ktSwapColors(bgId, textId) {
+  const lines = [`  function ktHoverColors(bgId, textId, entering, swapFill, swapText, origBg, origText) {
     var bg = document.getElementById(bgId), txt = document.getElementById(textId);
     if (!bg || !txt) return;
-    var bgColor = bg.style.background, txtColor = txt.style.color;
-    bg.style.background = txtColor;
-    txt.style.color = bgColor;
+    if (swapFill) bg.style.background = entering ? origText : origBg;
+    if (swapText) txt.style.color = entering ? origBg : origText;
   }`]
   hoverLayers.forEach((el) => {
+    const bgEl = elements.find((e) => e.id === el.hoverBgId)
+    const txtEl = elements.find((e) => e.id === el.hoverTextId)
+    if (!bgEl || !txtEl) return
+    const origBg = bgEl.transparent ? 'transparent' : (bgEl.cssBackground || bgEl.fillColor || '#888')
+    const origText = txtEl.color || '#000'
     const target = `document.getElementById('${el.id}')`
-    lines.push(`  ${target}.addEventListener('mouseenter', function() { ktSwapColors('${el.hoverBgId}', '${el.hoverTextId}'); });`)
-    lines.push(`  ${target}.addEventListener('mouseleave', function() { ktSwapColors('${el.hoverBgId}', '${el.hoverTextId}'); });`)
+    const swapFill = el.swapFillColor !== false
+    const swapText = el.swapTextColor !== false
+    const args = `'${el.hoverBgId}', '${el.hoverTextId}', %ENTERING%, ${swapFill}, ${swapText}, '${origBg}', '${origText}'`
+    lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColors(${args.replace('%ENTERING%', 'true')}); });`)
+    lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColors(${args.replace('%ENTERING%', 'false')}); });`)
   })
   return lines.join('\n')
 }

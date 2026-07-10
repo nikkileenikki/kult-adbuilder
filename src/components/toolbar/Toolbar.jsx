@@ -41,6 +41,22 @@ export default function Toolbar() {
   useEffect(() => {
     localStorage.setItem('kult-adbuilder-politeLoad', String(politeLoad))
   }, [politeLoad])
+
+  // canvasWidth/canvasHeight are persisted (IndexedDB) and hydrate asynchronously after
+  // mount, so sizeValue's '300x250' initial default was stale until the user touched the
+  // dropdown themselves — e.g. a 970x250 session showed "300x250" in the selector after a
+  // refresh even though the canvas itself was the right size. Keep the dropdown in sync
+  // whenever the actual canvas size changes, from hydration or anywhere else.
+  useEffect(() => {
+    const preset = PRESET_SIZES.find((p) => p.w === canvasWidth && p.h === canvasHeight)
+    if (preset) {
+      setSizeValue(preset.value)
+    } else {
+      setSizeValue('custom')
+      setCustomW(canvasWidth)
+      setCustomH(canvasHeight)
+    }
+  }, [canvasWidth, canvasHeight])
   const [showPublish, setShowPublish] = useState(false)
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [showVideoAssets, setShowVideoAssets] = useState(false)
