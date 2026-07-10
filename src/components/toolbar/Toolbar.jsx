@@ -20,7 +20,7 @@ const PRESET_SIZES = [
 ]
 
 export default function Toolbar() {
-  const { elements, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
+  const { elements, groups, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
   const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom, ftLibrary, activeBrandId, setActiveBrandId, brandListVersion } = useUiStore()
   const { token } = useAuthStore()
@@ -127,12 +127,12 @@ export default function Toolbar() {
 
   const handleExportZip = async () => {
     setMenuOpen(false)
-    await exportBannerZip({ elements, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
+    await exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
   }
 
   const handleSave = () => {
     setMenuOpen(false)
-    saveBannerJSON({ elements, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, activeTemplate })
+    saveBannerJSON({ elements, groups, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, activeTemplate })
   }
 
   const handleLoad = () => {
@@ -159,7 +159,7 @@ export default function Toolbar() {
       if (data.animDuration) setAnimDuration(data.animDuration)
       if (data.animLoop) setAnimLoop(data.animLoop)
       if (data.elements) useCanvasStore.setState({ elements: data.elements, selectedId: null })
-      useCanvasStore.setState({ activeTemplate: data.template || null })
+      useCanvasStore.setState({ groups: data.groups || [], activeTemplate: data.template || null })
     })
     e.target.value = ''
   }
