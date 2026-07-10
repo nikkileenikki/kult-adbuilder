@@ -558,13 +558,40 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
     }
   })
 
-  // Full-canvas click layer on top, so the whole banner is clickable regardless of
-  // which visual element the pointer lands on.
-  elements.push({
-    type: 'clickthrough',
-    x: 0, y: 0, width: canvasWidth, height: canvasHeight,
-    clickIndex: 1, zIndex: z++,
-  })
+  // A full-canvas click layer sits on top so the whole banner is clickable regardless
+  // of which visual element the pointer lands on — but a video element renders its own
+  // native control bar (play/pause/seek/volume) in its bottom ~40px, and a click layer
+  // stacked above it would swallow every click those controls need. When the layout has
+  // a video zone, tile the click layer around a 40px-tall gap spanning that video's own
+  // bottom edge instead of a single full-canvas rect, so the controls stay usable.
+  const VIDEO_CONTROL_GAP = 40
+  if (layout.video) {
+    const vx = Math.round(layout.video.x * canvasWidth)
+    const vy = Math.round(layout.video.y * canvasHeight)
+    const vw = Math.round(layout.video.width * canvasWidth)
+    const vh = Math.round(layout.video.height * canvasHeight)
+    const bandTop = Math.max(0, vy + vh - VIDEO_CONTROL_GAP)
+    const bandBottom = vy + vh
+
+    if (bandTop > 0) {
+      elements.push({ type: 'clickthrough', x: 0, y: 0, width: canvasWidth, height: bandTop, clickIndex: 1, zIndex: z++ })
+    }
+    if (vx > 0) {
+      elements.push({ type: 'clickthrough', x: 0, y: bandTop, width: vx, height: bandBottom - bandTop, clickIndex: 1, zIndex: z++ })
+    }
+    if (vx + vw < canvasWidth) {
+      elements.push({ type: 'clickthrough', x: vx + vw, y: bandTop, width: canvasWidth - (vx + vw), height: bandBottom - bandTop, clickIndex: 1, zIndex: z++ })
+    }
+    if (bandBottom < canvasHeight) {
+      elements.push({ type: 'clickthrough', x: 0, y: bandBottom, width: canvasWidth, height: canvasHeight - bandBottom, clickIndex: 1, zIndex: z++ })
+    }
+  } else {
+    elements.push({
+      type: 'clickthrough',
+      x: 0, y: 0, width: canvasWidth, height: canvasHeight,
+      clickIndex: 1, zIndex: z++,
+    })
+  }
 
   return elements
 }
