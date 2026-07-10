@@ -16,6 +16,8 @@ export default function Timeline() {
   const [groups, setGroups] = useState([])              // [{id, name, collapsed}]
   const [elementGroups, setElementGroups] = useState({}) // {elementId: groupId}
   const [collapsed, setCollapsed] = useState(false)
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
   const tlRef = useRef(null)
   const rafRef = useRef(null)
   const scrubTlRef = useRef(null)
@@ -262,6 +264,16 @@ export default function Timeline() {
   const onDelete = (id) => { saveState(); deleteElement(id) }
   const onDuplicate = (id) => { saveState(); duplicateElement(id) }
 
+  const startRename = (el) => { setRenamingId(el.id); setRenameValue(el.name || layerLabel(el)) }
+  const commitRename = () => {
+    if (renamingId) {
+      const trimmed = renameValue.trim()
+      saveState()
+      updateElement(renamingId, { name: trimmed || null })
+    }
+    setRenamingId(null)
+  }
+
   const playheadLeft = playhead * PX_PER_SEC
 
   // Build rows: groups (with their children) then ungrouped elements
@@ -443,7 +455,28 @@ export default function Timeline() {
                   style={{ width: 250, paddingLeft: inGroup ? 20 : 4, minHeight: trackH }}
                 >
                   <i className="fa-solid fa-grip-vertical text-gray-500 cursor-grab shrink-0" style={{ fontSize: 12 }} />
-                  <span className="flex-1 truncate text-gray-200 text-xs">{layerLabel(el)}</span>
+                  {renamingId === el.id ? (
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitRename()
+                        else if (e.key === 'Escape') setRenamingId(null)
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 min-w-0 bg-gray-900 text-gray-100 text-xs rounded px-1 py-0.5 border border-blue-500 focus:outline-none"
+                    />
+                  ) : (
+                    <span
+                      className="flex-1 truncate text-gray-200 text-xs"
+                      onDoubleClick={(e) => { e.stopPropagation(); startRename(el) }}
+                      title="Double-click to rename"
+                    >
+                      {layerLabel(el)}
+                    </span>
+                  )}
                   <div className="flex items-center gap-0.5 shrink-0">
                     <TrackBtn title={el.visible ? 'Hide' : 'Show'} onClick={(e) => { e.stopPropagation(); toggleVisibility(el.id) }}>
                       <i className={`fa-solid ${el.visible ? 'fa-eye' : 'fa-eye-slash'}`} style={{ fontSize: 13 }} />
@@ -621,9 +654,11 @@ function TrackBtn({ title, onClick, children, danger }) {
 }
 
 function layerLabel(el) {
+  if (el.name) return el.name
   if (el.type === 'text') return el.text?.slice(0, 20) || 'Text'
   if (el.type === 'image') return el.filename || 'Image'
   if (el.type === 'video') return el.videoName || 'Video'
   if (el.type === 'clickthrough') return `Clickthrough ${el.clickIndex || 1}`
+  if (el.type === 'shape') return el.shapeType === 'circle' ? 'Circle' : 'Rectangle'
   return el.type.charAt(0).toUpperCase() + el.type.slice(1)
 }
