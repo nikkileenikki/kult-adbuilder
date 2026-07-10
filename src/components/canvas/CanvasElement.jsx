@@ -154,6 +154,7 @@ function ElementContent({ element, editingText, textRef, onTextBlur }) {
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
             overflow: 'hidden',
+            textWrap: 'balance',
             userSelect: editingText ? 'text' : 'none',
             cursor: editingText ? 'text' : 'move',
             textShadow,
