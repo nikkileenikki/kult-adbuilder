@@ -1,5 +1,5 @@
 import React from 'react'
-import { Field, TextInput, SelectInput } from '../left/PropertiesSection.jsx'
+import { Field, TextInput, SelectInput, NumInput } from '../left/PropertiesSection.jsx'
 
 // Matches Timeline.jsx's layerLabel so an element reads the same name here as it does
 // in the layer list (including any name the user set there via double-click rename) —
@@ -19,6 +19,7 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
   const byLayerOrder = [...elements].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
   const shapeEls = byLayerOrder.filter((e) => e.type === 'shape' && e.id !== el.id)
   const textEls = byLayerOrder.filter((e) => e.type === 'text' && e.id !== el.id)
+  const allEls = byLayerOrder.filter((e) => e.id !== el.id)
 
   return (
     <div className="space-y-2 pb-2 border-b border-gray-700">
@@ -32,30 +33,63 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
 
       {isHoverEffect ? (
         <>
-          <Field label="Background element">
-            <SelectInput value={el.hoverBgId || ''} onChange={(v) => save({ hoverBgId: v || null })}>
-              <option value="">None</option>
-              {shapeEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
-            </SelectInput>
-          </Field>
-          <Field label="Text element">
-            <SelectInput value={el.hoverTextId || ''} onChange={(v) => save({ hoverTextId: v || null })}>
-              <option value="">None</option>
-              {textEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
-            </SelectInput>
-          </Field>
-          <div className="space-y-1">
-            <label className="flex items-center gap-1.5 text-xs text-gray-300">
-              <input type="checkbox" checked={el.swapFillColor !== false} onChange={(e) => save({ swapFillColor: e.target.checked })} />
-              Swap fill color
-            </label>
-            <label className="flex items-center gap-1.5 text-xs text-gray-300">
-              <input type="checkbox" checked={el.swapTextColor !== false} onChange={(e) => save({ swapTextColor: e.target.checked })} />
-              Swap text color
-            </label>
+          <p className="text-xs text-gray-500 -mt-1">
+            Position this invisible layer over the element(s) it targets (e.g. a CTA button). Rename layers in the layer list (double-click the name) to tell them apart below.
+          </p>
+
+          <div className="space-y-1.5 pt-1 border-t border-gray-700">
+            <p className="text-xs font-semibold text-gray-300">Hover color</p>
+            <Field label="Background element">
+              <SelectInput value={el.hoverBgId || ''} onChange={(v) => save({ hoverBgId: v || null })}>
+                <option value="">None</option>
+                {shapeEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+              </SelectInput>
+            </Field>
+            {el.hoverBgId && (
+              <Field label="Background color on hover">
+                <input
+                  type="color"
+                  value={el.hoverBgColor || '#ffffff'}
+                  onChange={(e) => save({ hoverBgColor: e.target.value })}
+                  className="w-full h-8 bg-gray-800 rounded border border-gray-700 cursor-pointer"
+                />
+              </Field>
+            )}
+            <Field label="Text element">
+              <SelectInput value={el.hoverTextId || ''} onChange={(v) => save({ hoverTextId: v || null })}>
+                <option value="">None</option>
+                {textEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+              </SelectInput>
+            </Field>
+            {el.hoverTextId && (
+              <Field label="Text color on hover">
+                <input
+                  type="color"
+                  value={el.hoverTextColor || '#000000'}
+                  onChange={(e) => save({ hoverTextColor: e.target.value })}
+                  className="w-full h-8 bg-gray-800 rounded border border-gray-700 cursor-pointer"
+                />
+              </Field>
+            )}
           </div>
+
+          <div className="space-y-1.5 pt-1 border-t border-gray-700">
+            <p className="text-xs font-semibold text-gray-300">Hover scale</p>
+            <Field label="Element to scale">
+              <SelectInput value={el.hoverScaleId || ''} onChange={(v) => save({ hoverScaleId: v || null })}>
+                <option value="">None</option>
+                {allEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+              </SelectInput>
+            </Field>
+            {el.hoverScaleId && (
+              <Field label="Scale factor">
+                <NumInput value={el.hoverScaleFactor || 1.1} min={0.5} max={3} onChange={(v) => save({ hoverScaleFactor: v })} />
+              </Field>
+            )}
+          </div>
+
           <p className="text-xs text-gray-500">
-            On mouse in, the checked colors swap between the two elements above; on mouse out, they swap back. Position this invisible layer over the elements it targets (e.g. a CTA button). Rename layers in the layer list (double-click the name) to tell them apart here.
+            On mouse in, the chosen colors/scale apply; on mouse out, everything reverts to its original color and size.
           </p>
         </>
       ) : (

@@ -206,37 +206,60 @@ function buildTrackingJS(elements) {
   return lines.join('\n')
 }
 
-// An invisible layer with Event Type "none" and both a background + text target set
-// is a pure hover interaction, not a tracking pixel: on mouse in, the picked color(s)
-// swap between the two targets; on mouse out, they revert. The original colors are
-// each target's own known color from the elements array (baked into the generated JS
-// as literals) rather than read back from the DOM at hover time — re-applying a "swap"
-// twice only round-trips correctly when *both* properties toggle together, which broke
-// as soon as "swap fill color" and "swap text color" became independent checkboxes.
+// An invisible layer with Event Type "none" is a pure hover interaction, not a tracking
+// pixel: on mouse in, its configured background color / text color / scale apply to
+// whichever target elements were picked; on mouse out, each reverts to its own known
+// original value — the original background/text color and rotation come from the
+// elements array (baked into the generated JS as literals) rather than read back from
+// the DOM, so revert is exact regardless of which effects are enabled.
 function buildHoverEffectJS(elements) {
   const hoverLayers = elements.filter((el) =>
-    el.visible && el.type === 'invisible' && el.trackingType === 'none' && el.hoverBgId && el.hoverTextId
+    el.visible && el.type === 'invisible' && el.trackingType === 'none' &&
+    ((el.hoverBgId && el.hoverBgColor) || (el.hoverTextId && el.hoverTextColor) || (el.hoverScaleId && el.hoverScaleFactor))
   )
   if (!hoverLayers.length) return ''
 
-  const lines = [`  function ktHoverColors(bgId, textId, entering, swapFill, swapText, origBg, origText) {
-    var bg = document.getElementById(bgId), txt = document.getElementById(textId);
-    if (!bg || !txt) return;
-    if (swapFill) bg.style.background = entering ? origText : origBg;
-    if (swapText) txt.style.color = entering ? origBg : origText;
+  const lines = [`  function ktHoverColor(id, prop, entering, hoverVal, origVal) {
+    var node = document.getElementById(id);
+    if (!node) return;
+    node.style[prop] = entering ? hoverVal : origVal;
+  }
+  function ktHoverScale(id, entering, factor, rotation) {
+    var node = document.getElementById(id);
+    if (!node) return;
+    node.style.transition = 'transform 0.15s ease';
+    node.style.transform = 'rotate(' + rotation + 'deg) scale(' + (entering ? factor : 1) + ')';
   }`]
   hoverLayers.forEach((el) => {
-    const bgEl = elements.find((e) => e.id === el.hoverBgId)
-    const txtEl = elements.find((e) => e.id === el.hoverTextId)
-    if (!bgEl || !txtEl) return
-    const origBg = bgEl.transparent ? 'transparent' : (bgEl.cssBackground || bgEl.fillColor || '#888')
-    const origText = txtEl.color || '#000'
     const target = `document.getElementById('${el.id}')`
-    const swapFill = el.swapFillColor !== false
-    const swapText = el.swapTextColor !== false
-    const args = `'${el.hoverBgId}', '${el.hoverTextId}', %ENTERING%, ${swapFill}, ${swapText}, '${origBg}', '${origText}'`
-    lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColors(${args.replace('%ENTERING%', 'true')}); });`)
-    lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColors(${args.replace('%ENTERING%', 'false')}); });`)
+
+    if (el.hoverBgId && el.hoverBgColor) {
+      const bgEl = elements.find((e) => e.id === el.hoverBgId)
+      if (bgEl) {
+        const origBg = bgEl.transparent ? 'transparent' : (bgEl.cssBackground || bgEl.fillColor || '#888')
+        const args = `'${el.hoverBgId}', 'background', %ENTERING%, '${el.hoverBgColor}', '${origBg}'`
+        lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColor(${args.replace('%ENTERING%', 'true')}); });`)
+        lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColor(${args.replace('%ENTERING%', 'false')}); });`)
+      }
+    }
+    if (el.hoverTextId && el.hoverTextColor) {
+      const txtEl = elements.find((e) => e.id === el.hoverTextId)
+      if (txtEl) {
+        const origText = txtEl.color || '#000'
+        const args = `'${el.hoverTextId}', 'color', %ENTERING%, '${el.hoverTextColor}', '${origText}'`
+        lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColor(${args.replace('%ENTERING%', 'true')}); });`)
+        lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColor(${args.replace('%ENTERING%', 'false')}); });`)
+      }
+    }
+    if (el.hoverScaleId && el.hoverScaleFactor) {
+      const scaleEl = elements.find((e) => e.id === el.hoverScaleId)
+      if (scaleEl) {
+        const rotation = scaleEl.rotation || 0
+        const args = `'${el.hoverScaleId}', %ENTERING%, ${el.hoverScaleFactor}, ${rotation}`
+        lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverScale(${args.replace('%ENTERING%', 'true')}); });`)
+        lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverScale(${args.replace('%ENTERING%', 'false')}); });`)
+      }
+    }
   })
   return lines.join('\n')
 }
