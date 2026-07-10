@@ -17,6 +17,11 @@ const LAYOUT_CATALOG = [
   { id: 'corner-badge', label: 'Corner badge with headline', roles: ['badge', 'headline', 'cta'] },
   { id: 'right-panel-stack', label: 'Right-aligned text panel', roles: ['headline', 'subhead', 'cta'] },
   { id: 'big-cta-focus', label: 'Small headline, oversized CTA', roles: ['headline', 'cta'] },
+  { id: 'price-tag-callout', label: 'Price badge, headline left', roles: ['price', 'headline', 'subhead', 'cta'] },
+  { id: 'mirrored-split', label: 'CTA left, headline right', roles: ['cta', 'headline'] },
+  { id: 'quote-callout', label: 'Quote-style body with attribution', roles: ['body', 'headline', 'cta'] },
+  { id: 'row-banner', label: 'Single row: headline, subhead, CTA', roles: ['headline', 'subhead', 'cta'] },
+  { id: 'minimal-teaser', label: 'Minimal teaser, generous whitespace', roles: ['headline', 'cta'] },
 ]
 
 export async function onRequestPost({ request, env }) {
@@ -58,6 +63,8 @@ Rules:
 - subhead/body: max ~70 characters
 - cta: max ~20 characters, an action phrase (e.g. "Shop Now", "Get Started")
 - badge: max ~14 characters, a short label/callout (e.g. "New", "Limited Time", "50% Off")
+- price: max ~12 characters, a price or discount (e.g. "$49", "30% Off", "From $9/mo")
+- In "quote-callout", the "body" role is a short customer quote (include the quotation marks) and the "headline" role is the attribution (e.g. "— Jane D., Verified Buyer"), not a headline
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}}
 - "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}${followUpContext}`
 
