@@ -13,6 +13,10 @@ const LAYOUT_CATALOG = [
   { id: 'top-headline-bottom-cta', label: 'Top headline, full-width CTA bar', roles: ['headline', 'subhead', 'cta'] },
   { id: 'split-text-cta-right', label: 'Headline left, CTA pinned right', roles: ['headline', 'cta'] },
   { id: 'body-copy-block', label: 'Headline + short body copy', roles: ['headline', 'body', 'cta'] },
+  { id: 'top-bar-cta', label: 'Top CTA bar, headline below', roles: ['cta', 'headline', 'subhead'] },
+  { id: 'corner-badge', label: 'Corner badge with headline', roles: ['badge', 'headline', 'cta'] },
+  { id: 'right-panel-stack', label: 'Right-aligned text panel', roles: ['headline', 'subhead', 'cta'] },
+  { id: 'big-cta-focus', label: 'Small headline, oversized CTA', roles: ['headline', 'cta'] },
 ]
 
 export async function onRequestPost({ request, env }) {
@@ -53,6 +57,7 @@ Rules:
 - headline: max ~40 characters
 - subhead/body: max ~70 characters
 - cta: max ~20 characters, an action phrase (e.g. "Shop Now", "Get Started")
+- badge: max ~14 characters, a short label/callout (e.g. "New", "Limited Time", "50% Off")
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}}
 - "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}${followUpContext}`
 
