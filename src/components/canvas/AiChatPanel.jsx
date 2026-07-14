@@ -60,7 +60,7 @@ export default function AiChatPanel() {
       }))
       useCanvasStore.setState({ elements: withIds, selectedId: null })
 
-      addHistoryTurn({ brief, layoutId: data.layoutId, copy: data.copy })
+      addHistoryTurn({ brief, layoutId: data.layoutId, copy: data.copy, palette: data.palette })
       const layoutLabel = findLayout(data.layoutId)?.label || data.layoutId
       addMessage({ role: 'assistant', text: `Applied "${layoutLabel}" layout to the canvas.` })
     } catch (err) {
