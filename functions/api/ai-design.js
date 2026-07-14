@@ -84,8 +84,7 @@ export async function onRequestPost({ request, env }) {
       ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them.`
     : ''
 
-  const system = `You design ad banner copy and color palette. You are given a fixed catalog of layouts, each with a list of "roles" (text slots). Pick the single best-fit layout for the brief, write short, punchy copy for each of its roles, and choose a color palette.
-Copy rules:
+  const copyRules = `Copy rules:
 - headline: max ~40 characters
 - subhead/body: max ~70 characters
 - cta: max ~20 characters. Write a real ad's call-to-action verb phrase a person would click — "Sign Up Free", "Get Your Quote", "Book Now", "Start Today". Never just restate the offer/product/service name as the CTA (e.g. if the brief is about a "health check", the CTA is NOT "Get Health Check" — that's the offer, not an action-driven click prompt).
@@ -94,15 +93,13 @@ Copy rules:
 - secondaryCta: max ~20 characters, an alternate action distinct from "cta" (e.g. cta "Buy Now", secondaryCta "Learn More")
 - stat: max ~10 characters, a standout number or statistic (e.g. "50% Off", "4.9★", "10,000+")
 - body1/body2: max ~50 characters each, short standalone feature/benefit lines (e.g. "Free shipping", "24/7 support") — not a continuation of one sentence across both
-- In "quote-callout", the "body" role is a short customer quote (include the quotation marks) and the "headline" role is the attribution (e.g. "— Jane D., Verified Buyer"), not a headline
-Palette rules:
-- Always return a "palette" object: {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"} (bg = background, text = headline color, subtext = secondary text color, accent = CTA/button color).
-- If the brief names a specific, recognizable real-world brand or company, use your knowledge of that brand's actual, real visual identity (their known primary/secondary brand colors) — not a generic guess or an unrelated palette. If you're not confident of a named brand's real colors, choose a professional palette that fits its industry/tone instead of inventing colors and presenting them as the brand's own.
+- In "quote-callout", the "body" role is a short customer quote (include the quotation marks) and the "headline" role is the attribution (e.g. "— Jane D., Verified Buyer"), not a headline`
+
+  const paletteRules = `Palette rules:
+- bg = background, text = headline color, subtext = secondary text color, accent = CTA/button color, all as hex.
+- If the brief names a specific, recognizable real-world brand or company, use your actual knowledge of that brand's real visual identity (their known primary/secondary brand colors) — not a generic guess or an unrelated palette. If you're not confident of a named brand's real colors, say so and choose a professional palette that fits its industry/tone instead of inventing colors and presenting them as the brand's own.
 - Otherwise, choose colors deliberately for the brief's tone/industry — not a default/placeholder palette.
-- "text" and "subtext" must contrast clearly against "bg" (don't return near-identical colors).
-Output rules:
-- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}}
-- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}${paletteContext}${followUpContext}`
+- "text" and "subtext" must contrast clearly against "bg" (don't pick near-identical colors).`
 
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}
@@ -110,7 +107,29 @@ Brief: ${brief}
 Available layouts:
 ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.join(', ')}`).join('\n')}`
 
-  try {
+  // Two-step generation: first let the model reason in plain text (what the named
+  // brand is actually known for, which layout fits the offer, draft copy, why this
+  // palette), then a second call converts that reasoning into strict JSON. Asking for
+  // strict JSON directly in one shot consistently produced shallower brand/color
+  // judgment and weaker CTA copy (e.g. restating the offer as the CTA) than giving the
+  // model room to actually think it through first.
+  const reasoningSystem = `You are a senior ad designer reasoning out loud (plain text, not JSON) about a banner brief. Cover, briefly:
+1. If the brief names a recognizable real-world brand/company: what that brand is actually known for and its real primary/secondary colors and tone — be specific, and say plainly if you're not confident of the exact colors rather than guessing.
+2. Which of the available layouts best fits this offer and why.
+3. Draft the actual copy for every role that layout requires.
+4. The final hex palette (bg/text/subtext/accent) and why it suits the brand/tone, checking text contrasts clearly against bg.
+${copyRules}
+${paletteRules}
+Keep this to a few short paragraphs — reasoning, not a full essay.${brandContext}${paletteContext}${followUpContext}`
+
+  const jsonSystem = `Convert the design reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract the layoutId, copy, and palette the reasoning already settled on.
+${copyRules}
+${paletteRules}
+Output rules:
+- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}}
+- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.`
+
+  async function callClaude(system, messages, maxTokens) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -118,17 +137,21 @@ ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.j
         'x-api-key': env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 512,
-        system,
-        messages: [{ role: 'user', content: userMsg }],
-      }),
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: maxTokens, system, messages }),
     })
     const data = await res.json()
-    if (!res.ok) return json({ error: data.error?.message || 'AI request failed' }, 502)
+    if (!res.ok) throw new Error(data.error?.message || 'AI request failed')
+    return (data.content || []).map((c) => c.text || '').join('').trim()
+  }
 
-    let raw = (data.content || []).map((c) => c.text || '').join('').trim()
+  try {
+    const reasoning = await callClaude(reasoningSystem, [{ role: 'user', content: userMsg }], 700)
+
+    let raw = await callClaude(jsonSystem, [
+      { role: 'user', content: userMsg },
+      { role: 'assistant', content: reasoning },
+      { role: 'user', content: 'Output only the final JSON now, based on the reasoning above.' },
+    ], 500)
     // The model is told "no markdown fences", but strip them defensively if present —
     // a stray ```json wrapper otherwise fails JSON.parse entirely and surfaces as a
     // confusing error even though the payload itself is fine.
