@@ -56,35 +56,53 @@ export async function onRequestPost({ request, env }) {
   const brandContext = guide && (guide.tone || guide.notes)
     ? `\n\nBrand guide — write copy consistent with this:\n${guide.tone ? `Tone/voice: ${guide.tone}\n` : ''}${guide.notes ? `Notes: ${guide.notes}` : ''}`
     : ''
+  // Any brand-guide color the user actually configured is a hard constraint (set later,
+  // after the AI's own palette pick) — but tell the model which fields are already
+  // spoken for so it doesn't waste effort matching a color it can't actually control.
+  const guideColorFields = guide
+    ? [
+        guide.primary_color && 'bg', guide.accent_color && 'accent',
+        guide.secondary_color && 'subtext', guide.text_color && 'text',
+      ].filter(Boolean)
+    : []
+  const paletteContext = guideColorFields.length
+    ? `\n\nThe brand guide already fixes these palette fields — still return a full palette, but know that ${guideColorFields.join(', ')} will be overridden by the brand guide's own colors regardless of what you choose for them.`
+    : ''
 
-  // `history`: prior turns in this chat, each { brief, layoutId, copy } — lets a
-  // follow-up like "make the headline shorter" refine the last result instead of
-  // generating an unrelated new one from scratch. Turns referencing a layoutId that
-  // no longer exists (e.g. a layout was renamed/removed since the turn was recorded)
-  // are dropped rather than telling the model to "keep" an id it can't pick — that
-  // mismatch was the main cause of the "AI picked an unknown layout" error.
+  // `history`: prior turns in this chat, each { brief, layoutId, copy, palette } — lets
+  // a follow-up like "make the headline shorter" or "use a darker blue" refine the last
+  // result instead of generating an unrelated new one. Turns referencing a layoutId
+  // that no longer exists (e.g. a layout was renamed/removed since the turn was
+  // recorded) are dropped rather than telling the model to "keep" an id it can't pick —
+  // that mismatch was the main cause of the "AI picked an unknown layout" error.
   const history = Array.isArray(body.history)
     ? body.history.filter((h) => LAYOUT_CATALOG.some((l) => l.id === h?.layoutId)).slice(-5)
     : []
   const followUpContext = history.length
     ? `\n\nThis is a follow-up in an ongoing chat. Prior turns (most recent last):\n${history.map((h, i) =>
-        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}`
-      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout or a full redo, keep the same layoutId as the most recent turn and only change the copy fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn.`
+        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}, palette: ${JSON.stringify(h.palette || null)}`
+      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them.`
     : ''
 
-  const system = `You design ad banner copy. You are given a fixed catalog of layouts, each with a list of "roles" (text slots). Pick the single best-fit layout for the brief and write short, punchy copy for each of its roles.
-Rules:
+  const system = `You design ad banner copy and color palette. You are given a fixed catalog of layouts, each with a list of "roles" (text slots). Pick the single best-fit layout for the brief, write short, punchy copy for each of its roles, and choose a color palette.
+Copy rules:
 - headline: max ~40 characters
 - subhead/body: max ~70 characters
-- cta: max ~20 characters, an action phrase (e.g. "Shop Now", "Get Started")
+- cta: max ~20 characters. Write a real ad's call-to-action verb phrase a person would click — "Sign Up Free", "Get Your Quote", "Book Now", "Start Today". Never just restate the offer/product/service name as the CTA (e.g. if the brief is about a "health check", the CTA is NOT "Get Health Check" — that's the offer, not an action-driven click prompt).
 - badge: max ~14 characters, a short label/callout (e.g. "New", "Limited Time", "50% Off")
 - price: max ~12 characters, a price or discount (e.g. "$49", "30% Off", "From $9/mo")
 - secondaryCta: max ~20 characters, an alternate action distinct from "cta" (e.g. cta "Buy Now", secondaryCta "Learn More")
 - stat: max ~10 characters, a standout number or statistic (e.g. "50% Off", "4.9★", "10,000+")
 - body1/body2: max ~50 characters each, short standalone feature/benefit lines (e.g. "Free shipping", "24/7 support") — not a continuation of one sentence across both
 - In "quote-callout", the "body" role is a short customer quote (include the quotation marks) and the "headline" role is the attribution (e.g. "— Jane D., Verified Buyer"), not a headline
-- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}}
-- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}${followUpContext}`
+Palette rules:
+- Always return a "palette" object: {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"} (bg = background, text = headline color, subtext = secondary text color, accent = CTA/button color).
+- If the brief names a specific, recognizable real-world brand or company, use your knowledge of that brand's actual, real visual identity (their known primary/secondary brand colors) — not a generic guess or an unrelated palette. If you're not confident of a named brand's real colors, choose a professional palette that fits its industry/tone instead of inventing colors and presenting them as the brand's own.
+- Otherwise, choose colors deliberately for the brief's tone/industry — not a default/placeholder palette.
+- "text" and "subtext" must contrast clearly against "bg" (don't return near-identical colors).
+Output rules:
+- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}}
+- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.${brandContext}${paletteContext}${followUpContext}`
 
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}
@@ -140,14 +158,27 @@ ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.j
     const copy = {}
     layout.roles.forEach((role) => { copy[role] = String(parsed.copy?.[role] || '').trim() })
 
-    const palette = guide && (guide.primary_color || guide.secondary_color || guide.accent_color || guide.text_color)
-      ? {
-          ...(guide.primary_color ? { bg: guide.primary_color } : {}),
-          ...(guide.accent_color ? { accent: guide.accent_color } : {}),
-          ...(guide.secondary_color ? { subtext: guide.secondary_color } : {}),
-          ...(guide.text_color ? { text: guide.text_color } : {}),
-        }
-      : null
+    // The AI's own color choice (informed by real brand knowledge when the brief names
+    // one) is the baseline — a configured brand guide color, where the user explicitly
+    // set one, always wins over it for that specific field. Without this, "palette" was
+    // only ever populated from the brand guide, so an AI-picked palette (or a follow-up
+    // "change the color to X") had no way to actually reach the rendered banner at all.
+    const hexRe = /^#?([0-9a-f]{6})$/i
+    const aiPalette = {}
+    if (parsed.palette && typeof parsed.palette === 'object') {
+      ;['bg', 'text', 'subtext', 'accent'].forEach((key) => {
+        const m = hexRe.exec(String(parsed.palette[key] || '').trim())
+        if (m) aiPalette[key] = `#${m[1]}`
+      })
+    }
+    const guidePalette = {
+      ...(guide?.primary_color ? { bg: guide.primary_color } : {}),
+      ...(guide?.accent_color ? { accent: guide.accent_color } : {}),
+      ...(guide?.secondary_color ? { subtext: guide.secondary_color } : {}),
+      ...(guide?.text_color ? { text: guide.text_color } : {}),
+    }
+    const merged = { ...aiPalette, ...guidePalette }
+    const palette = Object.keys(merged).length ? merged : null
 
     return json({ layoutId: layout.id, copy, palette })
   } catch (err) {
