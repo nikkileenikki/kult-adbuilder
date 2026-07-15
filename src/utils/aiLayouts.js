@@ -352,6 +352,18 @@ function hexToRgba(hex, alpha) {
   return `rgba(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)}, ${alpha})`
 }
 
+// A layout's `video` zone is the *maximum* space reserved for it, not necessarily a
+// 16:9 box itself (banner sizes like 300x600 or 970x250 are nowhere near 16:9) —
+// stretching a real video to fill a non-16:9 box would distort it. This fits the
+// largest 16:9 rectangle inside the given box and centers it there, so the video
+// element itself is always true 16:9 regardless of the reserved zone's own shape.
+function fitAspectBox(x, y, width, height, ratio = 16 / 9) {
+  let w = width, h = height
+  if (width / height > ratio) w = height * ratio
+  else h = width / ratio
+  return { x: x + (width - w) / 2, y: y + (height - h) / 2, width: w, height: h }
+}
+
 // Picks black or white — whichever contrasts better — against a given background hex.
 // Used for CTA label text so it never inherits a brand's configured text color that
 // happens to be too close to (or the same as) the button's own background color.
@@ -490,13 +502,16 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
   // placeholder shape, so the user can immediately assign a Flashtalking library
   // video to it — same idea as the logo zone below, but pushed first so it sits
   // *under* the logo/text for full-bleed layouts where video and logo overlap.
+  // The zone itself is only the max reserved space; the video is fit to true 16:9
+  // within it (see fitAspectBox) rather than stretched to the zone's own shape.
+  let videoBox = null
   if (layout.video) {
-    const vx = Math.round(layout.video.x * canvasWidth)
-    const vy = Math.round(layout.video.y * canvasHeight)
-    const vw = Math.round(layout.video.width * canvasWidth)
-    const vh = Math.round(layout.video.height * canvasHeight)
+    videoBox = fitAspectBox(
+      layout.video.x * canvasWidth, layout.video.y * canvasHeight,
+      layout.video.width * canvasWidth, layout.video.height * canvasHeight,
+    )
     elements.push({
-      type: 'video', x: vx, y: vy, width: vw, height: vh,
+      type: 'video', x: Math.round(videoBox.x), y: Math.round(videoBox.y), width: Math.round(videoBox.width), height: Math.round(videoBox.height),
       videoUrl: null, videoName: 'Your Video', muted: true, playTrigger: 'autoplay', zIndex: z++,
     })
   }
@@ -565,11 +580,11 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
   // a video zone, tile the click layer around a 40px-tall gap spanning that video's own
   // bottom edge instead of a single full-canvas rect, so the controls stay usable.
   const VIDEO_CONTROL_GAP = 40
-  if (layout.video) {
-    const vx = Math.round(layout.video.x * canvasWidth)
-    const vy = Math.round(layout.video.y * canvasHeight)
-    const vw = Math.round(layout.video.width * canvasWidth)
-    const vh = Math.round(layout.video.height * canvasHeight)
+  if (videoBox) {
+    const vx = Math.round(videoBox.x)
+    const vy = Math.round(videoBox.y)
+    const vw = Math.round(videoBox.width)
+    const vh = Math.round(videoBox.height)
     const bandTop = Math.max(0, vy + vh - VIDEO_CONTROL_GAP)
     const bandBottom = vy + vh
 
