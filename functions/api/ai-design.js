@@ -209,7 +209,16 @@ Output rules:
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error?.message || 'AI request failed')
-        return (data.output_text || '').trim()
+        // `output_text` is a convenience getter added by OpenAI's official SDKs — the
+        // raw REST response doesn't include it, the text lives nested in
+        // output[].content[] items of type "output_text". Reading data.output_text
+        // directly here always came back undefined/empty.
+        return (data.output || [])
+          .flatMap((o) => o.content || [])
+          .filter((c) => c.type === 'output_text')
+          .map((c) => c.text || '')
+          .join('')
+          .trim()
       }
 
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
