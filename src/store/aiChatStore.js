@@ -11,4 +11,5 @@ export const useAiChatStore = create((set) => ({
   setOpen: (open) => set((s) => ({ open: typeof open === 'function' ? open(s.open) : open })),
   addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
   addHistoryTurn: (turn) => set((s) => ({ history: [...s.history, turn] })),
+  clearChat: () => set({ messages: [], history: [] }),
 }))

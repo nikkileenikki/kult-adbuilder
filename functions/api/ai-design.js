@@ -127,7 +127,9 @@ ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.j
   // strict JSON directly in one shot consistently produced shallower brand/color
   // judgment and weaker CTA copy (e.g. restating the offer as the CTA) than giving the
   // model room to actually think it through first.
-  const reasoningSystem = `You are a senior ad designer reasoning out loud (plain text, not JSON) about a banner brief. Cover, briefly:
+  const reasoningSystem = `You are a senior ad designer reasoning out loud (plain text, not JSON) about a banner brief.
+First judge whether the brief actually gives you enough to design from — at minimum, what's being advertised/promoted. If it's too vague (e.g. no product/offer/subject at all), or you genuinely need a clarifying answer before you could design something sensible, or you have an important suggestion worth raising instead of silently guessing (e.g. the brief conflicts with the brand guide, or a much better angle than what was asked exists) — say so plainly, explain what's missing or what you'd suggest, and stop there; don't invent placeholder specifics to force a design through.
+Otherwise, design the banner. Cover, briefly:
 1. If the brief names a recognizable real-world brand/company: what that brand is actually known for and its real primary/secondary colors and tone — be specific, and say plainly if you're not confident of the exact colors rather than guessing.
 2. Which of the available layouts best fits this offer and why.
 3. Draft the actual copy for every role that layout requires.
@@ -138,14 +140,17 @@ ${paletteRules}
 ${adjustmentRules}
 Keep this to a few short paragraphs — reasoning, not a full essay.${brandContext}${paletteContext}${followUpContext}`
 
-  const jsonSystem = `Convert the design reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract the layoutId, copy, palette, and any adjustments the reasoning already settled on.
+  const jsonSystem = `Convert the design reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract what the reasoning already settled on.
+
+If the reasoning decided to ask for clarification or give a suggestion instead of designing, output: {"type": "reply", "message": "..."} — "message" is the actual clarifying question or suggestion to show the user, written directly to them (not a description of the reasoning).
+
+Otherwise output the banner: {"type": "banner", "layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}, "adjustments": {"role": {"dx":0,"dy":0,"dw":0,"dh":0}, ...}}
 ${copyRules}
 ${paletteRules}
 ${adjustmentRules}
 Output rules:
-- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}, "adjustments": {"role": {"dx":0,"dy":0,"dw":0,"dh":0}, ...}}
-- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.
-- "adjustments" is optional — omit it, or omit any role within it, when no nudge is needed.`
+- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly one of the two shapes above.
+- For "banner": "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer. "adjustments" is optional — omit it, or omit any role within it, when no nudge is needed.`
 
   // Dispatches to whichever provider is configured (see ai-settings.js) — same
   // system/messages/maxTokens contract either way, callers don't need to know which
@@ -210,6 +215,11 @@ Output rules:
       }
     }
 
+    if (parsed.type === 'reply') {
+      const message = String(parsed.message || '').trim()
+      return json({ type: 'reply', message: message || "Could you share a bit more detail about what this banner is for?" })
+    }
+
     const requestedId = String(parsed.layoutId || '').trim()
     // Case/whitespace-insensitive match — the catalog only ever has one id per
     // spelling, so this can't accidentally match the wrong layout.
@@ -258,7 +268,7 @@ Output rules:
       })
     }
 
-    return json({ layoutId: layout.id, copy, palette, adjustments: Object.keys(adjustments).length ? adjustments : null })
+    return json({ type: 'banner', layoutId: layout.id, copy, palette, adjustments: Object.keys(adjustments).length ? adjustments : null })
   } catch (err) {
     return json({ error: err.message || 'AI request failed' }, 502)
   }
