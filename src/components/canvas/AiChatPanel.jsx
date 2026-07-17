@@ -20,7 +20,7 @@ export default function AiChatPanel() {
   const { elements, canvasWidth, canvasHeight } = useCanvasStore()
   const { activeBrandId } = useUiStore()
   const { saveState } = useHistoryStore()
-  const { open, messages, history, setOpen, addMessage, addHistoryTurn } = useAiChatStore()
+  const { open, messages, history, setOpen, addMessage, addHistoryTurn, clearChat } = useAiChatStore()
 
   const [input, setInput] = useState('')
   const [backgroundStyle, setBackgroundStyle] = useState('solid')
@@ -47,6 +47,16 @@ export default function AiChatPanel() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'AI design failed')
+
+      // The AI can reply instead of designing — asking a clarifying question or making
+      // a suggestion when the brief is too vague to work from — rather than being
+      // forced to guess a banner out of insufficient information every time. A reply
+      // only affects the visible chat log, not `history` (which tracks banner state
+      // for follow-up continuity), since there's no layout/copy/palette to carry over.
+      if (data.type === 'reply') {
+        addMessage({ role: 'assistant', text: data.message })
+        return
+      }
 
       const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette, data.adjustments)
       if (!newElements.length) throw new Error('AI picked an unknown layout')
@@ -86,15 +96,22 @@ export default function AiChatPanel() {
               <i className="fa-solid fa-wand-magic-sparkles text-purple-400" />
               Design with AI
             </span>
-            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white transition-colors">
-              <i className="fa-solid fa-xmark" style={{ fontSize: 13 }} />
-            </button>
+            <div className="flex items-center gap-2">
+              {messages.length > 0 && (
+                <button onClick={clearChat} title="Clear chat" className="text-gray-400 hover:text-white transition-colors">
+                  <i className="fa-solid fa-broom" style={{ fontSize: 12 }} />
+                </button>
+              )}
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white transition-colors">
+                <i className="fa-solid fa-xmark" style={{ fontSize: 13 }} />
+              </button>
+            </div>
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
             {messages.length === 0 && (
               <p className="text-xs text-gray-500">
-                Describe the banner (product, offer, tone). Follow-up messages refine the last result — e.g. "make the headline shorter".
+                Describe the banner (product, offer, tone). Follow-up messages refine the last result — e.g. "make the headline shorter". If a brief is too vague, the AI will ask a clarifying question instead of guessing.
               </p>
             )}
             {messages.map((m, i) => (
