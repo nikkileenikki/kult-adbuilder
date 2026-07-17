@@ -499,11 +499,17 @@ function applyAdjustment(r, adj) {
 // backgrounds are CSS-only (no generated images), so text contrast can always be
 // computed from the palette's own colors — no shadow/glow or panel behind the text.
 // `adjustments` (optional): { role: { dx, dy, dw, dh } } small per-role nudges from
-// the AI, see applyAdjustment above.
-export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null, adjustments = null) {
+// the AI, see applyAdjustment above. `cornerStyle` ('sharp' | 'soft' | 'pill', default
+// 'pill' — the original always-pill behavior) controls how rounded CTA/badge/price
+// buttons and the logo placeholder are, as a fraction of the button's own height, so
+// the AI can match a brand's actual corner language instead of every banner defaulting
+// to fully-rounded pill buttons regardless of tone.
+const CORNER_RADIUS_RATIO = { sharp: 0, soft: 0.22, pill: 0.5 }
+export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null, adjustments = null, cornerStyle = 'pill') {
   const layout = findLayout(layoutId)
   if (!layout) return []
   const palette = { ...getPaletteFor(layout), ...(paletteOverride || {}) }
+  const cornerRatio = CORNER_RADIUS_RATIO[cornerStyle] ?? CORNER_RADIUS_RATIO.pill
   const elements = []
   let z = 10
 
@@ -565,7 +571,7 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
       elements.push({
         type: 'shape',
         x: btn.x, y, width: btn.width, height,
-        fillColor: palette.accent, borderRadius: Math.round(height / 2), zIndex: z++,
+        fillColor: palette.accent, borderRadius: Math.round(height * cornerRatio), zIndex: z++,
       })
       elements.push({
         type: 'text',

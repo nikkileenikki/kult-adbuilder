@@ -89,8 +89,8 @@ export async function onRequestPost({ request, env }) {
     : []
   const followUpContext = history.length
     ? `\n\nThis is a follow-up in an ongoing chat. Prior turns (most recent last):\n${history.map((h, i) =>
-        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}, palette: ${JSON.stringify(h.palette || null)}, adjustments: ${JSON.stringify(h.adjustments || null)}`
-      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette/adjustments fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them. If the brief asks to move/resize something (e.g. "make the headline bigger", "move the CTA down a bit"), that's what "adjustments" is for.`
+        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}, palette: ${JSON.stringify(h.palette || null)}, adjustments: ${JSON.stringify(h.adjustments || null)}, cornerStyle: ${JSON.stringify(h.cornerStyle || null)}`
+      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette/adjustments/cornerStyle fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them. If the brief asks to move/resize something (e.g. "make the headline bigger", "move the CTA down a bit"), that's what "adjustments" is for. If the brief asks to change the corner rounding (e.g. "make the buttons square", "round the corners more"), that's what "cornerStyle" is for.`
     : ''
 
   const copyRules = `Copy rules:
@@ -115,6 +115,10 @@ export async function onRequestPost({ request, env }) {
 - You MAY optionally nudge a role's box slightly if it clearly improves the fit for this specific brief (e.g. a role needs a bit more room for unusually long copy, or something should sit a little closer to another element). This is a small nudge, not a redesign.
 - If you do, keep each nudge tiny: dx/dw as a fraction of canvas width, dy/dh as a fraction of canvas height, each between -0.06 and 0.06 (i.e. at most ~6% of the canvas). Most of the time no adjustment is needed at all — omit "adjustments" entirely, or omit any role that doesn't need one.`
 
+  const cornerRules = `Corner style rules:
+- "cornerStyle" controls how rounded the CTA/badge/price buttons are: "sharp" (square corners — serious/corporate/financial/legal tone), "soft" (gently rounded — most general-purpose brands), or "pill" (fully rounded ends — playful/consumer/lifestyle/app-like tone).
+- Pick whichever matches the brand's real visual identity if one is named/known, otherwise the brief's tone/industry. Default to "soft" if genuinely unsure.`
+
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}
 
@@ -135,22 +139,25 @@ Otherwise, design the banner. Cover, briefly:
 3. Draft the actual copy for every role that layout requires.
 4. The final hex palette (bg/text/subtext/accent) and why it suits the brand/tone, checking text contrasts clearly against bg.
 5. Whether any role's box would benefit from a small nudge (and if so, roughly which direction/how much) — most briefs need none.
+6. Which corner style (sharp/soft/pill) fits the brand/tone.
 ${copyRules}
 ${paletteRules}
 ${adjustmentRules}
+${cornerRules}
 Keep this to a few short paragraphs — reasoning, not a full essay.${brandContext}${paletteContext}${followUpContext}`
 
   const jsonSystem = `Convert the design reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract what the reasoning already settled on.
 
 If the reasoning decided to ask for clarification or give a suggestion instead of designing, output: {"type": "reply", "message": "..."} — "message" is the actual clarifying question or suggestion to show the user, written directly to them (not a description of the reasoning).
 
-Otherwise output the banner: {"type": "banner", "layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}, "adjustments": {"role": {"dx":0,"dy":0,"dw":0,"dh":0}, ...}}
+Otherwise output the banner: {"type": "banner", "layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}, "adjustments": {"role": {"dx":0,"dy":0,"dw":0,"dh":0}, ...}, "cornerStyle": "sharp" | "soft" | "pill"}
 ${copyRules}
 ${paletteRules}
 ${adjustmentRules}
+${cornerRules}
 Output rules:
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly one of the two shapes above.
-- For "banner": "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer. "adjustments" is optional — omit it, or omit any role within it, when no nudge is needed.`
+- For "banner": "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer. "adjustments" is optional — omit it, or omit any role within it, when no nudge is needed. "cornerStyle" is required, one of sharp/soft/pill.`
 
   // Dispatches to whichever provider is configured (see ai-settings.js) — same
   // system/messages/maxTokens contract either way, callers don't need to know which
@@ -268,7 +275,10 @@ Output rules:
       })
     }
 
-    return json({ type: 'banner', layoutId: layout.id, copy, palette, adjustments: Object.keys(adjustments).length ? adjustments : null })
+    const CORNER_STYLES = new Set(['sharp', 'soft', 'pill'])
+    const cornerStyle = CORNER_STYLES.has(parsed.cornerStyle) ? parsed.cornerStyle : 'soft'
+
+    return json({ type: 'banner', layoutId: layout.id, copy, palette, adjustments: Object.keys(adjustments).length ? adjustments : null, cornerStyle })
   } catch (err) {
     return json({ error: err.message || 'AI request failed' }, 502)
   }
