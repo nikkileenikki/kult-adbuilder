@@ -26,19 +26,33 @@ export async function onRequestPost({ request, env }) {
 
   const userMsg = `Brief: ${brief}`
 
-  const system = `You are a senior brand strategist filling in a brand guide form from a short brief (a brand name and/or description).
-If the brief names a recognizable real-world brand/company, use your actual knowledge of that brand's real visual identity — its actual primary/secondary/accent/text colors and tone of voice — rather than inventing a generic palette. If you're not confident of a named brand's exact real colors, say so isn't possible here (this endpoint always returns a best-effort guide), so instead choose a professional, deliberate palette/tone that fits its known industry/positioning.
-If the brief is generic/original (not a recognizable real brand), invent a coherent, deliberate brand identity that fits the brief's description — industry, audience, and tone should all agree with each other.
+  const fieldRules = `Field rules:
+- name: the brand's actual name, taken directly from the brief. If the brief doesn't clearly state one, derive a short plausible one that fits the description — never a generic placeholder like "Brand" or "Company".
+- primaryColor/secondaryColor/accentColor/textColor: hex colors (#rrggbb). primaryColor is the main brand color (e.g. typical background), textColor must contrast clearly against primaryColor, accentColor is for CTAs/highlights and should stand out against primaryColor. Every field must trace back to something in the brief or (for a recognized brand) that brand's real known colors — never arbitrary/unrelated colors.
+- fontFamily: pick ONE pairing-friendly value from exactly this whitelist, written as a single font name (not a pairing, not a CSS stack): ${FONT_WHITELIST.map((f) => `"${f}"`).join(', ')}. The choice must fit the brand's actual tone/industry as reasoned above, not be arbitrary.
+- tone: 1 short sentence describing the brand's voice (e.g. "Confident, energetic, no exclamation points"), grounded in the brief's industry/audience.
+- notes: 1-2 short sentences of other useful context (taglines, do's/don'ts, positioning) that plausibly fits this specific brand — or "" if nothing meaningful to add.`
+
+  // Two-step generation, same pattern as ai-design.js: letting the model reason in
+  // plain text first (is this a brand it actually recognizes? what's the brief's
+  // industry/audience/tone?) before locking in fields produced much more grounded,
+  // brief-specific results than asking for the JSON directly — a one-shot JSON request
+  // tended to just pick arbitrary-looking colors/tone disconnected from the brief.
+  const reasoningSystem = `You are a senior brand strategist reasoning out loud (plain text, not JSON) about a short brief (a brand name and/or description) before filling in a brand guide form.
+Cover, briefly:
+1. Does the brief name a recognizable real-world brand/company? If so, say what you actually know about its real visual identity (actual primary/secondary/accent colors, typical tone) — be specific, and say plainly if you're not confident of its exact real colors rather than guessing, in which case fall back to a professional palette/tone fitting its known industry/positioning instead.
+2. If the brief is generic/original (not a recognizable real brand), what industry/audience/positioning does it imply, and what coherent, deliberate identity (colors, tone) fits that specific brief — not a default/generic choice.
+3. The final hex palette (primary/secondary/accent/text) and why each color fits, checking text contrasts clearly against primary.
+4. Which font (from a fixed whitelist) fits the brand's tone.
+5. A one-sentence tone/voice description and any other useful notes (taglines, do's/don'ts) that plausibly fit this specific brand.
+${fieldRules}
+Keep this to a short paragraph or two — reasoning, not a full essay.`
+
+  const jsonSystem = `Convert the brand-guide reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract what the reasoning already settled on.
 
 Output ONLY valid JSON, no markdown fences, no commentary, in exactly this shape:
 {"name": "...", "primaryColor": "#hex", "secondaryColor": "#hex", "accentColor": "#hex", "textColor": "#hex", "fontFamily": "...", "tone": "...", "notes": "..."}
-
-Field rules:
-- name: the brand's actual name. If the brief doesn't clearly state one, derive a short plausible one from the brief.
-- primaryColor/secondaryColor/accentColor/textColor: hex colors (#rrggbb). primaryColor is the main brand color (e.g. typical background), textColor must contrast clearly against primaryColor, accentColor is for CTAs/highlights and should stand out against primaryColor.
-- fontFamily: pick ONE pairing-friendly value from exactly this whitelist, written as a single font name (not a pairing, not a CSS stack): ${FONT_WHITELIST.map((f) => `"${f}"`).join(', ')}.
-- tone: 1 short sentence describing the brand's voice (e.g. "Confident, energetic, no exclamation points").
-- notes: 1-2 short sentences of other useful context (taglines, do's/don'ts, positioning) — or "" if nothing meaningful to add.`
+${fieldRules}`
 
   async function callModel(system, messages, maxTokens) {
     if (provider === 'openai') {
@@ -74,7 +88,13 @@ Field rules:
   }
 
   try {
-    let raw = await callModel(system, [{ role: 'user', content: userMsg }], 500)
+    const reasoning = await callModel(reasoningSystem, [{ role: 'user', content: userMsg }], 600)
+
+    let raw = await callModel(jsonSystem, [
+      { role: 'user', content: userMsg },
+      { role: 'assistant', content: reasoning },
+      { role: 'user', content: 'Output only the final JSON now, based on the reasoning above.' },
+    ], 400)
     const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
     if (fenced) raw = fenced[1]
     let parsed
