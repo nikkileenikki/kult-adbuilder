@@ -38,7 +38,16 @@ export async function onRequestPost({ request, env }) {
   const session = await getSession(request, env)
   if (!session) return json({ error: 'Unauthorized' }, 401)
 
-  if (!env.ANTHROPIC_API_KEY) {
+  // Provider/model is an admin-configurable choice (see ai-settings.js) — API keys
+  // themselves always stay Cloudflare secrets, never stored in the DB.
+  const settingsRow = await env.DB.prepare('SELECT provider, model FROM ai_settings WHERE id = ?').bind('default').first()
+  const provider = settingsRow?.provider || 'anthropic'
+  const model = settingsRow?.model || 'claude-sonnet-5'
+
+  if (provider === 'openai' && !env.OPENAI_API_KEY) {
+    return json({ error: 'AI design is not configured (missing OPENAI_API_KEY for the selected provider)' }, 500)
+  }
+  if (provider === 'anthropic' && !env.ANTHROPIC_API_KEY) {
     return json({ error: 'AI design is not configured (missing ANTHROPIC_API_KEY)' }, 500)
   }
 
@@ -129,7 +138,28 @@ Output rules:
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}}
 - "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.`
 
-  async function callClaude(system, messages, maxTokens) {
+  // Dispatches to whichever provider is configured (see ai-settings.js) — same
+  // system/messages/maxTokens contract either way, callers don't need to know which
+  // provider is actually behind it.
+  async function callModel(system, messages, maxTokens) {
+    if (provider === 'openai') {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [{ role: 'system', content: system }, ...messages],
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error?.message || 'AI request failed')
+      return (data.choices?.[0]?.message?.content || '').trim()
+    }
+
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -137,7 +167,7 @@ Output rules:
         'x-api-key': env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: maxTokens, system, messages }),
+      body: JSON.stringify({ model, max_tokens: maxTokens, system, messages }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error?.message || 'AI request failed')
@@ -145,9 +175,9 @@ Output rules:
   }
 
   try {
-    const reasoning = await callClaude(reasoningSystem, [{ role: 'user', content: userMsg }], 700)
+    const reasoning = await callModel(reasoningSystem, [{ role: 'user', content: userMsg }], 700)
 
-    let raw = await callClaude(jsonSystem, [
+    let raw = await callModel(jsonSystem, [
       { role: 'user', content: userMsg },
       { role: 'assistant', content: reasoning },
       { role: 'user', content: 'Output only the final JSON now, based on the reasoning above.' },
