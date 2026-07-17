@@ -427,6 +427,11 @@ function fitFontSize(text, width, height, startSize, bold) {
   if (!text) return startSize
   const avgCharWidthFactor = bold ? 0.72 : 0.62
   const lineHeightFactor = 1.3
+  // Fitting to the exact estimated height leaves zero margin for real font metrics
+  // (line-height/ascender-descender spacing varies by font) to run slightly over the
+  // estimate — SAFETY_MARGIN targets only 90% of the box so small estimation error
+  // doesn't still crop the last line.
+  const SAFETY_MARGIN = 0.9
   const longestWord = text.split(/\s+/).reduce((a, w) => (w.length > a.length ? w : a), '')
   let fontSize = startSize
   while (fontSize > MIN_FONT_SIZE) {
@@ -434,7 +439,7 @@ function fitFontSize(text, width, height, startSize, bold) {
     const lines = Math.max(1, Math.ceil(text.length / charsPerLine))
     const estimatedHeight = lines * fontSize * lineHeightFactor
     const longestWordFits = longestWord.length <= charsPerLine
-    if (estimatedHeight <= height && longestWordFits) break
+    if (estimatedHeight <= height * SAFETY_MARGIN && longestWordFits) break
     fontSize -= 1
   }
   return fontSize
@@ -448,14 +453,21 @@ function fitFontSize(text, width, height, startSize, bold) {
 // it), then re-anchors it inside the original box per the role's `align` ('left' |
 // 'center' | 'right', default 'center'). Full-width/full-height roles are deliberate
 // bars (e.g. a CTA strip spanning the whole banner) and keep their fixed footprint.
+//
+// Height gets the same treatment as width: some layouts reserve a tall role box
+// purely for a comfortable tap target/visual prominence, not because the button
+// itself should render that tall — stretching the pill's fill to the box's full
+// height produced a squat, disproportionate oval (worse the wider `minWidth`'s
+// height*1.6 floor made the button, since a short-but-wide pill needs an even wider
+// minimum). The rendered pill height is now sized to the font instead, vertically
+// centered within the original box.
 function fitButtonBox(r, text, x, y, width, height, baseFontSize) {
   const isBar = r.width >= 0.95 || r.height >= 0.95
   if (isBar) {
-    return { x, width, fontSize: fitFontSize(text, width, height, baseFontSize, true) }
+    return { x, y, width, height, fontSize: fitFontSize(text, width, height, baseFontSize, true) }
   }
 
   const charWidthFactor = 0.62
-  const minWidth = Math.round(Math.max(height * 1.6, width * (r.minWidthRatio || 0.32)))
   let fontSize = baseFontSize
   let natural = Math.round(text.length * fontSize * charWidthFactor) + Math.round(fontSize * 1.5)
   while (natural > width && fontSize > MIN_FONT_SIZE) {
@@ -463,10 +475,13 @@ function fitButtonBox(r, text, x, y, width, height, baseFontSize) {
     natural = Math.round(text.length * fontSize * charWidthFactor) + Math.round(fontSize * 1.5)
   }
 
+  const btnHeight = Math.min(height, Math.round(fontSize * 2.3))
+  const minWidth = Math.round(Math.max(btnHeight * 1.6, width * (r.minWidthRatio || 0.32)))
   const btnWidth = Math.min(width, Math.max(minWidth, natural))
   const align = r.align || 'center'
   const btnX = align === 'left' ? x : align === 'right' ? x + width - btnWidth : x + Math.round((width - btnWidth) / 2)
-  return { x: btnX, width: btnWidth, fontSize }
+  const btnY = y + Math.round((height - btnHeight) / 2)
+  return { x: btnX, y: btnY, width: btnWidth, height: btnHeight, fontSize }
 }
 
 export function findLayout(layoutId) {
@@ -630,12 +645,12 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
       const btn = fitButtonBox(r, text, x, y, width, height, baseFontSize)
       elements.push({
         type: 'shape',
-        x: btn.x, y, width: btn.width, height,
-        fillColor: palette.accent, borderRadius: Math.round(height * cornerRatio), zIndex: z++,
+        x: btn.x, y: btn.y, width: btn.width, height: btn.height,
+        fillColor: palette.accent, borderRadius: Math.round(btn.height * cornerRatio), zIndex: z++,
       })
       elements.push({
         type: 'text',
-        x: btn.x, y, width: btn.width, height,
+        x: btn.x, y: btn.y, width: btn.width, height: btn.height,
         text,
         // Always computed against the button's own background — never a separate
         // brand field that could collide with it and make the label unreadable.
