@@ -503,9 +503,20 @@ function applyAdjustment(r, adj) {
 // 'pill' — the original always-pill behavior) controls how rounded CTA/badge/price
 // buttons and the logo placeholder are, as a fraction of the button's own height, so
 // the AI can match a brand's actual corner language instead of every banner defaulting
-// to fully-rounded pill buttons regardless of tone.
+// to fully-rounded pill buttons regardless of tone. `fonts` (optional) — { headline,
+// body, cta }, each one of TextProperties.jsx's web-safe FONTS whitelist — lets the AI
+// pick a deliberate font pairing per role category instead of every banner rendering
+// in the same default (Arial).
 const CORNER_RADIUS_RATIO = { sharp: 0, soft: 0.22, pill: 0.5 }
-export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null, adjustments = null, cornerStyle = 'pill') {
+const STAT_ROLES = new Set(['headline', 'stat'])
+const BODY_TEXT_ROLES = new Set(['subhead', 'body', 'body1', 'body2'])
+function fontForRole(role, fonts) {
+  if (!fonts) return undefined
+  if (STAT_ROLES.has(role)) return fonts.headline
+  if (BODY_TEXT_ROLES.has(role)) return fonts.body
+  return fonts.cta // button-type roles (cta, secondaryCta, badge, price)
+}
+export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null, adjustments = null, cornerStyle = 'pill', fonts = null) {
   const layout = findLayout(layoutId)
   if (!layout) return []
   const palette = { ...getPaletteFor(layout), ...(paletteOverride || {}) }
@@ -579,7 +590,7 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
         text,
         // Always computed against the button's own background — never a separate
         // brand field that could collide with it and make the label unreadable.
-        fontSize: btn.fontSize, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
+        fontSize: btn.fontSize, fontFamily: fontForRole(r.role, fonts), textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
       })
     } else {
       // Shrink the font (never grow it) until the AI-written copy is estimated to fit
@@ -591,6 +602,7 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
         type: 'text',
         x, y, width, height,
         text,
+        fontFamily: fontForRole(r.role, fonts),
         fontSize, textAlign: r.textAlign || 'left',
         color: readableColorForLum(preferred, bgLum),
         bold: !!r.bold, italic: !!r.italic, zIndex: z++,
