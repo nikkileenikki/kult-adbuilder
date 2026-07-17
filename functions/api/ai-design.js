@@ -70,17 +70,23 @@ export async function onRequestPost({ request, env }) {
   const brandContext = guide
     ? `\n\nBrand: "${guide.name}". If you recognize this as a real, known brand, use your actual knowledge of its visual identity (colors, tone) to inform this design. Keep designing for this same brand across every turn in this chat, including follow-ups that don't repeat the brand name.${guide.tone ? `\nTone/voice: ${guide.tone}` : ''}${guide.notes ? `\nNotes: ${guide.notes}` : ''}`
     : ''
-  // Any brand-guide color the user actually configured is a hard constraint (set later,
-  // after the AI's own palette pick) — but tell the model which fields are already
-  // spoken for so it doesn't waste effort matching a color it can't actually control.
-  const guideColorFields = guide
+  // A brand guide's configured colors are the brand's actual color set — not a fixed
+  // role mapping. Previously "primary" was always forced onto the banner's background
+  // regardless of what the AI decided, but plenty of real brands don't use their
+  // primary color as a background fill (it might be reserved for accents, text, or a
+  // logo, with the background staying white/neutral). Listing the available colors and
+  // letting the AI decide which role each plays keeps the brand's real palette intact
+  // without forcing every banner for that brand into the same background color.
+  const guideColors = guide
     ? [
-        guide.primary_color && 'bg', guide.accent_color && 'accent',
-        guide.secondary_color && 'subtext', guide.text_color && 'text',
+        guide.primary_color && `primary ${guide.primary_color}`,
+        guide.secondary_color && `secondary ${guide.secondary_color}`,
+        guide.accent_color && `accent ${guide.accent_color}`,
+        guide.text_color && `text ${guide.text_color}`,
       ].filter(Boolean)
     : []
-  const paletteContext = guideColorFields.length
-    ? `\n\nThe brand guide already fixes these palette fields — still return a full palette, but know that ${guideColorFields.join(', ')} will be overridden by the brand guide's own colors regardless of what you choose for them.`
+  const paletteContext = guideColors.length
+    ? `\n\nThis brand's guide defines these colors: ${guideColors.join(', ')}. Build the "bg"/"text"/"subtext"/"accent" palette using these (or very close variants) rather than inventing unrelated colors — but decide yourself which color plays which role. Don't assume "primary" always means the banner background; use your knowledge of how this brand actually presents itself (or, if unfamiliar, sensible design judgment) to decide, e.g. the background might stay white/neutral with the brand color reserved for accents or the CTA.`
     : ''
 
   // `history`: prior turns in this chat, each { brief, layoutId, copy, palette } — lets
@@ -310,11 +316,12 @@ Output rules:
     const copy = {}
     layout.roles.forEach((role) => { copy[role] = asText(parsed.copy?.[role]) })
 
-    // The AI's own color choice (informed by real brand knowledge when the brief names
-    // one) is the baseline — a configured brand guide color, where the user explicitly
-    // set one, always wins over it for that specific field. Without this, "palette" was
-    // only ever populated from the brand guide, so an AI-picked palette (or a follow-up
-    // "change the color to X") had no way to actually reach the rendered banner at all.
+    // The AI decides which role (bg/text/subtext/accent) each color plays — including
+    // which of the brand guide's colors to use where, per paletteContext above — so its
+    // choice is the baseline. A guide color only fills in as a fallback for a field the
+    // AI left blank/invalid, it no longer force-overrides a field the AI did fill in;
+    // forcing e.g. "primary" onto "bg" regardless of the AI's decision was wrong for
+    // brands that don't use their primary color as a background fill.
     const hexRe = /^#?([0-9a-f]{6})$/i
     const aiPalette = {}
     if (parsed.palette && typeof parsed.palette === 'object') {
@@ -323,13 +330,13 @@ Output rules:
         if (m) aiPalette[key] = `#${m[1]}`
       })
     }
-    const guidePalette = {
+    const guideFallback = {
       ...(guide?.primary_color ? { bg: guide.primary_color } : {}),
       ...(guide?.accent_color ? { accent: guide.accent_color } : {}),
       ...(guide?.secondary_color ? { subtext: guide.secondary_color } : {}),
       ...(guide?.text_color ? { text: guide.text_color } : {}),
     }
-    const merged = { ...aiPalette, ...guidePalette }
+    const merged = { ...guideFallback, ...aiPalette }
     const palette = Object.keys(merged).length ? merged : null
 
     // Re-clamped here too (not just client-side in applyAdjustment) so a stray huge
