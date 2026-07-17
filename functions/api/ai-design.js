@@ -298,7 +298,7 @@ Output rules:
     if (!layout) return json({ error: `AI picked an unknown layout: ${parsed.layoutId}` }, 502)
 
     const copy = {}
-    layout.roles.forEach((role) => { copy[role] = String(parsed.copy?.[role] || '').trim() })
+    layout.roles.forEach((role) => { copy[role] = asText(parsed.copy?.[role]) })
 
     // The AI's own color choice (informed by real brand knowledge when the brief names
     // one) is the baseline — a configured brand guide color, where the user explicitly
@@ -376,4 +376,21 @@ function json(data, status = 200) {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+// Some models occasionally wrap a value in a nested object (e.g. {"text": "..."})
+// instead of returning the plain string that was asked for — String(anObject) turns
+// that into the literal text "[object Object]" rather than throwing, so it silently
+// made it all the way to the canvas. This unwraps the common shapes before falling
+// back to a plain string coercion.
+function asText(v) {
+  if (typeof v === 'string') return v.trim()
+  if (v == null) return ''
+  if (Array.isArray(v)) return v.map(asText).filter(Boolean).join(' ').trim()
+  if (typeof v === 'object') {
+    for (const key of ['text', 'value', 'content', 'copy']) {
+      if (typeof v[key] === 'string') return v[key].trim()
+    }
+  }
+  return String(v).trim()
 }
