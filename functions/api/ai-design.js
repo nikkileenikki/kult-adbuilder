@@ -89,8 +89,8 @@ export async function onRequestPost({ request, env }) {
     : []
   const followUpContext = history.length
     ? `\n\nThis is a follow-up in an ongoing chat. Prior turns (most recent last):\n${history.map((h, i) =>
-        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}, palette: ${JSON.stringify(h.palette || null)}, adjustments: ${JSON.stringify(h.adjustments || null)}, cornerStyle: ${JSON.stringify(h.cornerStyle || null)}`
-      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette/adjustments/cornerStyle fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them. If the brief asks to move/resize something (e.g. "make the headline bigger", "move the CTA down a bit"), that's what "adjustments" is for. If the brief asks to change the corner rounding (e.g. "make the buttons square", "round the corners more"), that's what "cornerStyle" is for.`
+        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}, palette: ${JSON.stringify(h.palette || null)}, adjustments: ${JSON.stringify(h.adjustments || null)}, cornerStyle: ${JSON.stringify(h.cornerStyle || null)}, fonts: ${JSON.stringify(h.fonts || null)}, backgroundStyle: ${JSON.stringify(h.backgroundStyle || null)}`
+      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette/adjustments/cornerStyle/fonts/backgroundStyle fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them. If the brief asks to move/resize something (e.g. "make the headline bigger", "move the CTA down a bit"), that's what "adjustments" is for. If the brief asks to change the corner rounding (e.g. "make the buttons square", "round the corners more"), that's what "cornerStyle" is for. If the brief asks to change fonts (e.g. "use a different font", "make it feel more elegant"), that's what "fonts" is for. If the brief asks to change the background (e.g. "make it a gradient", "add some texture"), that's what "backgroundStyle" is for.`
     : ''
 
   const copyRules = `Copy rules:
@@ -119,6 +119,17 @@ export async function onRequestPost({ request, env }) {
 - "cornerStyle" controls how rounded the CTA/badge/price buttons are: "sharp" (square corners — serious/corporate/financial/legal tone), "soft" (gently rounded — most general-purpose brands), or "pill" (fully rounded ends — playful/consumer/lifestyle/app-like tone).
 - Pick whichever matches the brand's real visual identity if one is named/known, otherwise the brief's tone/industry. Default to "soft" if genuinely unsure.`
 
+  const FONT_WHITELIST = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Courier New', 'Verdana', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black']
+  const fontRules = `Font pairing rules:
+- "fonts" picks a deliberate font pairing from this exact whitelist only (no other font names): ${FONT_WHITELIST.map((f) => `"${f}"`).join(', ')}.
+- Provide three values: "headline" (used for headline/stat roles), "body" (used for subhead/body/body1/body2 roles), "cta" (used for cta/secondaryCta/badge/price button labels).
+- Pick a pairing that matches the brand/tone — e.g. "Georgia" headline + "Verdana" body reads editorial/trustworthy, "Impact" or "Arial Black" headline reads bold/energetic, "Times New Roman" reads formal/legal/financial, "Trebuchet MS"/"Verdana" reads modern/friendly. Don't default to "Arial" everywhere unless it's genuinely the best fit — every banner using the same font is exactly what this is meant to avoid.
+- Headline and body should usually differ enough to create real pairing contrast, but stay legible together.`
+
+  const backgroundRules = `Background style rules:
+- "backgroundStyle" is one of: "solid" (flat brand color — clean/corporate/minimal), "gradient" (smooth two-tone blend of the palette colors — modern/energetic/tech), "abstract" (soft geometric shapes/blobs — playful/consumer/creative), "watercolor" (soft painterly texture — lifestyle/wellness/organic).
+- Choose whichever fits the brand's real visual identity if known, otherwise the brief's tone/industry/offer. Default to "solid" if genuinely unsure.`
+
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}
 
@@ -140,24 +151,30 @@ Otherwise, design the banner. Cover, briefly:
 4. The final hex palette (bg/text/subtext/accent) and why it suits the brand/tone, checking text contrasts clearly against bg.
 5. Whether any role's box would benefit from a small nudge (and if so, roughly which direction/how much) — most briefs need none.
 6. Which corner style (sharp/soft/pill) fits the brand/tone.
+7. Which font pairing (headline/body/cta) fits the brand/tone.
+8. Which background style (solid/gradient/abstract/watercolor) fits the brand/tone.
 ${copyRules}
 ${paletteRules}
 ${adjustmentRules}
 ${cornerRules}
+${fontRules}
+${backgroundRules}
 Keep this to a few short paragraphs — reasoning, not a full essay.${brandContext}${paletteContext}${followUpContext}`
 
   const jsonSystem = `Convert the design reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract what the reasoning already settled on.
 
 If the reasoning decided to ask for clarification or give a suggestion instead of designing, output: {"type": "reply", "message": "..."} — "message" is the actual clarifying question or suggestion to show the user, written directly to them (not a description of the reasoning).
 
-Otherwise output the banner: {"type": "banner", "layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}, "adjustments": {"role": {"dx":0,"dy":0,"dw":0,"dh":0}, ...}, "cornerStyle": "sharp" | "soft" | "pill"}
+Otherwise output the banner: {"type": "banner", "layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}, "adjustments": {"role": {"dx":0,"dy":0,"dw":0,"dh":0}, ...}, "cornerStyle": "sharp" | "soft" | "pill", "fonts": {"headline":"...","body":"...","cta":"..."}, "backgroundStyle": "solid" | "gradient" | "abstract" | "watercolor"}
 ${copyRules}
 ${paletteRules}
 ${adjustmentRules}
 ${cornerRules}
+${fontRules}
+${backgroundRules}
 Output rules:
 - Return ONLY valid JSON, no markdown fences, no commentary, matching exactly one of the two shapes above.
-- For "banner": "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer. "adjustments" is optional — omit it, or omit any role within it, when no nudge is needed. "cornerStyle" is required, one of sharp/soft/pill.`
+- For "banner": "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer. "adjustments" is optional — omit it, or omit any role within it, when no nudge is needed. "cornerStyle" is required, one of sharp/soft/pill. "fonts" is required, all three values from the whitelist. "backgroundStyle" is required, one of solid/gradient/abstract/watercolor.`
 
   // Dispatches to whichever provider is configured (see ai-settings.js) — same
   // system/messages/maxTokens contract either way, callers don't need to know which
@@ -278,7 +295,17 @@ Output rules:
     const CORNER_STYLES = new Set(['sharp', 'soft', 'pill'])
     const cornerStyle = CORNER_STYLES.has(parsed.cornerStyle) ? parsed.cornerStyle : 'soft'
 
-    return json({ type: 'banner', layoutId: layout.id, copy, palette, adjustments: Object.keys(adjustments).length ? adjustments : null, cornerStyle })
+    const validFont = (v) => FONT_WHITELIST.includes(v) ? v : 'Arial'
+    const fonts = {
+      headline: validFont(parsed.fonts?.headline),
+      body: validFont(parsed.fonts?.body),
+      cta: validFont(parsed.fonts?.cta),
+    }
+
+    const BACKGROUND_STYLES = new Set(['solid', 'gradient', 'abstract', 'watercolor'])
+    const backgroundStyle = BACKGROUND_STYLES.has(parsed.backgroundStyle) ? parsed.backgroundStyle : 'solid'
+
+    return json({ type: 'banner', layoutId: layout.id, copy, palette, adjustments: Object.keys(adjustments).length ? adjustments : null, cornerStyle, fonts, backgroundStyle })
   } catch (err) {
     return json({ error: err.message || 'AI request failed' }, 502)
   }

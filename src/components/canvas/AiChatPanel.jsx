@@ -9,12 +9,11 @@ import { buildElementsFromLayout, BACKGROUND_STYLES, findLayout } from '../../ut
 // "Design with AI" as a chat, pinned to the bottom-right of the canvas viewport (see
 // Canvas.jsx). Copy/layout only — Claude picks a pre-built layout and writes the copy,
 // no image generation is involved anywhere in this flow. Conversation state lives in
-// aiChatStore (a plain, non-persisted zustand store) rather than component state, so
-// it survives this panel's host component unmounting (e.g. navigating to Settings and
-// back) — it's still cleared on an actual page refresh, matching what was asked: kept
-// for the session, lost on reload. It's sent back to /api/ai-design on every turn so
-// follow-ups ("make the headline shorter") refine the previous result instead of
-// generating an unrelated new one.
+// aiChatStore (persisted to localStorage) rather than component state, so it survives
+// this panel's host component unmounting and an actual page refresh — it's only ever
+// cleared when the user clicks the Clear chat button. It's sent back to /api/ai-design
+// on every turn so follow-ups ("make the headline shorter") refine the previous result
+// instead of generating an unrelated new one.
 export default function AiChatPanel() {
   const { token } = useAuthStore()
   const { elements, canvasWidth, canvasHeight } = useCanvasStore()
@@ -58,7 +57,8 @@ export default function AiChatPanel() {
         return
       }
 
-      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette, data.adjustments, data.cornerStyle)
+      const effectiveBackgroundStyle = data.backgroundStyle || backgroundStyle
+      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, effectiveBackgroundStyle, data.palette, data.adjustments, data.cornerStyle, data.fonts)
       if (!newElements.length) throw new Error('AI picked an unknown layout')
 
       saveState()
@@ -69,8 +69,9 @@ export default function AiChatPanel() {
         ...el,
       }))
       useCanvasStore.setState({ elements: withIds, selectedId: null })
+      if (data.backgroundStyle) setBackgroundStyle(data.backgroundStyle)
 
-      addHistoryTurn({ brief, layoutId: data.layoutId, copy: data.copy, palette: data.palette, adjustments: data.adjustments, cornerStyle: data.cornerStyle })
+      addHistoryTurn({ brief, layoutId: data.layoutId, copy: data.copy, palette: data.palette, adjustments: data.adjustments, cornerStyle: data.cornerStyle, fonts: data.fonts, backgroundStyle: data.backgroundStyle })
       const layoutLabel = findLayout(data.layoutId)?.label || data.layoutId
       addMessage({ role: 'assistant', text: `Applied "${layoutLabel}" layout to the canvas.` })
     } catch (err) {
