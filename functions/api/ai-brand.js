@@ -56,6 +56,32 @@ ${fieldRules}`
 
   async function callModel(system, messages, maxTokens) {
     if (provider === 'openai') {
+      // gpt-5.x models are reasoning models served via the newer Responses API, not
+      // Chat Completions — they take `instructions` + `input` and `max_output_tokens`
+      // (not `max_tokens`), and support a `reasoning.effort` knob Chat Completions
+      // doesn't have. Older models (gpt-4o, gpt-4-turbo, ...) keep using the Chat
+      // Completions endpoint they were already validated against.
+      if (/^gpt-5/.test(model)) {
+        const res = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            instructions: system,
+            input: messages.map((m) => ({ role: m.role, content: m.content })),
+            max_output_tokens: maxTokens,
+            reasoning: { effort: 'medium' },
+            text: { verbosity: 'medium' },
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error?.message || 'AI request failed')
+        return (data.output_text || '').trim()
+      }
+
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
