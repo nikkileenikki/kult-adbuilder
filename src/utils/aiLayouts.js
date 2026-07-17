@@ -413,16 +413,28 @@ const MIN_FONT_SIZE = 10
 // fontSize/width, then shrinks fontSize until the estimated wrapped height fits
 // `height`. Avoids the AI's copy-length rules ("~40 chars") reliably overflowing a
 // role's fixed box at its nominal font size.
+//
+// The width factor is intentionally generous (wider than a typical Arial-ish
+// character) — text can now render in any of the AI-selectable fonts (see
+// fontForRole below), including much wider/bolder faces like "Impact" or "Arial
+// Black". Estimating against a narrower default font understated real wrapped width,
+// so the loop stopped shrinking before the text actually fit, cropping/overflowing
+// the box. Also checks the single longest word against the box width directly —
+// word-wrap only breaks at spaces (falling back to mid-word only when even one word
+// can't fit), so a text-length-only estimate can look fine while one long word alone
+// is wider than the box and still overflows/mid-word-breaks in the actual render.
 function fitFontSize(text, width, height, startSize, bold) {
   if (!text) return startSize
-  const avgCharWidthFactor = bold ? 0.62 : 0.56
-  const lineHeightFactor = 1.25
+  const avgCharWidthFactor = bold ? 0.72 : 0.62
+  const lineHeightFactor = 1.3
+  const longestWord = text.split(/\s+/).reduce((a, w) => (w.length > a.length ? w : a), '')
   let fontSize = startSize
   while (fontSize > MIN_FONT_SIZE) {
     const charsPerLine = Math.max(1, Math.floor(width / (fontSize * avgCharWidthFactor)))
     const lines = Math.max(1, Math.ceil(text.length / charsPerLine))
     const estimatedHeight = lines * fontSize * lineHeightFactor
-    if (estimatedHeight <= height) break
+    const longestWordFits = longestWord.length <= charsPerLine
+    if (estimatedHeight <= height && longestWordFits) break
     fontSize -= 1
   }
   return fontSize
