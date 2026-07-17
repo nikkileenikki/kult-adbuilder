@@ -87,6 +87,12 @@ ${fieldRules}`
             reasoning: { effort: 'low' },
             text: { verbosity: 'medium' },
           }),
+          // Without an explicit cap, a stuck/slow upstream request can run past the
+          // platform's own hard request timeout — that kills the connection outright
+          // instead of letting us return a clean JSON error, which surfaces to the
+          // browser as a bare "Failed to fetch" with no useful explanation. Failing
+          // fast here (well under that ceiling) always leaves time to respond.
+          signal: AbortSignal.timeout(25000),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error?.message || 'AI request failed')
@@ -113,6 +119,7 @@ ${fieldRules}`
           max_tokens: maxTokens,
           messages: [{ role: 'system', content: system }, ...messages],
         }),
+        signal: AbortSignal.timeout(25000),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error?.message || 'AI request failed')
@@ -127,6 +134,7 @@ ${fieldRules}`
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({ model, max_tokens: maxTokens, system, messages }),
+      signal: AbortSignal.timeout(25000),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error?.message || 'AI request failed')

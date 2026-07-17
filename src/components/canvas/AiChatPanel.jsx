@@ -75,7 +75,13 @@ export default function AiChatPanel() {
       const layoutLabel = findLayout(data.layoutId)?.label || data.layoutId
       addMessage({ role: 'assistant', text: `Applied "${layoutLabel}" layout to the canvas.` })
     } catch (err) {
-      addMessage({ role: 'error', text: err.message })
+      // A real network failure (offline, request aborted, connection reset) surfaces
+      // here as the browser's generic "Failed to fetch" — give a clearer hint than
+      // that raw string since it otherwise reads like an AI response problem.
+      const message = err.message === 'Failed to fetch'
+        ? 'Could not reach the server — check your connection and try again.'
+        : err.message
+      addMessage({ role: 'error', text: message })
     } finally {
       setLoading(false)
     }
