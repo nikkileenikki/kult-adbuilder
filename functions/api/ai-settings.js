@@ -10,11 +10,8 @@ const MODELS = {
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest, cheapest)' },
   ],
   openai: [
-    { value: 'gpt-4o', label: 'GPT-4o' },
     { value: 'gpt-4o-mini', label: 'GPT-4o mini (fastest, cheapest)' },
-    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-    { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra (primary creative and brand)' },
-    { value: 'gpt-5.6-sol', label: 'GPT-5.6 Sol (premium brand guide and final review)' },
+    { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
     { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna (bulk copy and validation)' },
   ],
 }
