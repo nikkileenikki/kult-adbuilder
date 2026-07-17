@@ -24,7 +24,12 @@ export async function onRequestPost({ request, env }) {
 
   const FONT_WHITELIST = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Courier New', 'Verdana', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black']
 
-  const userMsg = `Brief: ${brief}`
+  // Spelled out explicitly rather than just "Brief: Nike" — a bare brand name with no
+  // framing left some models unsure whether they were being asked to design a banner,
+  // write ad copy, or something else. Being explicit that the deliverable is a full
+  // brand guide (name/colors/font/tone/notes) keeps every model on task regardless of
+  // how terse the brief itself is.
+  const userMsg = `Create a full brand guide (name, primary/secondary/accent/text colors, font, tone of voice, notes) for this brand, based on the following brief:\n${brief}`
 
   const fieldRules = `Field rules:
 - name: the brand's actual name, taken directly from the brief. If the brief doesn't clearly state one, derive a short plausible one that fits the description — never a generic placeholder like "Brand" or "Company".
