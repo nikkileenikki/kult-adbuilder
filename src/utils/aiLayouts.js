@@ -409,23 +409,44 @@ function effectiveBackgroundLuminance(style, palette) {
 
 const MIN_FONT_SIZE = 10
 
+// Average glyph width as a fraction of font-size, per font in the AI-selectable
+// whitelist (TextProperties.jsx's FONTS) — a single flat factor across all of them
+// badly under/overestimated real width for anything but a generic Arial-ish face.
+// Verdana in particular is a notably *wide* font (designed for legibility at small
+// sizes), so estimating it against a narrower default factor still let text wrap to
+// more lines than predicted and crop. "Impact" is the opposite case: a condensed
+// font, so a too-generous shared factor made it shrink more than it needed to.
+// Values are rough (not pixel-perfect metrics), tuned to err on the side of a
+// slightly wider estimate — better to shrink a bit more than to crop.
+const FONT_WIDTH_FACTORS = {
+  Arial: { regular: 0.56, bold: 0.62 },
+  Helvetica: { regular: 0.56, bold: 0.62 },
+  'Times New Roman': { regular: 0.50, bold: 0.55 },
+  Georgia: { regular: 0.56, bold: 0.61 },
+  'Courier New': { regular: 0.60, bold: 0.60 }, // monospace
+  Verdana: { regular: 0.64, bold: 0.70 },
+  Impact: { regular: 0.46, bold: 0.46 }, // condensed by design
+  'Comic Sans MS': { regular: 0.60, bold: 0.65 },
+  'Trebuchet MS': { regular: 0.55, bold: 0.60 },
+  'Arial Black': { regular: 0.68, bold: 0.68 },
+}
+const DEFAULT_WIDTH_FACTOR = { regular: 0.62, bold: 0.72 }
+function charWidthFactorFor(fontFamily, bold) {
+  const factors = FONT_WIDTH_FACTORS[fontFamily] || DEFAULT_WIDTH_FACTOR
+  return bold ? factors.bold : factors.regular
+}
+
 // Rough (not pixel-perfect) estimate of how many lines `text` wraps to at a given
 // fontSize/width, then shrinks fontSize until the estimated wrapped height fits
 // `height`. Avoids the AI's copy-length rules ("~40 chars") reliably overflowing a
-// role's fixed box at its nominal font size.
-//
-// The width factor is intentionally generous (wider than a typical Arial-ish
-// character) — text can now render in any of the AI-selectable fonts (see
-// fontForRole below), including much wider/bolder faces like "Impact" or "Arial
-// Black". Estimating against a narrower default font understated real wrapped width,
-// so the loop stopped shrinking before the text actually fit, cropping/overflowing
-// the box. Also checks the single longest word against the box width directly —
-// word-wrap only breaks at spaces (falling back to mid-word only when even one word
-// can't fit), so a text-length-only estimate can look fine while one long word alone
-// is wider than the box and still overflows/mid-word-breaks in the actual render.
-function fitFontSize(text, width, height, startSize, bold) {
+// role's fixed box at its nominal font size. Also checks the single longest word
+// against the box width directly — word-wrap only breaks at spaces (falling back to
+// mid-word only when even one word can't fit), so a text-length-only estimate can
+// look fine while one long word alone is wider than the box and still overflows/
+// mid-word-breaks in the actual render.
+function fitFontSize(text, width, height, startSize, bold, fontFamily) {
   if (!text) return startSize
-  const avgCharWidthFactor = bold ? 0.72 : 0.62
+  const avgCharWidthFactor = charWidthFactorFor(fontFamily, bold)
   const lineHeightFactor = 1.3
   // Fitting to the exact estimated height leaves zero margin for real font metrics
   // (line-height/ascender-descender spacing varies by font) to run slightly over the
@@ -461,13 +482,13 @@ function fitFontSize(text, width, height, startSize, bold) {
 // height*1.6 floor made the button, since a short-but-wide pill needs an even wider
 // minimum). The rendered pill height is now sized to the font instead, vertically
 // centered within the original box.
-function fitButtonBox(r, text, x, y, width, height, baseFontSize) {
+function fitButtonBox(r, text, x, y, width, height, baseFontSize, fontFamily) {
   const isBar = r.width >= 0.95 || r.height >= 0.95
   if (isBar) {
-    return { x, y, width, height, fontSize: fitFontSize(text, width, height, baseFontSize, true) }
+    return { x, y, width, height, fontSize: fitFontSize(text, width, height, baseFontSize, true, fontFamily) }
   }
 
-  const charWidthFactor = 0.62
+  const charWidthFactor = charWidthFactorFor(fontFamily, true)
   let fontSize = baseFontSize
   let natural = Math.round(text.length * fontSize * charWidthFactor) + Math.round(fontSize * 1.5)
   while (natural > width && fontSize > MIN_FONT_SIZE) {
@@ -640,9 +661,10 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
     const height = Math.round(r.height * canvasHeight)
     const baseFontSize = Math.max(10, Math.round(r.fontSize * canvasHeight))
     const text = copy[r.role] || (r.type === 'button' ? 'Learn More' : '')
+    const roleFontFamily = fontForRole(r.role, fonts)
 
     if (r.type === 'button') {
-      const btn = fitButtonBox(r, text, x, y, width, height, baseFontSize)
+      const btn = fitButtonBox(r, text, x, y, width, height, baseFontSize, roleFontFamily)
       elements.push({
         type: 'shape',
         x: btn.x, y: btn.y, width: btn.width, height: btn.height,
@@ -654,19 +676,19 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
         text,
         // Always computed against the button's own background — never a separate
         // brand field that could collide with it and make the label unreadable.
-        fontSize: btn.fontSize, fontFamily: fontForRole(r.role, fonts), textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
+        fontSize: btn.fontSize, fontFamily: roleFontFamily, textAlign: 'center', color: contrastColor(palette.accent), bold: true, zIndex: z++,
       })
     } else {
       // Shrink the font (never grow it) until the AI-written copy is estimated to fit
       // the role's box at this size — the fixed fractional size above is only a
       // starting point and long copy at a large size was cropping at the bottom.
-      const fontSize = fitFontSize(text, width, height, baseFontSize, !!r.bold)
+      const fontSize = fitFontSize(text, width, height, baseFontSize, !!r.bold, roleFontFamily)
       const preferred = r.role === 'subhead' || r.role === 'body' ? palette.subtext : palette.text
       elements.push({
         type: 'text',
         x, y, width, height,
         text,
-        fontFamily: fontForRole(r.role, fonts),
+        fontFamily: roleFontFamily,
         fontSize, textAlign: r.textAlign || 'left',
         color: readableColorForLum(preferred, bgLum),
         bold: !!r.bold, italic: !!r.italic, zIndex: z++,
