@@ -67,6 +67,12 @@ ${fieldRules}`
       // doesn't have. Older models (gpt-4o, gpt-4-turbo, ...) keep using the Chat
       // Completions endpoint they were already validated against.
       if (/^gpt-5/.test(model)) {
+        // Reasoning tokens count against max_output_tokens on these models — at
+        // "medium" effort the model could burn the whole budget on internal reasoning
+        // and leave nothing for the actual visible output, coming back as empty text
+        // (surfaced to users as "AI returned an unparseable response"). "low" effort
+        // plus a generous token headroom keeps a real answer in the budget; these are
+        // short, well-specified extraction/copy tasks that don't need deep reasoning.
         const res = await fetch('https://api.openai.com/v1/responses', {
           method: 'POST',
           headers: {
@@ -77,8 +83,8 @@ ${fieldRules}`
             model,
             instructions: system,
             input: messages.map((m) => ({ role: m.role, content: m.content })),
-            max_output_tokens: maxTokens,
-            reasoning: { effort: 'medium' },
+            max_output_tokens: Math.max(maxTokens * 2, maxTokens + 500),
+            reasoning: { effort: 'low' },
             text: { verbosity: 'medium' },
           }),
         })
