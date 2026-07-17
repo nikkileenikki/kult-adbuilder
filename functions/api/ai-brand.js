@@ -164,14 +164,14 @@ ${fieldRules}`
     const validFont = (v) => FONT_WHITELIST.includes(v) ? v : 'Arial'
 
     return json({
-      name: String(parsed.name || '').trim(),
+      name: asText(parsed.name),
       primaryColor: validHex(parsed.primaryColor),
       secondaryColor: validHex(parsed.secondaryColor),
       accentColor: validHex(parsed.accentColor),
       textColor: validHex(parsed.textColor),
       fontFamily: validFont(parsed.fontFamily),
-      tone: String(parsed.tone || '').trim(),
-      notes: String(parsed.notes || '').trim(),
+      tone: asText(parsed.tone),
+      notes: asText(parsed.notes),
     })
   } catch (err) {
     return json({ error: err.message || 'AI request failed' }, 502)
@@ -197,4 +197,21 @@ function json(data, status = 200) {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+// Some models occasionally wrap a value in a nested object (e.g. {"text": "..."})
+// instead of returning the plain string that was asked for — String(anObject) turns
+// that into the literal text "[object Object]" rather than throwing, so it silently
+// made it all the way into the brand form. This unwraps the common shapes before
+// falling back to a plain string coercion.
+function asText(v) {
+  if (typeof v === 'string') return v.trim()
+  if (v == null) return ''
+  if (Array.isArray(v)) return v.map(asText).filter(Boolean).join(' ').trim()
+  if (typeof v === 'object') {
+    for (const key of ['text', 'value', 'content', 'name']) {
+      if (typeof v[key] === 'string') return v[key].trim()
+    }
+  }
+  return String(v).trim()
 }
