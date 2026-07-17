@@ -89,8 +89,8 @@ export async function onRequestPost({ request, env }) {
     : []
   const followUpContext = history.length
     ? `\n\nThis is a follow-up in an ongoing chat. Prior turns (most recent last):\n${history.map((h, i) =>
-        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}, palette: ${JSON.stringify(h.palette || null)}`
-      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them.`
+        `${i + 1}. Brief: "${h.brief}" -> layoutId: "${h.layoutId}", copy: ${JSON.stringify(h.copy)}, palette: ${JSON.stringify(h.palette || null)}, adjustments: ${JSON.stringify(h.adjustments || null)}`
+      ).join('\n')}\n\nUnless the new brief clearly asks for a different layout/full redo, keep the same layoutId as the most recent turn and only change the copy/palette/adjustments fields the new brief actually asks to change — carry over the rest unchanged from the most recent turn. If the brief asks to change a color (e.g. "make it darker", "use red instead"), that's exactly what the "palette" field is for — actually change the relevant hex value(s) from the previous turn rather than repeating them. If the brief asks to move/resize something (e.g. "make the headline bigger", "move the CTA down a bit"), that's what "adjustments" is for.`
     : ''
 
   const copyRules = `Copy rules:
@@ -110,6 +110,11 @@ export async function onRequestPost({ request, env }) {
 - Otherwise, choose colors deliberately for the brief's tone/industry — not a default/placeholder palette.
 - "text" and "subtext" must contrast clearly against "bg" (don't pick near-identical colors).`
 
+  const adjustmentRules = `Layout adjustment rules:
+- The chosen layout's geometry is fixed and already safe (nothing overlaps the logo/video zone or goes off-canvas) — you are choosing copy and color, not designing from scratch.
+- You MAY optionally nudge a role's box slightly if it clearly improves the fit for this specific brief (e.g. a role needs a bit more room for unusually long copy, or something should sit a little closer to another element). This is a small nudge, not a redesign.
+- If you do, keep each nudge tiny: dx/dw as a fraction of canvas width, dy/dh as a fraction of canvas height, each between -0.06 and 0.06 (i.e. at most ~6% of the canvas). Most of the time no adjustment is needed at all — omit "adjustments" entirely, or omit any role that doesn't need one.`
+
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}
 
@@ -127,16 +132,20 @@ ${LAYOUT_CATALOG.map((l) => `- id: "${l.id}" (${l.label}) — roles: ${l.roles.j
 2. Which of the available layouts best fits this offer and why.
 3. Draft the actual copy for every role that layout requires.
 4. The final hex palette (bg/text/subtext/accent) and why it suits the brand/tone, checking text contrasts clearly against bg.
+5. Whether any role's box would benefit from a small nudge (and if so, roughly which direction/how much) — most briefs need none.
 ${copyRules}
 ${paletteRules}
+${adjustmentRules}
 Keep this to a few short paragraphs — reasoning, not a full essay.${brandContext}${paletteContext}${followUpContext}`
 
-  const jsonSystem = `Convert the design reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract the layoutId, copy, and palette the reasoning already settled on.
+  const jsonSystem = `Convert the design reasoning already worked out in this conversation into the final answer. Don't re-derive anything — extract the layoutId, copy, palette, and any adjustments the reasoning already settled on.
 ${copyRules}
 ${paletteRules}
+${adjustmentRules}
 Output rules:
-- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}}
-- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.`
+- Return ONLY valid JSON, no markdown fences, no commentary, matching exactly: {"layoutId": "...", "copy": {"role": "text", ...}, "palette": {"bg":"#hex","text":"#hex","subtext":"#hex","accent":"#hex"}, "adjustments": {"role": {"dx":0,"dy":0,"dw":0,"dh":0}, ...}}
+- "copy" must have exactly one entry per role the chosen layout declares — no more, no fewer.
+- "adjustments" is optional — omit it, or omit any role within it, when no nudge is needed.`
 
   // Dispatches to whichever provider is configured (see ai-settings.js) — same
   // system/messages/maxTokens contract either way, callers don't need to know which
@@ -233,7 +242,23 @@ Output rules:
     const merged = { ...aiPalette, ...guidePalette }
     const palette = Object.keys(merged).length ? merged : null
 
-    return json({ layoutId: layout.id, copy, palette })
+    // Re-clamped here too (not just client-side in applyAdjustment) so a stray huge
+    // value from the model can't even get as far as the client before being capped —
+    // defense in depth for what's meant to be a small nudge, never a redesign.
+    const ADJUST_LIMIT = 0.06
+    const clampAdj = (v) => Math.max(-ADJUST_LIMIT, Math.min(ADJUST_LIMIT, Number(v) || 0))
+    const adjustments = {}
+    if (parsed.adjustments && typeof parsed.adjustments === 'object') {
+      layout.roles.forEach((role) => {
+        const a = parsed.adjustments[role]
+        if (a && typeof a === 'object') {
+          const dx = clampAdj(a.dx), dy = clampAdj(a.dy), dw = clampAdj(a.dw), dh = clampAdj(a.dh)
+          if (dx || dy || dw || dh) adjustments[role] = { dx, dy, dw, dh }
+        }
+      })
+    }
+
+    return json({ layoutId: layout.id, copy, palette, adjustments: Object.keys(adjustments).length ? adjustments : null })
   } catch (err) {
     return json({ error: err.message || 'AI request failed' }, 502)
   }
