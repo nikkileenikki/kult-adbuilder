@@ -134,7 +134,7 @@ export async function onRequestPost({ request, env }) {
 
   const backgroundRules = `Background style rules:
 - "backgroundStyle" is one of: "solid" (flat brand color — clean/corporate/minimal), "gradient" (smooth blend from "bg" to "accent" — modern/energetic/tech), "abstract" (soft geometric shapes/blobs — playful/consumer/creative), "watercolor" (soft painterly texture — lifestyle/wellness/organic).
-- Choose whichever fits the brand's real visual identity if known, otherwise the brief's tone/industry/offer. Default to "solid" if genuinely unsure.
+- "solid" is the common/expected choice for most brands and briefs — pick it unless something concretely calls for one of the others (a named brand's actual visual identity genuinely uses a gradient/pattern, or the brief's tone clearly leans that way, e.g. explicitly playful, painterly, or high-energy). Don't reach for "gradient" just because a brief sounds generically upbeat or modern — most "modern/energetic" brands still ship solid-color ads. When unsure, choose "solid".
 - A "gradient" background renders directly from your "bg" and "accent" hex values — the same palette rules apply (no default blue-to-yellow, no generic fallback). Pick the actual bg/accent hues that fit this brief; the gradient should look different for a finance brand than for a fitness brand than for a bakery.`
 
   const userMsg = `Banner size: ${width}x${height}
