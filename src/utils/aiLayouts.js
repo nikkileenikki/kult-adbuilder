@@ -475,6 +475,22 @@ export function layoutCatalogSummary() {
   }))
 }
 
+// The AI is allowed to nudge a role's box slightly from the layout's fixed geometry
+// (e.g. more room for a long headline) rather than only ever picking from the catalog
+// verbatim — but only a *nudge*: capped to a small fraction of canvas size so it can't
+// drift into the logo/video-safe zones or off-canvas, which the fixed catalog geometry
+// otherwise guarantees. Values are fractions of canvas width (dx/dw) or height (dy/dh).
+const ADJUST_LIMIT = 0.06
+function applyAdjustment(r, adj) {
+  if (!adj) return r
+  const clamp = (v) => Math.max(-ADJUST_LIMIT, Math.min(ADJUST_LIMIT, Number(v) || 0))
+  const width = Math.max(0.05, r.width + clamp(adj.dw))
+  const height = Math.max(0.05, r.height + clamp(adj.dh))
+  const x = Math.max(0, Math.min(1 - width, r.x + clamp(adj.dx)))
+  const y = Math.max(0, Math.min(1 - height, r.y + clamp(adj.dy)))
+  return { ...r, x, y, width, height }
+}
+
 // Expands a normalized layout + AI-generated copy into real canvasStore element
 // partials (no `id` — addElement()/direct insertion assigns those) for the given
 // canvas size. `paletteOverride` (e.g. from a brand guide) replaces the layout's
@@ -482,7 +498,9 @@ export function layoutCatalogSummary() {
 // is filled — 'solid' (default), 'gradient', 'abstract', or 'watercolor'. All
 // backgrounds are CSS-only (no generated images), so text contrast can always be
 // computed from the palette's own colors — no shadow/glow or panel behind the text.
-export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null) {
+// `adjustments` (optional): { role: { dx, dy, dw, dh } } small per-role nudges from
+// the AI, see applyAdjustment above.
+export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, copy = {}, backgroundStyle = 'solid', paletteOverride = null, adjustments = null) {
   const layout = findLayout(layoutId)
   if (!layout) return []
   const palette = { ...getPaletteFor(layout), ...(paletteOverride || {}) }
@@ -533,7 +551,8 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
     })
   }
 
-  layout.roles.forEach((r) => {
+  layout.roles.forEach((role) => {
+    const r = applyAdjustment(role, adjustments?.[role.role])
     const x = Math.round(r.x * canvasWidth)
     const y = Math.round(r.y * canvasHeight)
     const width = Math.round(r.width * canvasWidth)

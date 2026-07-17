@@ -48,7 +48,7 @@ export default function AiChatPanel() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'AI design failed')
 
-      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette)
+      const newElements = buildElementsFromLayout(data.layoutId, canvasWidth, canvasHeight, data.copy, backgroundStyle, data.palette, data.adjustments)
       if (!newElements.length) throw new Error('AI picked an unknown layout')
 
       saveState()
@@ -60,7 +60,7 @@ export default function AiChatPanel() {
       }))
       useCanvasStore.setState({ elements: withIds, selectedId: null })
 
-      addHistoryTurn({ brief, layoutId: data.layoutId, copy: data.copy, palette: data.palette })
+      addHistoryTurn({ brief, layoutId: data.layoutId, copy: data.copy, palette: data.palette, adjustments: data.adjustments })
       const layoutLabel = findLayout(data.layoutId)?.label || data.layoutId
       addMessage({ role: 'assistant', text: `Applied "${layoutLabel}" layout to the canvas.` })
     } catch (err) {
