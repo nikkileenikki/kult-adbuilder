@@ -62,8 +62,13 @@ export async function onRequestPost({ request, env }) {
   const guide = brandId
     ? await env.DB.prepare('SELECT * FROM brands WHERE id = ?').bind(brandId).first().catch(() => null)
     : null
-  const brandContext = guide && (guide.tone || guide.notes)
-    ? `\n\nBrand guide — write copy consistent with this:\n${guide.tone ? `Tone/voice: ${guide.tone}\n` : ''}${guide.notes ? `Notes: ${guide.notes}` : ''}`
+  // Always tell the model the brand's actual name (when one is selected), not just
+  // tone/notes — without this the model was never told which brand it's designing for
+  // at all when tone/notes were left blank, so it had no way to recall a real, known
+  // brand's actual colors/identity, and follow-up turns ("add a video") had nothing to
+  // remind them which brand was in play either.
+  const brandContext = guide
+    ? `\n\nBrand: "${guide.name}". If you recognize this as a real, known brand, use your actual knowledge of its visual identity (colors, tone) to inform this design. Keep designing for this same brand across every turn in this chat, including follow-ups that don't repeat the brand name.${guide.tone ? `\nTone/voice: ${guide.tone}` : ''}${guide.notes ? `\nNotes: ${guide.notes}` : ''}`
     : ''
   // Any brand-guide color the user actually configured is a hard constraint (set later,
   // after the AI's own palette pick) — but tell the model which fields are already
