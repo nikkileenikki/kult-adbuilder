@@ -125,7 +125,8 @@ export async function onRequestPost({ request, env }) {
   const adjustmentRules = `Layout adjustment rules:
 - The chosen layout's geometry is fixed and already safe (nothing overlaps the logo/video zone or goes off-canvas) — you are choosing copy and color, not designing from scratch.
 - You MAY optionally nudge a role's box slightly if it clearly improves the fit for this specific brief (e.g. a role needs a bit more room for unusually long copy, or something should sit a little closer to another element). This is a small nudge, not a redesign.
-- If you do, keep each nudge tiny: dx/dw as a fraction of canvas width, dy/dh as a fraction of canvas height, each between -0.06 and 0.06 (i.e. at most ~6% of the canvas). Most of the time no adjustment is needed at all — omit "adjustments" entirely, or omit any role that doesn't need one.`
+- Text boxes are vertically centered with the overflow hidden — if the copy you wrote for a role will wrap onto 2-3 lines instead of fitting on one, the fixed box height will crop it top and bottom unless you grow "dh" to make room. Estimate roughly how many lines your copy will actually wrap to at the role's normal font size, and set "dh" (positive, fraction of canvas height) generously enough that all of it stays visible — don't leave copy you expect to wrap at its default height.
+- Keep dx/dy/dw nudges tiny: fractions of canvas width/height, each between -0.06 and 0.06 (i.e. at most ~6% of the canvas). "dh" has more headroom since growing a text box's height in place doesn't risk colliding with neighboring roles the way moving/widening it could — dh may go up to 0.18 (~18% of canvas height) when genuinely needed for wrapped copy. Most of the time no adjustment is needed at all — omit "adjustments" entirely, or omit any role that doesn't need one.`
 
   const cornerRules = `Corner style rules:
 - "cornerStyle" controls how rounded the CTA/badge/price buttons are: "sharp" (square corners — serious/corporate/financial/legal tone), "soft" (gently rounded — most general-purpose brands), or "pill" (fully rounded ends — playful/consumer/lifestyle/app-like tone).
@@ -341,15 +342,20 @@ Output rules:
 
     // Re-clamped here too (not just client-side in applyAdjustment) so a stray huge
     // value from the model can't even get as far as the client before being capped —
-    // defense in depth for what's meant to be a small nudge, never a redesign.
+    // defense in depth for what's meant to be a small nudge, never a redesign. "dh"
+    // gets a wider allowance than dx/dy/dw — see the mirrored HEIGHT_ADJUST_LIMIT in
+    // src/utils/aiLayouts.js's applyAdjustment for why (growing a text box's height in
+    // place is safe, unlike moving/widening it).
     const ADJUST_LIMIT = 0.06
+    const HEIGHT_ADJUST_LIMIT = 0.18
     const clampAdj = (v) => Math.max(-ADJUST_LIMIT, Math.min(ADJUST_LIMIT, Number(v) || 0))
+    const clampHeightAdj = (v) => Math.max(-HEIGHT_ADJUST_LIMIT, Math.min(HEIGHT_ADJUST_LIMIT, Number(v) || 0))
     const adjustments = {}
     if (parsed.adjustments && typeof parsed.adjustments === 'object') {
       layout.roles.forEach((role) => {
         const a = parsed.adjustments[role]
         if (a && typeof a === 'object') {
-          const dx = clampAdj(a.dx), dy = clampAdj(a.dy), dw = clampAdj(a.dw), dh = clampAdj(a.dh)
+          const dx = clampAdj(a.dx), dy = clampAdj(a.dy), dw = clampAdj(a.dw), dh = clampHeightAdj(a.dh)
           if (dx || dy || dw || dh) adjustments[role] = { dx, dy, dw, dh }
         }
       })
