@@ -34,13 +34,18 @@ export default function Canvas() {
   }, [])
 
   return (
-    // Canvas Viewport — the dark, scrollable stage area surrounding the banner. Holds the
-    // scaled banner container plus any viewport-pinned overlay controls (e.g. refresh button).
+    // Outer Frame — fixed-size (doesn't scroll), holds the scrollable viewport plus any
+    // viewport-pinned overlay controls (refresh button, AI chat launcher). Those overlays
+    // must be positioned against THIS non-scrolling box, not the scrollable viewport
+    // itself — an absolutely-positioned child of an overflow-auto element is anchored to
+    // the full scrollable content height, not the visible viewport, so with a banner
+    // taller than the viewport the overlays would drift out of view while scrolling.
+    <div className="flex-1 relative bg-gray-900" style={{ background: 'rgba(30,41,59,0.7)' }}>
+    {/* Canvas Viewport — the dark, scrollable stage area surrounding the banner. */}
     <div
       ref={containerRef}
       id="canvas-viewport"
-      className="flex-1 overflow-auto bg-gray-900 relative"
-      style={{ background: 'rgba(30,41,59,0.7)' }}
+      className="absolute inset-0 overflow-auto"
     >
       {/* Zoom Frame — centers the scaled banner within the viewport and reserves exactly
           the scaled footprint so the CSS transform below doesn't cause layout overflow. */}
@@ -112,10 +117,12 @@ export default function Canvas() {
         </div>
         </div>
       </div>
+    </div>
+
       {isAdvanced && (
-        // Refresh/Replay Button — pinned to the canvas viewport (not the banner itself),
-        // bottom-right corner (offset left of the AI chat launcher below); remounts the
-        // Template Preview Iframe above to replay it.
+        // Refresh/Replay Button — pinned to the outer (non-scrolling) frame, bottom-right
+        // corner (offset left of the AI chat launcher below); remounts the Template
+        // Preview Iframe above to replay it.
         <button
           onClick={handleRefreshPreview}
           title="Refresh / replay custom template"
@@ -126,7 +133,7 @@ export default function Canvas() {
         </button>
       )}
 
-      {/* AI Chat Launcher — "Design with AI" as a persistent chat, bottom-right of the viewport */}
+      {/* AI Chat Launcher — "Design with AI" as a persistent chat, bottom-right of the outer frame */}
       <AiChatPanel />
     </div>
   )
