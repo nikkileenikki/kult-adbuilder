@@ -2,10 +2,12 @@ import React, { useState } from 'react'
 import { useAuthStore } from '../../store/authStore.js'
 import BrandGuideContent from './BrandGuideContent.jsx'
 import UserManagementPage from '../auth/UserManagementPage.jsx'
+import AiSettingsContent from './AiSettingsContent.jsx'
 
 const TABS = [
   { id: 'brand', label: 'Brand Guide', icon: 'fa-swatchbook', adminOnly: false },
   { id: 'users', label: 'User Management', icon: 'fa-users', adminOnly: true },
+  { id: 'ai', label: 'AI Settings', icon: 'fa-wand-magic-sparkles', adminOnly: true },
 ]
 
 export default function SettingsPage({ onClose }) {
@@ -53,6 +55,7 @@ export default function SettingsPage({ onClose }) {
         <div className="flex-1 overflow-auto p-6">
           {tab === 'brand' && <BrandGuideContent />}
           {tab === 'users' && isAdmin && <UserManagementPage embedded />}
+          {tab === 'ai' && isAdmin && <AiSettingsContent />}
         </div>
       </div>
     </div>
