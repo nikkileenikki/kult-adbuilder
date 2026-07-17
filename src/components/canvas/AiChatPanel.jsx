@@ -116,7 +116,7 @@ export default function AiChatPanel() {
               </p>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={`text-xs rounded-lg px-2.5 py-1.5 max-w-[90%] ${
+              <div key={i} className={`text-xs rounded-lg px-2.5 py-1.5 max-w-[90%] select-text ${
                 m.role === 'user' ? 'bg-purple-700 text-white ml-auto' :
                 m.role === 'error' ? 'bg-red-900/40 text-red-300' :
                 'bg-gray-800 text-gray-200'
