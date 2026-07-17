@@ -480,12 +480,20 @@ export function layoutCatalogSummary() {
 // verbatim — but only a *nudge*: capped to a small fraction of canvas size so it can't
 // drift into the logo/video-safe zones or off-canvas, which the fixed catalog geometry
 // otherwise guarantees. Values are fractions of canvas width (dx/dw) or height (dy/dh).
+// Text boxes are vertically centered with overflow hidden (see CanvasElement.jsx) — if
+// wrapped copy needs more than one line, the box's fixed height crops it top and
+// bottom equally rather than growing to fit. `dh` gets a much bigger allowance than
+// dx/dy/dw for exactly that reason: growing a text box downward/upward in place is
+// safe (it doesn't collide with a neighboring role the way widening or repositioning
+// could), so the AI has real room to size the box to the copy it wrote.
 const ADJUST_LIMIT = 0.06
+const HEIGHT_ADJUST_LIMIT = 0.18
 function applyAdjustment(r, adj) {
   if (!adj) return r
   const clamp = (v) => Math.max(-ADJUST_LIMIT, Math.min(ADJUST_LIMIT, Number(v) || 0))
+  const clampHeight = (v) => Math.max(-HEIGHT_ADJUST_LIMIT, Math.min(HEIGHT_ADJUST_LIMIT, Number(v) || 0))
   const width = Math.max(0.05, r.width + clamp(adj.dw))
-  const height = Math.max(0.05, r.height + clamp(adj.dh))
+  const height = Math.max(0.05, r.height + clampHeight(adj.dh))
   const x = Math.max(0, Math.min(1 - width, r.x + clamp(adj.dx)))
   const y = Math.max(0, Math.min(1 - height, r.y + clamp(adj.dy)))
   return { ...r, x, y, width, height }
