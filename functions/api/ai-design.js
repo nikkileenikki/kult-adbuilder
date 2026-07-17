@@ -113,7 +113,8 @@ export async function onRequestPost({ request, env }) {
 - bg = background, text = headline color, subtext = secondary text color, accent = CTA/button color, all as hex.
 - If the brief names a specific, recognizable real-world brand or company, use your actual knowledge of that brand's real visual identity (their known primary/secondary brand colors) — not a generic guess or an unrelated palette. If you're not confident of a named brand's real colors, say so and choose a professional palette that fits its industry/tone instead of inventing colors and presenting them as the brand's own.
 - Otherwise, choose colors deliberately for the brief's tone/industry — not a default/placeholder palette.
-- "text" and "subtext" must contrast clearly against "bg" (don't pick near-identical colors).`
+- "text" and "subtext" must contrast clearly against "bg" (don't pick near-identical colors).
+- Do not default to the same "safe" palette (e.g. a blue background with a yellow/orange accent) regardless of brief — that combination should only appear when it's actually the right fit (e.g. it's the named brand's real colors), never as a generic fallback. Vary hue, saturation, and which color plays bg vs accent based on what this specific brief actually calls for.`
 
   const adjustmentRules = `Layout adjustment rules:
 - The chosen layout's geometry is fixed and already safe (nothing overlaps the logo/video zone or goes off-canvas) — you are choosing copy and color, not designing from scratch.
@@ -132,8 +133,9 @@ export async function onRequestPost({ request, env }) {
 - Headline and body should usually differ enough to create real pairing contrast, but stay legible together.`
 
   const backgroundRules = `Background style rules:
-- "backgroundStyle" is one of: "solid" (flat brand color — clean/corporate/minimal), "gradient" (smooth two-tone blend of the palette colors — modern/energetic/tech), "abstract" (soft geometric shapes/blobs — playful/consumer/creative), "watercolor" (soft painterly texture — lifestyle/wellness/organic).
-- Choose whichever fits the brand's real visual identity if known, otherwise the brief's tone/industry/offer. Default to "solid" if genuinely unsure.`
+- "backgroundStyle" is one of: "solid" (flat brand color — clean/corporate/minimal), "gradient" (smooth blend from "bg" to "accent" — modern/energetic/tech), "abstract" (soft geometric shapes/blobs — playful/consumer/creative), "watercolor" (soft painterly texture — lifestyle/wellness/organic).
+- Choose whichever fits the brand's real visual identity if known, otherwise the brief's tone/industry/offer. Default to "solid" if genuinely unsure.
+- A "gradient" background renders directly from your "bg" and "accent" hex values — the same palette rules apply (no default blue-to-yellow, no generic fallback). Pick the actual bg/accent hues that fit this brief; the gradient should look different for a finance brand than for a fitness brand than for a bakery.`
 
   const userMsg = `Banner size: ${width}x${height}
 Brief: ${brief}
