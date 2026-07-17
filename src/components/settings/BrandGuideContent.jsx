@@ -44,6 +44,11 @@ export default function BrandGuideContent() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
+  const [aiOpen, setAiOpen] = useState(false)
+  const [aiBrief, setAiBrief] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState(null)
+
   const load = () => {
     setLoading(true)
     fetch('/api/brand-guide', { headers: { Authorization: `Bearer ${token}` } })
@@ -99,6 +104,41 @@ export default function BrandGuideContent() {
     }
   }
 
+  // Fills the (unsaved) form from an AI-generated draft — the user still reviews/edits
+  // every field and clicks "Create Brand" themselves, same as filling it in by hand.
+  const handleAiBuild = async () => {
+    const brief = aiBrief.trim()
+    if (!brief) return
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      const res = await fetch('/api/ai-brand', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'AI brand generation failed')
+      setSelectedId(null)
+      setForm({
+        name: data.name || '',
+        primaryColor: data.primaryColor || '',
+        secondaryColor: data.secondaryColor || '',
+        accentColor: data.accentColor || '',
+        textColor: data.textColor || '',
+        fontFamily: data.fontFamily || '',
+        tone: data.tone || '',
+        notes: data.notes || '',
+      })
+      setAiOpen(false)
+      setAiBrief('')
+    } catch (err) {
+      setAiError(err.message)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   const handleDelete = async () => {
     if (!selectedId) return
     if (!confirm(`Delete "${form.name}"?`)) return
@@ -139,6 +179,14 @@ export default function BrandGuideContent() {
               <i className="fa-solid fa-plus mr-1" style={{ fontSize: 10 }} /> New Brand
             </button>
           )}
+          {isAdmin && (
+            <button
+              onClick={() => { setAiOpen((v) => !v); setAiError(null) }}
+              className={`w-full text-left text-xs px-2 py-1.5 rounded mb-3 ${aiOpen ? 'bg-purple-700 text-white' : 'text-purple-300 hover:bg-gray-800'}`}
+            >
+              <i className="fa-solid fa-wand-magic-sparkles mr-1" style={{ fontSize: 10 }} /> Build with AI
+            </button>
+          )}
           {loading && <p className="text-xs text-gray-600 italic px-2">Loading…</p>}
           {!loading && brands.length === 0 && <p className="text-xs text-gray-600 italic px-2">No brands yet.</p>}
           {brands.map((b) => (
@@ -154,6 +202,31 @@ export default function BrandGuideContent() {
 
         {/* Editor */}
         <div className="flex-1 min-w-0 space-y-3">
+          {aiOpen && (
+            <div className="bg-gray-800/60 border border-purple-800 rounded-lg p-3 space-y-2">
+              <p className="text-xs text-gray-400">
+                Describe the brand (name and/or a short description) — the AI will fill in the fields below for you to review before creating it.
+              </p>
+              <div className="flex items-end gap-1.5">
+                <textarea
+                  value={aiBrief}
+                  onChange={(e) => setAiBrief(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiBuild() } }}
+                  rows={2}
+                  placeholder="e.g. Nike, or: a cozy neighborhood coffee shop called Fernwood"
+                  className="flex-1 min-w-0 bg-gray-900 text-gray-100 rounded px-2 py-1.5 text-xs border border-gray-700 focus:border-purple-500 focus:outline-none resize-none"
+                />
+                <button
+                  onClick={handleAiBuild}
+                  disabled={aiLoading || !aiBrief.trim()}
+                  className="shrink-0 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white px-3 py-1.5 rounded text-xs font-medium"
+                >
+                  {aiLoading ? <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 11 }} /> : 'Fill in'}
+                </button>
+              </div>
+              {aiError && <p className="text-xs text-red-400">{aiError}</p>}
+            </div>
+          )}
           <div>
             <label className="text-xs text-gray-400 block mb-1">Brand Name</label>
             <input
