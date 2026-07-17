@@ -495,20 +495,40 @@ export function layoutCatalogSummary() {
 // Text boxes are vertically centered with overflow hidden (see CanvasElement.jsx) — if
 // wrapped copy needs more than one line, the box's fixed height crops it top and
 // bottom equally rather than growing to fit. `dh` gets a much bigger allowance than
-// dx/dy/dw for exactly that reason: growing a text box downward/upward in place is
-// safe (it doesn't collide with a neighboring role the way widening or repositioning
-// could), so the AI has real room to size the box to the copy it wrote.
+// dx/dy/dw for exactly that reason — but growing a box only extends its *bottom* edge
+// (y stays fixed), so without a limit tied to actual free space it can grow straight
+// into whatever role sits below it (e.g. a subhead growing into the CTA button under
+// it). `maxDh`, computed per-role from real layout geometry (see maxSafeHeightGrowth
+// below), caps growth to the actual gap available instead of a flat percentage.
 const ADJUST_LIMIT = 0.06
 const HEIGHT_ADJUST_LIMIT = 0.18
-function applyAdjustment(r, adj) {
+function applyAdjustment(r, adj, maxDh = HEIGHT_ADJUST_LIMIT) {
   if (!adj) return r
   const clamp = (v) => Math.max(-ADJUST_LIMIT, Math.min(ADJUST_LIMIT, Number(v) || 0))
-  const clampHeight = (v) => Math.max(-HEIGHT_ADJUST_LIMIT, Math.min(HEIGHT_ADJUST_LIMIT, Number(v) || 0))
+  const clampHeight = (v) => Math.max(-HEIGHT_ADJUST_LIMIT, Math.min(maxDh, Number(v) || 0))
   const width = Math.max(0.05, r.width + clamp(adj.dw))
   const height = Math.max(0.05, r.height + clampHeight(adj.dh))
   const x = Math.max(0, Math.min(1 - width, r.x + clamp(adj.dx)))
   const y = Math.max(0, Math.min(1 - height, r.y + clamp(adj.dy)))
   return { ...r, x, y, width, height }
+}
+
+// How much a role's box can grow downward (as a fraction of canvas height) before
+// its new bottom edge would run into another box that horizontally overlaps it —
+// the closest such obstacle below sets the ceiling (with a small safety margin),
+// falling back to HEIGHT_ADJUST_LIMIT when nothing is in the way.
+function maxSafeHeightGrowth(role, obstacles) {
+  const left = role.x, right = role.x + role.width, bottom = role.y + role.height
+  const MARGIN = 0.015
+  let gap = HEIGHT_ADJUST_LIMIT
+  obstacles.forEach((o) => {
+    if (o === role) return
+    const oLeft = o.x, oRight = o.x + o.width
+    const overlapsX = oLeft < right && oRight > left
+    if (!overlapsX || o.y < bottom - 1e-6) return
+    gap = Math.min(gap, o.y - bottom - MARGIN)
+  })
+  return Math.max(0, Math.min(HEIGHT_ADJUST_LIMIT, gap))
 }
 
 // Expands a normalized layout + AI-generated copy into real canvasStore element
@@ -588,8 +608,17 @@ export function buildElementsFromLayout(layoutId, canvasWidth, canvasHeight, cop
     })
   }
 
+  // Obstacles a growing role's box must not run into: every other role's box, plus
+  // the reserved logo/video zones (which aren't roles but still occupy real space).
+  const growthObstacles = [
+    ...layout.roles,
+    ...(layout.logo ? [layout.logo] : []),
+    ...(layout.video ? [layout.video] : []),
+  ]
+
   layout.roles.forEach((role) => {
-    const r = applyAdjustment(role, adjustments?.[role.role])
+    const maxDh = maxSafeHeightGrowth(role, growthObstacles)
+    const r = applyAdjustment(role, adjustments?.[role.role], maxDh)
     const x = Math.round(r.x * canvasWidth)
     const y = Math.round(r.y * canvasHeight)
     const width = Math.round(r.width * canvasWidth)
