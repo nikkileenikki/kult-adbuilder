@@ -449,16 +449,22 @@ export default function Timeline() {
                 <div className="absolute" style={{ top: 0, left: -5, width: 11, height: 10, background: '#facc15', clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)', transform: 'rotate(180deg)' }} />
               </div>
               {/* Stopping-point pin — draggable independently of the playhead scrub
-                  (stopPropagation keeps onRulerMouseDown from also firing). */}
+                  (stopPropagation keeps onRulerMouseDown from also firing). Its flag
+                  is bottom-anchored (playhead's is top-anchored) so the two stay
+                  visually and physically separate even at the same time position, and
+                  the wrapper carries a real hit-area width (position:absolute children
+                  don't contribute to their parent's box, so without this the previous
+                  version had an effectively zero-width, near-impossible-to-grab
+                  target) — wider than the visible flag so it's easy to grab precisely. */}
               {stopPoint != null && (
                 <div
-                  className="absolute top-0 bottom-0 z-20 cursor-ew-resize"
-                  style={{ left: stopPoint * PX_PER_SEC }}
+                  className="absolute top-0 bottom-0 z-30 cursor-ew-resize"
+                  style={{ left: stopPoint * PX_PER_SEC - 9, width: 18 }}
                   onMouseDown={onStopPinMouseDown}
                   title={`Stopping point: ${stopPoint.toFixed(1)}s (drag to move)`}
                 >
-                  <div className="absolute top-0 bottom-0 w-0.5 bg-red-500" />
-                  <div className="absolute" style={{ top: 0, left: -5, width: 11, height: 10, background: '#ef4444', clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)', transform: 'rotate(180deg)' }} />
+                  <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-500 -translate-x-1/2" />
+                  <div className="absolute" style={{ bottom: 0, left: 4, width: 11, height: 10, background: '#ef4444', clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
                 </div>
               )}
             </div>
