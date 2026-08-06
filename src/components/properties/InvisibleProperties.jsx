@@ -3,6 +3,8 @@ import { Field, TextInput, SelectInput, NumInput } from '../left/PropertiesSecti
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { layerLabel } from '../../utils/layerLabel.js'
 
+let nextActionId = Date.now()
+
 // A target can be a single element id, or "group:<id>" to apply the effect to every
 // element in that timeline group at once — resolved into concrete elements at export
 // time (see buildHoverEffectJS in exportBanner.js).
@@ -25,6 +27,17 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
   const shapeEls = byLayerOrder.filter((e) => e.type === 'shape' && e.id !== el.id)
   const textEls = byLayerOrder.filter((e) => e.type === 'text' && e.id !== el.id)
   const allEls = byLayerOrder.filter((e) => e.id !== el.id)
+
+  const addAction = () => {
+    const action = { id: `action_${nextActionId++}`, type: 'jumpToTime', time: 0, targetId: '', visibility: 'show' }
+    save({ actions: [...(el.actions || []), action] })
+  }
+  const updateAction = (id, patch) => {
+    save({ actions: (el.actions || []).map((a) => a.id === id ? { ...a, ...patch } : a) })
+  }
+  const removeAction = (id) => {
+    save({ actions: (el.actions || []).filter((a) => a.id !== id) })
+  }
 
   return (
     <div className="space-y-2 pb-2 border-b border-gray-700">
@@ -113,6 +126,53 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
               <option value="swipeRight">Swipe Right</option>
             </SelectInput>
           </Field>
+
+          <div className="pt-2 border-t border-gray-700 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-300">Actions</p>
+              <button onClick={addAction} className="text-xs text-purple-400 hover:text-purple-300">+ Add Action</button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Runs on the same "Fire On" trigger above, alongside the tracking event.
+            </p>
+            {(el.actions || []).map((action) => (
+              <div key={action.id} className="space-y-1.5 bg-gray-800/50 rounded p-2">
+                <div className="flex items-center gap-1.5">
+                  <SelectInput value={action.type} onChange={(v) => updateAction(action.id, { type: v })}>
+                    <option value="jumpToTime">Jump to X seconds of timeline</option>
+                    <option value="restart">Restart timeline (jump to 0s)</option>
+                    <option value="toggleElement">Show/hide element</option>
+                  </SelectInput>
+                  <button onClick={() => removeAction(action.id)} className="ml-auto text-gray-500 hover:text-red-400 shrink-0">
+                    <i className="fa-solid fa-trash" style={{ fontSize: 12 }} />
+                  </button>
+                </div>
+
+                {action.type === 'jumpToTime' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400 shrink-0">Jump to</span>
+                    <NumInput value={action.time || 0} min={0} onChange={(v) => updateAction(action.id, { time: v })} />
+                    <span className="text-xs text-gray-400 shrink-0">sec</span>
+                  </div>
+                )}
+
+                {action.type === 'toggleElement' && (
+                  <>
+                    <SelectInput value={action.targetId || ''} onChange={(v) => updateAction(action.id, { targetId: v })}>
+                      <option value="">Target element…</option>
+                      {allEls.map((e, i) => <option key={e.id} value={e.id}>{layerLabel(e)} (#{i + 1})</option>)}
+                      <GroupOptions groups={groups} />
+                    </SelectInput>
+                    <SelectInput value={action.visibility || 'show'} onChange={(v) => updateAction(action.id, { visibility: v })}>
+                      <option value="show">Show</option>
+                      <option value="hide">Hide</option>
+                      <option value="toggle">Toggle</option>
+                    </SelectInput>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>

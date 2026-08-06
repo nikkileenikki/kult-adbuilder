@@ -114,7 +114,11 @@ function buildElementsHTML(sorted, groups) {
 }
 
 function buildAnimationJS(elements) {
-  const lines = ['var tl = gsap.timeline({ repeat: 0 });']
+  // Assigns the shared `tl` var (declared at the top of the exported script, see
+  // _buildHTML) instead of a locally-scoped `var tl` — invisible-layer actions like
+  // "jump to X seconds" (buildActionJS below) need to reach the same timeline
+  // instance from a separate event-listener function, not a fresh one.
+  const lines = ['tl = gsap.timeline({ repeat: 0 });']
   elements.forEach((el) => {
     if (!el.visible) return
     ;(el.animations || []).forEach((anim) => {
@@ -251,8 +255,35 @@ function buildManifestJS({ canvasWidth, canvasHeight, elements, customManifest }
   return `FT.manifest(${JSON.stringify(manifest, null, 2)});`
 }
 
+// One invisible-layer action → one line of JS run inside the same fire handler as the
+// tracking pixel. "jumpToTime"/"restart" drive the shared `tl` GSAP timeline (see the
+// hoisted `var tl` + buildAnimationJS above); "toggleElement" resolves its target (a
+// concrete element id or "group:<id>", same convention as buildHoverEffectJS) and
+// flips it with gsap's autoAlpha, consistent with how show/hide already works
+// everywhere else in the exported banner (fades, hover effects).
+function buildActionJS(action, elements) {
+  switch (action.type) {
+    case 'jumpToTime':
+      return `if (tl) tl.seek(${Number(action.time) || 0});`
+    case 'restart':
+      return `if (tl) { tl.seek(0); tl.play(); }`
+    case 'toggleElement': {
+      const targets = resolveTargetElements(action.targetId, elements)
+      if (!targets.length) return ''
+      return targets.map((t) => {
+        const ref = `document.getElementById('${t.id}')`
+        if (action.visibility === 'hide') return `gsap.set(${ref}, {autoAlpha: 0});`
+        if (action.visibility === 'toggle') return `gsap.set(${ref}, {autoAlpha: gsap.getProperty(${ref}, 'autoAlpha') > 0 ? 0 : 1});`
+        return `gsap.set(${ref}, {autoAlpha: 1});`
+      }).join(' ')
+    }
+    default:
+      return ''
+  }
+}
+
 function buildTrackingJS(elements) {
-  const tracked = elements.filter((el) => el.visible && el.type === 'invisible' && el.trackingName)
+  const tracked = elements.filter((el) => el.visible && el.type === 'invisible' && (el.trackingName || (el.actions || []).length))
   if (!tracked.length) return ''
 
   const lines = []
@@ -272,7 +303,12 @@ function buildTrackingJS(elements) {
 
   tracked.forEach((el) => {
     const target = `document.getElementById('${el.id}')`
-    const fire = `function() { myFT.tracker('${el.trackingName}'); }`
+    const body = [
+      el.trackingName ? `myFT.tracker('${el.trackingName}');` : '',
+      ...(el.actions || []).map((a) => buildActionJS(a, elements)),
+    ].filter(Boolean).join(' ')
+    if (!body) return
+    const fire = `function() { ${body} }`
     switch (el.triggerOn) {
       case 'hover':
         lines.push(`  ${target}.addEventListener('mouseenter', ${fire});`)
@@ -482,7 +518,8 @@ async function _buildHTML({ elements, groups, canvasWidth, canvasHeight, bannerN
   </div>${jqueryTag}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
   <script>
-  ${isAdvanced ? customJs : `${politeLoadFn}function init() {
+  ${isAdvanced ? customJs : `${politeLoadFn}var tl;
+  function init() {
     addEvent();
   }
 
