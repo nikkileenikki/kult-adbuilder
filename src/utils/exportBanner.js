@@ -154,16 +154,38 @@ function buildAnimationJS(elements, stopPoints) {
       }
     })
   })
-  // GSAP's tl.addPause(time) auto-pauses the timeline the moment normal forward
-  // playback reaches `time` — these are the "stopping points" set on the whole
-  // timeline (Timeline.jsx, next to the zoom control), distinct from a single
-  // invisible layer's own "jump to X seconds" action. Multiple points each pause
-  // playback in turn as it reaches them; playback resumes past each one via the
-  // "Resume Timeline" invisible-layer action (buildActionJS below), which just calls
-  // tl.play().
-  ;(stopPoints || []).forEach((sp) => {
-    if (sp != null && sp > 0) lines.push(`tl.addPause(${Number(sp)});`)
-  })
+  // Stopping points auto-pause playback the moment it naturally reaches one — set on
+  // the whole timeline (Timeline.jsx, next to the zoom control), distinct from a
+  // single invisible layer's own "jump to X seconds" action.
+  //
+  // This used to be GSAP's built-in tl.addPause(time), but it doesn't coexist with
+  // manual tl.seek() calls the way it looks like it should: seeking forward past an
+  // unconsumed addPause doesn't reliably arm/disarm it, so playback could snap back
+  // to an old pause point on the very next tick, or a jump could land somewhere that
+  // never actually renders because the timeline keeps getting yanked back before it
+  // gets there — "jump to 2.1s" working once, then a restart leaving 2.1s dead, then
+  // "jump to 4.1s" never actually animating anything past it, were all the same root
+  // cause. Implemented by hand instead: ktStopFired tracks, per point, whether it's
+  // already been reached in the current forward pass, and only two things are allowed
+  // to touch it — the ticker itself (real forward playback reaching a point marks it
+  // fired and pauses there) and ktMarkStopsUpTo (called by jump/restart actions, see
+  // buildActionJS, *before* they seek) which marks every point up to the jump target
+  // as already-fired and everything past it as not-yet-fired, so a manual jump can
+  // never be mistaken for "just reached" a point behind or ahead of it.
+  const validStops = (stopPoints || []).filter((sp) => sp != null && sp > 0).sort((a, b) => a - b)
+  lines.push(`var ktStops = ${JSON.stringify(validStops)};`)
+  lines.push(`var ktStopFired = {};`)
+  lines.push(`function ktMarkStopsUpTo(t) { ktStops.forEach(function(sp) { ktStopFired[sp] = sp <= t; }); }`)
+  if (validStops.length) {
+    lines.push(`gsap.ticker.add(function() {
+    if (!tl || tl.paused()) return;
+    var t = tl.time();
+    for (var i = 0; i < ktStops.length; i++) {
+      var sp = ktStops[i];
+      if (t >= sp && !ktStopFired[sp]) { ktStopFired[sp] = true; tl.pause(sp); break; }
+    }
+  });`)
+  }
   return lines.join('\n')
 }
 
@@ -274,24 +296,33 @@ function buildManifestJS({ canvasWidth, canvasHeight, elements, customManifest }
 // effects).
 //
 // "jumpToTime" just seeks — it does NOT stop the timeline, so normal playback keeps
-// running from wherever the seek landed. The actual stopping point for the whole
-// timeline is a separate, timeline-wide pin (Timeline.jsx, next to zoom; see
-// animStopPoints/tl.addPause in buildAnimationJS) rather than a per-action pause;
+// running from wherever the seek landed. The actual stopping points for the whole
+// timeline are a separate, timeline-wide set of pins (Timeline.jsx, next to zoom; see
+// ktStops/ktMarkStopsUpTo in buildAnimationJS) rather than a per-action pause;
 // "resume" (tl.play()) is how an invisible layer's interaction continues playback
-// after the timeline auto-paused there.
+// after the timeline auto-paused at one.
 function buildActionJS(action, elements) {
   switch (action.type) {
-    case 'jumpToTime':
-      // GSAP's tl.seek() doesn't just move the playhead when the timeline is
-      // currently paused via addPause() — it also resumes it, so a jump fired while
-      // holding at the stop point played straight through to the end instead of
-      // landing on the new frame and staying there. Capturing/reapplying the
-      // pre-jump paused state makes the seek truly position-only: still playing
-      // stays playing (per the earlier "don't stop on jump" request), but paused
-      // stays paused at the new position.
-      return `if (tl) { var _wasPaused = tl.paused(); tl.seek(${Number(action.time) || 0}); if (_wasPaused) tl.pause(); }`
+    case 'jumpToTime': {
+      // ktMarkStopsUpTo runs *before* the seek so every stop point behind the jump
+      // target is marked already-fired (won't falsely re-trigger once play resumes)
+      // and every point ahead of it is marked not-yet-fired (still armed, so forward
+      // playback will naturally pause there again) — see buildAnimationJS for why a
+      // plain tl.seek() alone isn't safe here.
+      //
+      // tl.seek() also doesn't just move the playhead when the timeline is currently
+      // paused — it resumes it too, so a jump fired while holding at a stop point
+      // played straight through instead of landing on the new frame and staying
+      // there. Capturing/reapplying the pre-jump paused state makes the seek truly
+      // position-only: still playing stays playing, paused stays paused at the new
+      // position.
+      const t = Number(action.time) || 0
+      return `if (tl) { ktMarkStopsUpTo(${t}); var _wasPaused = tl.paused(); tl.seek(${t}); if (_wasPaused) tl.pause(); }`
+    }
     case 'restart':
-      return `if (tl) { tl.seek(0); tl.play(); }`
+      // Un-arms every stop point (marks all "not yet fired", since none of them are
+      // <= 0) so the replay hits and pauses at each one again, same as the first run.
+      return `if (tl) { ktMarkStopsUpTo(0); tl.seek(0); tl.play(); }`
     case 'resume':
       return `if (tl) tl.play();`
     case 'toggleElement': {
