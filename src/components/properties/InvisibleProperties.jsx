@@ -141,6 +141,7 @@ export default function InvisibleProperties({ el, update, save, elements = [] })
                   <SelectInput value={action.type} onChange={(v) => updateAction(action.id, { type: v })}>
                     <option value="jumpToTime">Jump to X seconds of timeline</option>
                     <option value="restart">Restart timeline (jump to 0s)</option>
+                    <option value="resume">Resume timeline (from stopping point)</option>
                     <option value="toggleElement">Show/hide element</option>
                   </SelectInput>
                   <button onClick={() => removeAction(action.id)} className="ml-auto text-gray-500 hover:text-red-400 shrink-0">
