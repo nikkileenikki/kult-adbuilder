@@ -66,12 +66,13 @@ export const useCanvasStore = create(persist((set, get) => ({
   canvasHeight: 250,
   animDuration: 5,
   animLoop: 1,
-  // A single global pause point on the whole timeline (seconds, or null = none) — the
-  // animation plays from 0 as normal and automatically holds here, then a separate
-  // invisible-layer "Resume Timeline" action (see InvisibleProperties.jsx) continues
-  // it from wherever it stopped. Distinct from an invisible layer's own "jump to X
-  // seconds" action, which just seeks without stopping normal playback.
-  animStopPoint: null,
+  // Global pause points on the whole timeline (seconds, sorted ascending) — the
+  // animation plays from 0 as normal and automatically holds at each in turn, then a
+  // separate invisible-layer "Resume Timeline" action (see InvisibleProperties.jsx)
+  // continues it from wherever it stopped, until the next stop point (if any) is
+  // reached. Distinct from an invisible layer's own "jump to X seconds" action, which
+  // just seeks without stopping normal playback.
+  animStopPoints: [],
   snapLines: { x: [], y: [] },
   activeTemplate: null,
   setActiveTemplate: (tpl) => set({ activeTemplate: tpl }),
@@ -79,7 +80,16 @@ export const useCanvasStore = create(persist((set, get) => ({
   clearSnapLines: () => set({ snapLines: { x: [], y: [] } }),
   setAnimDuration: (v) => set({ animDuration: Math.max(1, Math.min(60, v)) }),
   setAnimLoop: (v) => set({ animLoop: Math.max(1, Math.min(999, v)) }),
-  setAnimStopPoint: (v) => set({ animStopPoint: v === null ? null : Math.max(0, Math.min(get().animDuration, v)) }),
+  setAnimStopPoints: (arr) => set({ animStopPoints: [...arr].sort((a, b) => a - b) }),
+  addAnimStopPoint: (v) => set((s) => ({
+    animStopPoints: [...s.animStopPoints, Math.max(0, Math.min(s.animDuration, v))].sort((a, b) => a - b),
+  })),
+  updateAnimStopPoint: (oldValue, newValue) => set((s) => ({
+    animStopPoints: s.animStopPoints
+      .map((v) => (v === oldValue ? Math.max(0, Math.min(s.animDuration, newValue)) : v))
+      .sort((a, b) => a - b),
+  })),
+  removeAnimStopPoint: (v) => set((s) => ({ animStopPoints: s.animStopPoints.filter((p) => p !== v) })),
 
   setCanvasSize: (w, h) => set({
     canvasWidth: clamp(w, 50, 2000),
@@ -205,7 +215,7 @@ export const useCanvasStore = create(persist((set, get) => ({
     canvasHeight: state.canvasHeight,
     animDuration: state.animDuration,
     animLoop: state.animLoop,
-    animStopPoint: state.animStopPoint,
+    animStopPoints: state.animStopPoints,
     activeTemplate: state.activeTemplate,
   }),
 }))

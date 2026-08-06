@@ -12,7 +12,7 @@ export default function Timeline() {
     elements, groups, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility,
     reorderElements, updateElement, createGroup: createGroupInStore, deleteGroup: deleteGroupInStore,
     toggleGroupCollapsed, animDuration: duration, animLoop: loop, setAnimDuration: setDuration, setAnimLoop: setLoop,
-    animStopPoint: stopPoint, setAnimStopPoint: setStopPoint,
+    animStopPoints: stopPoints, addAnimStopPoint, updateAnimStopPoint, removeAnimStopPoint,
   } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { openModal } = useUiStore()
@@ -22,6 +22,7 @@ export default function Timeline() {
   const [collapsed, setCollapsed] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
+  const [selectedStopPoint, setSelectedStopPoint] = useState(null)
   const tlRef = useRef(null)
   const rafRef = useRef(null)
   const scrubTlRef = useRef(null)
@@ -114,12 +115,12 @@ export default function Timeline() {
         }
       })
     })
-    // Mirrors the exported banner's tl.addPause(animStopPoint) (see buildAnimationJS
-    // in exportBanner.js) so pressing Play in the editor previews the same auto-pause
-    // behavior, instead of only showing up once the banner is exported.
-    if (stopPoint != null && stopPoint > 0 && stopPoint < duration) tl.addPause(stopPoint)
+    // Mirrors the exported banner's tl.addPause(...) per stop point (see
+    // buildAnimationJS in exportBanner.js) so pressing Play in the editor previews the
+    // same auto-pause behavior, instead of only showing up once the banner is exported.
+    stopPoints.forEach((sp) => { if (sp > 0 && sp < duration) tl.addPause(sp) })
     return tl
-  }, [elements, stopPoint, duration])
+  }, [elements, stopPoints, duration])
 
   // ── Play / Stop ─────────────────────────────────────────────────────────────
   const play = useCallback(() => {
@@ -164,6 +165,7 @@ export default function Timeline() {
   // ── Ruler scrub ──────────────────────────────────────────────────────────────
   const onRulerMouseDown = useCallback((e) => {
     e.preventDefault()
+    setSelectedStopPoint(null)
     const el = rulerAreaRef.current
     if (!el) return
     const getTime = (clientX) => {
@@ -196,20 +198,28 @@ export default function Timeline() {
     window.addEventListener('mouseup', onUp)
   }, [duration, PX_PER_SEC, elements, buildTl])
 
-  // ── Stopping-point pin drag ──────────────────────────────────────────────────
-  const onStopPinMouseDown = useCallback((e) => {
+  // ── Stopping-point pin select + drag ─────────────────────────────────────────
+  // Selecting a pin (click, or the start of a drag) is what Delete/Backspace acts on
+  // — see the keydown handler below. `current` tracks the pin's live value across a
+  // drag so each move updates the *just-moved-to* position rather than the stale
+  // value captured at mousedown.
+  const onStopPinMouseDown = useCallback((e, value) => {
     e.preventDefault()
     e.stopPropagation() // don't also trigger onRulerMouseDown's playhead scrub
+    setSelectedStopPoint(value)
     const el = rulerAreaRef.current
     if (!el) return
+    let current = value
     const dragTo = (clientX) => {
       const rect = el.getBoundingClientRect()
       const scrollLeft = rulerScrollRef.current?.scrollLeft || 0
       const x = clientX - rect.left + scrollLeft
-      const t = Math.max(0, Math.min(duration, x / PX_PER_SEC))
-      setStopPoint(Math.round(t * 10) / 10)
+      const t = Math.max(0, Math.min(duration, Math.round((x / PX_PER_SEC) * 10) / 10))
+      if (t === current) return
+      updateAnimStopPoint(current, t)
+      current = t
+      setSelectedStopPoint(t)
     }
-    dragTo(e.clientX)
     const onMove = (mv) => dragTo(mv.clientX)
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
@@ -217,7 +227,7 @@ export default function Timeline() {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [duration, PX_PER_SEC, setStopPoint])
+  }, [duration, PX_PER_SEC, updateAnimStopPoint])
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
@@ -237,6 +247,21 @@ export default function Timeline() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [playing, play, stop])
+
+  // ── Delete/Backspace removes the selected stopping-point pin ────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (selectedStopPoint == null) return
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      const active = document.activeElement
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(active?.tagName) || active?.isContentEditable) return
+      e.preventDefault()
+      removeAnimStopPoint(selectedStopPoint)
+      setSelectedStopPoint(null)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selectedStopPoint, removeAnimStopPoint])
 
   // ── Groups ──────────────────────────────────────────────────────────────────
   // Persisted in canvasStore (group list + each element's own folderId) rather than
@@ -381,23 +406,18 @@ export default function Timeline() {
                   <i className="fa-solid fa-magnifying-glass-plus" style={{ fontSize: 12 }} />
                 </button>
               </div>
-              {/* Stopping point — plays from 0, auto-pauses here (see buildTl's
-                  tl.addPause(stopPoint) and the mirrored export in exportBanner.js),
-                  and resumes via an invisible layer's "Resume Timeline" action. */}
+              {/* Stopping points — plays from 0, auto-pauses at each in turn (see
+                  buildTl's tl.addPause per point and the mirrored export in
+                  exportBanner.js), and resumes via an invisible layer's "Resume
+                  Timeline" action. Click a pin on the ruler to select it, then press
+                  Delete/Backspace to remove it — the "+" here just adds another one at
+                  the current playhead. */}
               <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
-                <label className="text-xs text-gray-400">Stop Point:</label>
-                {stopPoint != null ? (
-                  <>
-                    <span className="text-xs text-gray-300 w-10 text-center tabular-nums">{stopPoint.toFixed(1)}s</span>
-                    <button onClick={() => setStopPoint(null)} className="text-gray-400 hover:text-red-400 px-1" title="Remove stopping point">
-                      <i className="fa-solid fa-xmark" style={{ fontSize: 12 }} />
-                    </button>
-                  </>
-                ) : (
-                  <button onClick={() => setStopPoint(playhead)} className="text-gray-400 hover:text-white px-1" title="Add a stopping point at the current playhead">
-                    <i className="fa-solid fa-flag" style={{ fontSize: 12 }} />
-                  </button>
-                )}
+                <label className="text-xs text-gray-400">Stop Points:</label>
+                <span className="text-xs text-gray-300 w-4 text-center tabular-nums">{stopPoints.length}</span>
+                <button onClick={() => addAnimStopPoint(playhead)} className="text-gray-400 hover:text-white px-1" title="Add a stopping point at the current playhead">
+                  <i className="fa-solid fa-flag" style={{ fontSize: 12 }} />
+                </button>
               </div>
               <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
                 <label className="text-xs text-gray-400">Duration:</label>
@@ -448,25 +468,35 @@ export default function Timeline() {
                 <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400" />
                 <div className="absolute" style={{ top: 0, left: -5, width: 11, height: 10, background: '#facc15', clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)', transform: 'rotate(180deg)' }} />
               </div>
-              {/* Stopping-point pin — draggable independently of the playhead scrub
-                  (stopPropagation keeps onRulerMouseDown from also firing). Its flag
-                  is bottom-anchored (playhead's is top-anchored) so the two stay
-                  visually and physically separate even at the same time position, and
-                  the wrapper carries a real hit-area width (position:absolute children
-                  don't contribute to their parent's box, so without this the previous
-                  version had an effectively zero-width, near-impossible-to-grab
-                  target) — wider than the visible flag so it's easy to grab precisely. */}
-              {stopPoint != null && (
+              {/* Stopping-point pins — each draggable independently of the playhead
+                  scrub (stopPropagation keeps onRulerMouseDown from also firing). Flags
+                  are bottom-anchored (playhead's is top-anchored) so they stay visually
+                  and physically separate from it even at the same time position, and
+                  each wrapper carries a real hit-area width (position:absolute children
+                  don't contribute to their parent's box, so without this a pin had an
+                  effectively zero-width, near-impossible-to-grab target) — wider than
+                  the visible flag so it's easy to grab precisely. Click selects (for
+                  Delete/Backspace, see the keydown handler above) — a selected pin gets
+                  a white ring so it's clear which one a keypress will remove. */}
+              {stopPoints.map((sp) => (
                 <div
+                  key={sp}
                   className="absolute top-0 bottom-0 z-30 cursor-ew-resize"
-                  style={{ left: stopPoint * PX_PER_SEC - 9, width: 18 }}
-                  onMouseDown={onStopPinMouseDown}
-                  title={`Stopping point: ${stopPoint.toFixed(1)}s (drag to move)`}
+                  style={{ left: sp * PX_PER_SEC - 9, width: 18 }}
+                  onMouseDown={(e) => onStopPinMouseDown(e, sp)}
+                  title={`Stopping point: ${sp.toFixed(1)}s (click to select, drag to move, Delete/Backspace to remove)`}
                 >
                   <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-red-500 -translate-x-1/2" />
-                  <div className="absolute" style={{ bottom: 0, left: 4, width: 11, height: 10, background: '#ef4444', clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
+                  <div
+                    className="absolute"
+                    style={{
+                      bottom: 0, left: 4, width: 11, height: 10, background: '#ef4444',
+                      clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+                      outline: selectedStopPoint === sp ? '2px solid white' : 'none',
+                    }}
+                  />
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
