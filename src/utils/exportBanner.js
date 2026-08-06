@@ -264,7 +264,12 @@ function buildManifestJS({ canvasWidth, canvasHeight, elements, customManifest }
 function buildActionJS(action, elements) {
   switch (action.type) {
     case 'jumpToTime':
-      return `if (tl) tl.seek(${Number(action.time) || 0});`
+      // Seeking alone doesn't stop the timeline — if it's still playing (the normal
+      // case, since it autoplays from page load), it just keeps ticking forward from
+      // wherever the seek landed, racing the manual jump. Pausing turns this into a
+      // real stopping point: the timeline lands on the target frame and stays there
+      // until something else (e.g. a "restart" action) resumes it.
+      return `if (tl) { tl.pause(); tl.seek(${Number(action.time) || 0}); }`
     case 'restart':
       return `if (tl) { tl.seek(0); tl.play(); }`
     case 'toggleElement': {
