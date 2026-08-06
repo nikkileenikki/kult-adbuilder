@@ -7,6 +7,22 @@ const uid = (type) => `${type}_${nextId++}`
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
 
+// Two timeline stop points within this many seconds of each other cause the
+// animation to auto-pause, get resumed, and almost immediately (0.1-0.2s later) hit
+// the next one and re-pause — reading as the animation randomly stopping right after
+// it started. addAnimStopPoint/setAnimStopPoints collapse anything closer than this
+// down to a single point instead of allowing near-duplicates.
+const MIN_STOP_GAP = 0.2
+function dedupeStopPoints(points) {
+  const sorted = [...points].sort((a, b) => a - b)
+  const out = []
+  sorted.forEach((v) => {
+    if (out.length && v - out[out.length - 1] < MIN_STOP_GAP) return
+    out.push(v)
+  })
+  return out
+}
+
 // A "layer" in the timeline is either a single ungrouped element or an entire group
 // (moved/positioned as one atomic unit). Groups carry their own `zIndex` — independent
 // of their members' — specifically so an *empty* group still has a real position to
@@ -80,15 +96,25 @@ export const useCanvasStore = create(persist((set, get) => ({
   clearSnapLines: () => set({ snapLines: { x: [], y: [] } }),
   setAnimDuration: (v) => set({ animDuration: Math.max(1, Math.min(60, v)) }),
   setAnimLoop: (v) => set({ animLoop: Math.max(1, Math.min(999, v)) }),
-  setAnimStopPoints: (arr) => set({ animStopPoints: [...arr].sort((a, b) => a - b) }),
+  setAnimStopPoints: (arr) => set({ animStopPoints: dedupeStopPoints(arr) }),
   addAnimStopPoint: (v) => set((s) => ({
-    animStopPoints: [...s.animStopPoints, Math.max(0, Math.min(s.animDuration, v))].sort((a, b) => a - b),
+    animStopPoints: dedupeStopPoints([...s.animStopPoints, Math.max(0, Math.min(s.animDuration, v))]),
   })),
-  updateAnimStopPoint: (oldValue, newValue) => set((s) => ({
-    animStopPoints: s.animStopPoints
-      .map((v) => (v === oldValue ? Math.max(0, Math.min(s.animDuration, newValue)) : v))
-      .sort((a, b) => a - b),
-  })),
+  updateAnimStopPoint: (oldValue, newValue) => set((s) => {
+    const clamped = Math.max(0, Math.min(s.animDuration, newValue))
+    // Refuses the move (keeps oldValue) rather than silently landing on/near another
+    // point — two stop points within MIN_STOP_GAP of each other meant playback
+    // auto-paused, got resumed, and immediately (0.1-0.2s later) hit the next one
+    // and re-paused, which read as the animation randomly stopping almost right
+    // after it started.
+    const tooClose = s.animStopPoints.some((v) => v !== oldValue && Math.abs(v - clamped) < MIN_STOP_GAP)
+    if (tooClose) return {}
+    return {
+      animStopPoints: s.animStopPoints
+        .map((v) => (v === oldValue ? clamped : v))
+        .sort((a, b) => a - b),
+    }
+  }),
   removeAnimStopPoint: (v) => set((s) => ({ animStopPoints: s.animStopPoints.filter((p) => p !== v) })),
 
   setCanvasSize: (w, h) => set({
