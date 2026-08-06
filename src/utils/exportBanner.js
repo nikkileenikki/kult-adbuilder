@@ -278,7 +278,14 @@ function buildManifestJS({ canvasWidth, canvasHeight, elements, customManifest }
 function buildActionJS(action, elements) {
   switch (action.type) {
     case 'jumpToTime':
-      return `if (tl) tl.seek(${Number(action.time) || 0});`
+      // GSAP's tl.seek() doesn't just move the playhead when the timeline is
+      // currently paused via addPause() — it also resumes it, so a jump fired while
+      // holding at the stop point played straight through to the end instead of
+      // landing on the new frame and staying there. Capturing/reapplying the
+      // pre-jump paused state makes the seek truly position-only: still playing
+      // stays playing (per the earlier "don't stop on jump" request), but paused
+      // stays paused at the new position.
+      return `if (tl) { var _wasPaused = tl.paused(); tl.seek(${Number(action.time) || 0}); if (_wasPaused) tl.pause(); }`
     case 'restart':
       return `if (tl) { tl.seek(0); tl.play(); }`
     case 'resume':
