@@ -12,6 +12,7 @@ export default function Timeline() {
     elements, groups, selectedId, setSelected, deleteElement, duplicateElement, toggleVisibility,
     reorderElements, updateElement, createGroup: createGroupInStore, deleteGroup: deleteGroupInStore,
     toggleGroupCollapsed, animDuration: duration, animLoop: loop, setAnimDuration: setDuration, setAnimLoop: setLoop,
+    animStopPoint: stopPoint, setAnimStopPoint: setStopPoint,
   } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { openModal } = useUiStore()
@@ -113,8 +114,12 @@ export default function Timeline() {
         }
       })
     })
+    // Mirrors the exported banner's tl.addPause(animStopPoint) (see buildAnimationJS
+    // in exportBanner.js) so pressing Play in the editor previews the same auto-pause
+    // behavior, instead of only showing up once the banner is exported.
+    if (stopPoint != null && stopPoint > 0 && stopPoint < duration) tl.addPause(stopPoint)
     return tl
-  }, [elements])
+  }, [elements, stopPoint, duration])
 
   // ── Play / Stop ─────────────────────────────────────────────────────────────
   const play = useCallback(() => {
@@ -190,6 +195,29 @@ export default function Timeline() {
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }, [duration, PX_PER_SEC, elements, buildTl])
+
+  // ── Stopping-point pin drag ──────────────────────────────────────────────────
+  const onStopPinMouseDown = useCallback((e) => {
+    e.preventDefault()
+    e.stopPropagation() // don't also trigger onRulerMouseDown's playhead scrub
+    const el = rulerAreaRef.current
+    if (!el) return
+    const dragTo = (clientX) => {
+      const rect = el.getBoundingClientRect()
+      const scrollLeft = rulerScrollRef.current?.scrollLeft || 0
+      const x = clientX - rect.left + scrollLeft
+      const t = Math.max(0, Math.min(duration, x / PX_PER_SEC))
+      setStopPoint(Math.round(t * 10) / 10)
+    }
+    dragTo(e.clientX)
+    const onMove = (mv) => dragTo(mv.clientX)
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [duration, PX_PER_SEC, setStopPoint])
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
 
@@ -353,6 +381,24 @@ export default function Timeline() {
                   <i className="fa-solid fa-magnifying-glass-plus" style={{ fontSize: 12 }} />
                 </button>
               </div>
+              {/* Stopping point — plays from 0, auto-pauses here (see buildTl's
+                  tl.addPause(stopPoint) and the mirrored export in exportBanner.js),
+                  and resumes via an invisible layer's "Resume Timeline" action. */}
+              <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
+                <label className="text-xs text-gray-400">Stop Point:</label>
+                {stopPoint != null ? (
+                  <>
+                    <span className="text-xs text-gray-300 w-10 text-center tabular-nums">{stopPoint.toFixed(1)}s</span>
+                    <button onClick={() => setStopPoint(null)} className="text-gray-400 hover:text-red-400 px-1" title="Remove stopping point">
+                      <i className="fa-solid fa-xmark" style={{ fontSize: 12 }} />
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => setStopPoint(playhead)} className="text-gray-400 hover:text-white px-1" title="Add a stopping point at the current playhead">
+                    <i className="fa-solid fa-flag" style={{ fontSize: 12 }} />
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-1 bg-gray-900 rounded px-2 py-1">
                 <label className="text-xs text-gray-400">Duration:</label>
                 <input type="number" value={duration} step={0.5} min={1} max={30}
@@ -402,6 +448,19 @@ export default function Timeline() {
                 <div className="absolute top-0 bottom-0 w-0.5 bg-yellow-400" />
                 <div className="absolute" style={{ top: 0, left: -5, width: 11, height: 10, background: '#facc15', clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)', transform: 'rotate(180deg)' }} />
               </div>
+              {/* Stopping-point pin — draggable independently of the playhead scrub
+                  (stopPropagation keeps onRulerMouseDown from also firing). */}
+              {stopPoint != null && (
+                <div
+                  className="absolute top-0 bottom-0 z-20 cursor-ew-resize"
+                  style={{ left: stopPoint * PX_PER_SEC }}
+                  onMouseDown={onStopPinMouseDown}
+                  title={`Stopping point: ${stopPoint.toFixed(1)}s (drag to move)`}
+                >
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-red-500" />
+                  <div className="absolute" style={{ top: 0, left: -5, width: 11, height: 10, background: '#ef4444', clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)', transform: 'rotate(180deg)' }} />
+                </div>
+              )}
             </div>
           </div>
         </div>

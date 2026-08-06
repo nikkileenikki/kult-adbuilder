@@ -20,7 +20,7 @@ const PRESET_SIZES = [
 ]
 
 export default function Toolbar() {
-  const { elements, groups, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, activeTemplate } = useCanvasStore()
+  const { elements, groups, canvasWidth, canvasHeight, setCanvasSize, animDuration, animLoop, setAnimDuration, setAnimLoop, animStopPoint, setAnimStopPoint, activeTemplate } = useCanvasStore()
   const { saveState, undo, redo } = useHistoryStore()
   const { openModal, canvasZoom: zoom, setCanvasZoom: setZoom, ftLibrary, activeBrandId, setActiveBrandId, brandListVersion } = useUiStore()
   const { token } = useAuthStore()
@@ -117,7 +117,7 @@ export default function Toolbar() {
     useCanvasStore.setState({
       elements: [], groups: [], selectedId: null,
       canvasWidth: 300, canvasHeight: 250,
-      animDuration: 5, animLoop: 1,
+      animDuration: 5, animLoop: 1, animStopPoint: null,
       activeTemplate: null,
     })
     setBannerName('ad-banner')
@@ -127,12 +127,12 @@ export default function Toolbar() {
 
   const handleExportZip = async () => {
     setMenuOpen(false)
-    await exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate })
+    await exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoint })
   }
 
   const handleSave = () => {
     setMenuOpen(false)
-    saveBannerJSON({ elements, groups, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, activeTemplate })
+    saveBannerJSON({ elements, groups, canvasWidth, canvasHeight, bannerName, animDuration, animLoop, animStopPoint, activeTemplate })
   }
 
   const handleLoad = () => {
@@ -158,6 +158,7 @@ export default function Toolbar() {
       if (data.bannerName) setBannerName(data.bannerName)
       if (data.animDuration) setAnimDuration(data.animDuration)
       if (data.animLoop) setAnimLoop(data.animLoop)
+      setAnimStopPoint(data.animStopPoint ?? null)
       if (data.elements) useCanvasStore.setState({ elements: data.elements, selectedId: null })
       useCanvasStore.setState({ groups: data.groups || [], activeTemplate: data.template || null })
     })

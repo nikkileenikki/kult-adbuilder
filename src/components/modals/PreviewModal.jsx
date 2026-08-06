@@ -9,17 +9,17 @@ import useEscapeKey from '../../hooks/useEscapeKey.js'
 // live preview in the editor canvas itself.
 export default function PreviewModal({ onClose }) {
   useEscapeKey(onClose)
-  const { elements, groups, canvasWidth, canvasHeight, activeTemplate } = useCanvasStore()
+  const { elements, groups, canvasWidth, canvasHeight, activeTemplate, animStopPoint } = useCanvasStore()
   const [html, setHtml] = useState('')
   const [loading, setLoading] = useState(true)
   const [iframeKey, setIframeKey] = useState(0)
 
   const generate = useCallback(() => {
     setLoading(true)
-    buildPreviewHtml({ elements, groups, canvasWidth, canvasHeight, bannerName: 'preview', activeTemplate })
+    buildPreviewHtml({ elements, groups, canvasWidth, canvasHeight, bannerName: 'preview', activeTemplate, animStopPoint })
       .then((h) => { setHtml(h); setIframeKey((k) => k + 1) })
       .finally(() => setLoading(false))
-  }, [elements, groups, canvasWidth, canvasHeight, activeTemplate])
+  }, [elements, groups, canvasWidth, canvasHeight, activeTemplate, animStopPoint])
 
   useEffect(() => { generate() }, [generate])
 
