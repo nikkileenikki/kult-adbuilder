@@ -183,11 +183,19 @@ function buildAnimationJS(elements, stopPoints) {
   // handler) — the exact "button trigger not working" this now avoids by only
   // assigning into the shared vars here, the same pattern `tl = gsap.timeline(...)`
   // already uses.
+  // Watching via the raw gsap.ticker isn't tied to this timeline's own render
+  // lifecycle at all — it's a second, independently-scheduled per-frame callback,
+  // racing tl's own internal engine tick with no guaranteed ordering between them.
+  // After enough jumps that race could observe a stale tl.time() or fire against a
+  // timeline mid-seek, leaving it stuck paused with nothing left to un-stick it.
+  // tl.eventCallback('onUpdate', ...) instead fires exactly when *this* timeline
+  // renders a new frame of its own playback — never during a suppressed manual seek
+  // (the default for tl.seek()), so it can't fight with jump/restart the way the
+  // ticker could.
   const validStops = (stopPoints || []).filter((sp) => sp != null && sp > 0).sort((a, b) => a - b)
   lines.push(`ktStops = ${JSON.stringify(validStops)};`)
   if (validStops.length) {
-    lines.push(`gsap.ticker.add(function() {
-    if (!tl || tl.paused()) return;
+    lines.push(`tl.eventCallback('onUpdate', function() {
     var t = tl.time();
     for (var i = 0; i < ktStops.length; i++) {
       var sp = ktStops[i];
