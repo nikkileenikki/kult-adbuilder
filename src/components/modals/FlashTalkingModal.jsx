@@ -17,7 +17,7 @@ function Modal({ children }) {
 
 export default function FlashTalkingModal({ onClose, bannerName, politeLoad, activeTemplate }) {
   const { token } = useAuthStore()
-  const { elements, groups, canvasWidth, canvasHeight, animStopPoints } = useCanvasStore()
+  const { elements, groups, canvasWidth, canvasHeight, animStopPoints, animDuration } = useCanvasStore()
   const { ftLibrary } = useUiStore()
   useEscapeKey(onClose)
 
@@ -29,7 +29,7 @@ export default function FlashTalkingModal({ onClose, bannerName, politeLoad, act
     setStatus(null)
     try {
       const filename = `${bannerName || 'banner'}.zip`
-      const blob = await buildBannerZipBlob({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints })
+      const blob = await buildBannerZipBlob({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration })
       const form = new FormData()
       form.append('file', blob, filename)
       form.append('filename', filename)

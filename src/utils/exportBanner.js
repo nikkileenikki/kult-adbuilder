@@ -113,7 +113,7 @@ function buildElementsHTML(sorted, groups) {
   return parts.join('\n    ')
 }
 
-function buildAnimationJS(elements, stopPoints) {
+function buildAnimationJS(elements, stopPoints, animDuration) {
   // Assigns the shared `tl` var (declared at the top of the exported script, see
   // _buildHTML) instead of a locally-scoped `var tl` — invisible-layer actions like
   // "jump to X seconds" and "resume timeline" (buildActionJS below) need to reach the
@@ -154,6 +154,15 @@ function buildAnimationJS(elements, stopPoints) {
       }
     })
   })
+  // A GSAP timeline's own duration is just the end of its last real tween — once
+  // every animation has finished (e.g. a single 0.5s fade-in with nothing after it),
+  // tl itself is already "over," and tl.seek(X) for any X past that gets silently
+  // clamped back to wherever it actually ends. That made "jump to X seconds" (and
+  // stop points) a no-op past the last real animation, even though the banner's
+  // configured duration is much longer. A zero-duration anchor tween placed exactly
+  // at animDuration extends tl's own length to match, with no visible effect, so
+  // seeking/pausing anywhere within the banner's actual duration works.
+  if (animDuration > 0) lines.push(`tl.to({},{duration:0},${Number(animDuration)});`)
   // Stopping points auto-pause playback the moment it naturally reaches one — set on
   // the whole timeline (Timeline.jsx, next to the zoom control), distinct from a
   // single invisible layer's own "jump to X seconds" action.
@@ -481,12 +490,12 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
-export async function buildBannerZipBlob({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints }) {
-  return _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints })
+export async function buildBannerZipBlob({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration }) {
+  return _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration })
 }
 
-export async function exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints }) {
-  const blob = await _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints })
+export async function exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration }) {
+  const blob = await _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -511,10 +520,10 @@ function substituteTemplateTokens(activeTemplate) {
 
 // Builds the exported index.html as a string. Used for both the real ZIP export and the
 // live canvas preview (which skips the base64->file swap since there's no zip to reference).
-async function _buildHTML({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, customHtml, customJs, customCss, imageFiles, inlineTemplateCss, animStopPoints }) {
+async function _buildHTML({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, customHtml, customJs, customCss, imageFiles, inlineTemplateCss, animStopPoints, animDuration }) {
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const elementsHTML = buildElementsHTML(sorted, groups)
-  const animJS = buildAnimationJS(sorted, animStopPoints)
+  const animJS = buildAnimationJS(sorted, animStopPoints, animDuration)
   const clickTagJS = buildClickTagJS(sorted)
   const trackingJS = buildTrackingJS(sorted)
   const hoverEffectJS = buildHoverEffectJS(sorted)
@@ -629,7 +638,7 @@ ${videoCueJS}
   return { html, templateCss }
 }
 
-async function _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints }) {
+async function _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration }) {
   const zip = new JSZip()
 
   // Extract base64 images into root folder
@@ -664,7 +673,7 @@ async function _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerNa
 
   const { html, templateCss } = await _buildHTML({
     elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate,
-    customHtml, customJs, customCss, imageFiles, inlineTemplateCss: false, animStopPoints,
+    customHtml, customJs, customCss, imageFiles, inlineTemplateCss: false, animStopPoints, animDuration,
   })
   const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex)
   const manifestJS = buildManifestJS({ canvasWidth, canvasHeight, elements: sorted, customManifest })
@@ -678,11 +687,11 @@ async function _buildZip({ elements, groups, canvasWidth, canvasHeight, bannerNa
 
 // Live preview HTML for the canvas — same rendering path as export, base64 images kept inline
 // (no zip to reference files from) and template CSS inlined as a <style> tag.
-export async function buildPreviewHtml({ elements, groups, canvasWidth, canvasHeight, bannerName, activeTemplate, animStopPoints }) {
+export async function buildPreviewHtml({ elements, groups, canvasWidth, canvasHeight, bannerName, activeTemplate, animStopPoints, animDuration }) {
   const { customHtml, customJs, customCss } = substituteTemplateTokens(activeTemplate)
   const { html } = await _buildHTML({
     elements, groups, canvasWidth, canvasHeight, bannerName: bannerName || 'preview', politeLoad: false,
-    activeTemplate, customHtml, customJs, customCss, imageFiles: [], inlineTemplateCss: true, animStopPoints,
+    activeTemplate, customHtml, customJs, customCss, imageFiles: [], inlineTemplateCss: true, animStopPoints, animDuration,
   })
   return html
 }

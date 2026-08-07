@@ -119,6 +119,13 @@ export default function Timeline() {
         }
       })
     })
+    // A GSAP timeline's own duration is just the end of its last real tween — once
+    // every animation has finished, tl is already "over," and a seek/pause past that
+    // point silently clamps back to wherever it actually ends. A zero-duration anchor
+    // at `duration` (the banner's configured total) extends tl's own length to match,
+    // with no visible effect, so stop points/scrubbing past the last real animation
+    // still work — mirrors the identical fix in exportBanner.js's buildAnimationJS.
+    if (duration > 0) tl.to({}, { duration: 0 }, duration)
     // Mirrors the exported banner's stop-point watcher (see buildAnimationJS in
     // exportBanner.js) so pressing Play in the editor previews the same auto-pause
     // behavior, instead of only showing up once the banner is exported. Uses the same

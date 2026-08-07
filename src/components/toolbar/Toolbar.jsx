@@ -127,7 +127,7 @@ export default function Toolbar() {
 
   const handleExportZip = async () => {
     setMenuOpen(false)
-    await exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints })
+    await exportBannerZip({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration })
   }
 
   const handleSave = () => {
