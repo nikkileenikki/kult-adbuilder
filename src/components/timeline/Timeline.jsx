@@ -67,7 +67,11 @@ export default function Timeline() {
   }, [elements])
 
   // ── Build GSAP timeline from element animations ───────────────────────────
-  const buildTl = useCallback((opts = {}) => {
+  // `seekTo` (optional): where this tl should start, e.g. resuming from a scrub
+  // position — handled here rather than by the caller seeking afterward, so stop
+  // points behind it can be pre-marked "already fired" before the seek happens (see
+  // the onUpdate watcher below for why that ordering matters).
+  const buildTl = useCallback(({ seekTo, ...opts } = {}) => {
     const tl = gsap.timeline({ defaults: { overwrite: 'auto' }, ...opts })
     elements.forEach((el) => {
       const dom = document.getElementById(el.id)
@@ -115,10 +119,32 @@ export default function Timeline() {
         }
       })
     })
-    // Mirrors the exported banner's tl.addPause(...) per stop point (see
-    // buildAnimationJS in exportBanner.js) so pressing Play in the editor previews the
-    // same auto-pause behavior, instead of only showing up once the banner is exported.
-    stopPoints.forEach((sp) => { if (sp > 0 && sp < duration) tl.addPause(sp) })
+    // Mirrors the exported banner's stop-point watcher (see buildAnimationJS in
+    // exportBanner.js) so pressing Play in the editor previews the same auto-pause
+    // behavior, instead of only showing up once the banner is exported. Uses the same
+    // onUpdate + pre-marked-fired approach as the export, for the same reason: GSAP's
+    // built-in tl.addPause() doesn't coexist with a manual, non-suppressed seek (the
+    // resume-from-scrub-position seek below used to pass suppressEvents=false) — it
+    // could fire immediately and silently re-pause a timeline that had just started,
+    // which is exactly what made Play look "stuck" after rearranging an animation
+    // left the scrub position sitting past a stop point.
+    const validStops = stopPoints.filter((sp) => sp > 0 && sp < duration)
+    const stopFired = {}
+    if (seekTo != null) validStops.forEach((sp) => { stopFired[sp] = sp <= seekTo })
+    if (validStops.length) {
+      tl.eventCallback('onUpdate', () => {
+        const t = tl.time()
+        for (let i = 0; i < validStops.length; i++) {
+          const sp = validStops[i]
+          if (t >= sp && !stopFired[sp]) { stopFired[sp] = true; tl.pause(sp); break }
+        }
+      })
+    }
+    // suppressEvents left at its default (true) — pre-marking stopFired above already
+    // handles correctness, and suppressing here means this programmatic resume-seek
+    // can't double-fire the watcher on top of that. Suppression only affects
+    // callbacks, not the actual visual render, so the scrub position still updates.
+    if (seekTo != null && seekTo > 0) tl.seek(seekTo)
     return tl
   }, [elements, stopPoints, duration])
 
@@ -135,6 +161,7 @@ export default function Timeline() {
 
     const tl = buildTl({
       repeat: loop - 1,
+      seekTo: startAt,
       onComplete: () => {
         cancelAnimationFrame(rafRef.current)
         // Pause at end so GSAP keeps owning DOM properties (prevents React re-render from reverting)
@@ -143,8 +170,6 @@ export default function Timeline() {
         setPlaying(false)
       },
     })
-
-    if (startAt > 0) tl.seek(startAt, false)
 
     tlRef.current = tl
     setPlaying(true)
