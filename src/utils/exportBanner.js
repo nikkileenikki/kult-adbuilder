@@ -172,10 +172,19 @@ function buildAnimationJS(elements, stopPoints) {
   // buildActionJS, *before* they seek) which marks every point up to the jump target
   // as already-fired and everything past it as not-yet-fired, so a manual jump can
   // never be mistaken for "just reached" a point behind or ahead of it.
+  // ktStops/ktStopFired/ktMarkStopsUpTo are declared once at the shared top-level
+  // script scope (see _buildHTML, right beside `var tl`) — NOT here, even though this
+  // is where their values are known. This code runs inside animate(), but
+  // ktMarkStopsUpTo is *called* from the click/hover/swipe handlers built by
+  // buildTrackingJS, which live inside the sibling addEvent() function. Declaring
+  // them here made them invisible to that sibling scope: calling ktMarkStopsUpTo from
+  // a jump/restart action threw a ReferenceError, which silently killed that whole
+  // click handler (and any tracker call or other action before it in the same
+  // handler) — the exact "button trigger not working" this now avoids by only
+  // assigning into the shared vars here, the same pattern `tl = gsap.timeline(...)`
+  // already uses.
   const validStops = (stopPoints || []).filter((sp) => sp != null && sp > 0).sort((a, b) => a - b)
-  lines.push(`var ktStops = ${JSON.stringify(validStops)};`)
-  lines.push(`var ktStopFired = {};`)
-  lines.push(`function ktMarkStopsUpTo(t) { ktStops.forEach(function(sp) { ktStopFired[sp] = sp <= t; }); }`)
+  lines.push(`ktStops = ${JSON.stringify(validStops)};`)
   if (validStops.length) {
     lines.push(`gsap.ticker.add(function() {
     if (!tl || tl.paused()) return;
@@ -577,6 +586,9 @@ async function _buildHTML({ elements, groups, canvasWidth, canvasHeight, bannerN
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"><\/script>
   <script>
   ${isAdvanced ? customJs : `${politeLoadFn}var tl;
+  var ktStops = [];
+  var ktStopFired = {};
+  function ktMarkStopsUpTo(t) { ktStops.forEach(function(sp) { ktStopFired[sp] = sp <= t; }); }
   function init() {
     addEvent();
   }
