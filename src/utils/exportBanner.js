@@ -336,14 +336,17 @@ function buildActionJS(action, elements) {
       // playback will naturally pause there again) — see buildAnimationJS for why a
       // plain tl.seek() alone isn't safe here.
       //
-      // tl.seek() also doesn't just move the playhead when the timeline is currently
-      // paused — it resumes it too, so a jump fired while holding at a stop point
-      // played straight through instead of landing on the new frame and staying
-      // there. Capturing/reapplying the pre-jump paused state makes the seek truly
-      // position-only: still playing stays playing, paused stays paused at the new
-      // position.
+      // Always ends by playing, even if the timeline was already paused (e.g. sitting
+      // at a stop point) before the jump fired. An earlier version preserved whatever
+      // paused state existed pre-jump, on the theory that "jump" shouldn't force a
+      // stopped timeline to start moving — but that made a jump fired *after* the
+      // first natural stop a permanent dead end: it only ever relocated a frozen
+      // playhead, and anything scheduled to animate at/after the jump target (like a
+      // reveal meant to play right when the jump lands) never actually got to play,
+      // since nothing was left to call .play(). A stop point is the tool for "land
+      // here and hold" — a jump's whole point is "go here and keep going."
       const t = Number(action.time) || 0
-      return `if (tl) { ktMarkStopsUpTo(${t}); var _wasPaused = tl.paused(); tl.seek(${t}); if (_wasPaused) tl.pause(); }`
+      return `if (tl) { ktMarkStopsUpTo(${t}); tl.seek(${t}); tl.play(); }`
     }
     case 'restart':
       // Un-arms every stop point (marks all "not yet fired", since none of them are
