@@ -24,6 +24,12 @@ export default function FtReportTestModal({ onClose }) {
   useEscapeKey(onClose)
 
   const [reportId, setReportId] = useState('')
+  // 'crm' = same host+auth as the already-working Libraries call
+  // (api.flashtalking.net/crm/v1) — the account only ever logs in with
+  // FT_EMAIL/FT_PASSWORD, which matches this API's plain Basic-auth pattern, not the
+  // older devKey/appKey-plus-token API a legacy reference client pointed at
+  // report-request.flashtalking.net ('legacy').
+  const [host, setHost] = useState('crm')
   const [loading, setLoading] = useState(null) // 'report' | 'libraries' | null
   const [result, setResult] = useState(null)
 
@@ -33,8 +39,12 @@ export default function FtReportTestModal({ onClose }) {
     try {
       // Empty id -> "Display Report List" (lists what actually exists on this
       // account); an id -> "Display Report Status" for that specific report.
+      const params = new URLSearchParams()
+      if (reportId) params.set('id', reportId)
+      if (host === 'legacy') params.set('host', 'legacy')
+      const qs = params.toString()
       const url = which === 'report'
-        ? `/api/flashtalking/test-report${reportId ? `?id=${encodeURIComponent(reportId)}` : ''}`
+        ? `/api/flashtalking/test-report${qs ? `?${qs}` : ''}`
         : '/api/flashtalking/libraries'
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       const data = await res.json()
@@ -71,6 +81,18 @@ export default function FtReportTestModal({ onClose }) {
             placeholder="leave blank to list all reports"
             className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-400 shrink-0">API Host</label>
+          <select
+            value={host}
+            onChange={(e) => setHost(e.target.value)}
+            className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+          >
+            <option value="crm">CRM API (api.flashtalking.net/crm/v1) — same as Libraries</option>
+            <option value="legacy">Legacy (report-request.flashtalking.net)</option>
+          </select>
         </div>
 
         <div className="flex gap-2">
