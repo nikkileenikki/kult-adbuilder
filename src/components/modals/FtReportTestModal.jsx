@@ -24,12 +24,14 @@ export default function FtReportTestModal({ onClose }) {
   useEscapeKey(onClose)
 
   const [reportId, setReportId] = useState('')
-  // 'crm' = same host+auth as the already-working Libraries call
-  // (api.flashtalking.net/crm/v1) — the account only ever logs in with
-  // FT_EMAIL/FT_PASSWORD, which matches this API's plain Basic-auth pattern, not the
-  // older devKey/appKey-plus-token API a legacy reference client pointed at
-  // report-request.flashtalking.net ('legacy').
-  const [host, setHost] = useState('crm')
+  // 'legacy' (report-request.flashtalking.net) turned out to be the real, working
+  // host — it returned a proper structured Flashtalking XML error
+  // (<errorCode>204</errorCode><error>no reports found</error>) for a report ID that
+  // doesn't exist, meaning auth succeeded and the API itself responded. 'crm'
+  // (api.flashtalking.net/crm/v1, same host+auth as the working Libraries call) was
+  // ruled out — it 404s with a generic server error page, meaning that route doesn't
+  // exist there at all.
+  const [host, setHost] = useState('legacy')
   const [loading, setLoading] = useState(null) // 'report' | 'libraries' | null
   const [result, setResult] = useState(null)
 
@@ -41,7 +43,7 @@ export default function FtReportTestModal({ onClose }) {
       // account); an id -> "Display Report Status" for that specific report.
       const params = new URLSearchParams()
       if (reportId) params.set('id', reportId)
-      if (host === 'legacy') params.set('host', 'legacy')
+      params.set('host', host)
       const qs = params.toString()
       const url = which === 'report'
         ? `/api/flashtalking/test-report${qs ? `?${qs}` : ''}`
@@ -90,8 +92,8 @@ export default function FtReportTestModal({ onClose }) {
             onChange={(e) => setHost(e.target.value)}
             className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
           >
-            <option value="crm">CRM API (api.flashtalking.net/crm/v1) — same as Libraries</option>
-            <option value="legacy">Legacy (report-request.flashtalking.net)</option>
+            <option value="legacy">report-request.flashtalking.net — real API, confirmed working</option>
+            <option value="crm">CRM API (api.flashtalking.net/crm/v1) — ruled out, no /report route</option>
           </select>
         </div>
 
@@ -118,7 +120,7 @@ export default function FtReportTestModal({ onClose }) {
             <p className="text-xs text-gray-400">
               {result.which === 'report' ? 'Reporting API' : 'Libraries API'} — {result.error ? 'request failed' : `HTTP ${result.httpStatus}`}
             </p>
-            <pre className="text-xs text-gray-300 whitespace-pre-wrap break-all max-h-64 overflow-auto">
+            <pre className="text-xs text-gray-300 whitespace-pre-wrap break-all max-h-64 overflow-auto select-text" style={{ userSelect: 'text' }}>
               {result.error || JSON.stringify(result.data, null, 2)}
             </pre>
           </div>
