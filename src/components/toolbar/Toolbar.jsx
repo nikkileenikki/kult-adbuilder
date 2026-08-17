@@ -8,6 +8,7 @@ import FlashTalkingModal from '../modals/FlashTalkingModal.jsx'
 import LibraryPickerModal from '../modals/LibraryPickerModal.jsx'
 import VideoAssetsModal from '../modals/VideoAssetsModal.jsx'
 import PreviewModal from '../modals/PreviewModal.jsx'
+import FtReportTestModal from '../modals/FtReportTestModal.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -62,6 +63,7 @@ export default function Toolbar() {
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [showVideoAssets, setShowVideoAssets] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showFtReportTest, setShowFtReportTest] = useState(false) // temporary — remove once the FT reports investigation is done
   const [brands, setBrands] = useState([])
 
   useEffect(() => {
@@ -284,6 +286,14 @@ export default function Toolbar() {
           <i className="fa-solid fa-eye" style={{ fontSize: 12 }} /> Preview
         </button>
 
+        {/* Temporary — remove once the FT reports investigation is done */}
+        <button
+          onClick={() => setShowFtReportTest(true)}
+          title="Temporary: test Flashtalking Reporting API access"
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
+          <i className="fa-solid fa-flask" style={{ fontSize: 12 }} /> FT Report Test
+        </button>
+
         {/* Export / Publish dropdown */}
         <div className="relative" ref={menuRef}>
           <button
@@ -350,6 +360,9 @@ export default function Toolbar() {
 
       {showPreview && (
         <PreviewModal onClose={() => setShowPreview(false)} />
+      )}
+      {showFtReportTest && (
+        <FtReportTestModal onClose={() => setShowFtReportTest(false)} />
       )}
     </div>
   )
