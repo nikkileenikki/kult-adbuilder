@@ -13,10 +13,13 @@ export async function onRequestGet({ request, env }) {
   }
 
   const url = new URL(request.url)
-  const reportId = url.searchParams.get('id') || '325957'
+  const reportId = url.searchParams.get('id')
   const basic = btoa(`${env.FT_EMAIL}:${env.FT_PASSWORD}`)
 
-  const res = await fetch(`${FT_REPORT_BASE}/report/${reportId}`, {
+  // No id -> "Display Report List" (GET /report); an id -> "Display Report Status"
+  // for that specific report (GET /report/<id>).
+  const target = reportId ? `${FT_REPORT_BASE}/report/${reportId}` : `${FT_REPORT_BASE}/report`
+  const res = await fetch(target, {
     headers: { Authorization: `Basic ${basic}` },
   })
   const text = await res.text()
