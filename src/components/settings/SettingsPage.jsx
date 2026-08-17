@@ -3,11 +3,13 @@ import { useAuthStore } from '../../store/authStore.js'
 import BrandGuideContent from './BrandGuideContent.jsx'
 import UserManagementPage from '../auth/UserManagementPage.jsx'
 import AiSettingsContent from './AiSettingsContent.jsx'
+import FtReportTestContent from './FtReportTestContent.jsx'
 
 const TABS = [
   { id: 'brand', label: 'Brand Guide', icon: 'fa-swatchbook', adminOnly: false },
   { id: 'users', label: 'User Management', icon: 'fa-users', adminOnly: true },
   { id: 'ai', label: 'AI Settings', icon: 'fa-wand-magic-sparkles', adminOnly: true },
+  { id: 'ftReportTest', label: 'FT Report Test', icon: 'fa-flask', adminOnly: true },
 ]
 
 export default function SettingsPage({ onClose }) {
@@ -56,6 +58,7 @@ export default function SettingsPage({ onClose }) {
           {tab === 'brand' && <BrandGuideContent />}
           {tab === 'users' && isAdmin && <UserManagementPage embedded />}
           {tab === 'ai' && isAdmin && <AiSettingsContent />}
+          {tab === 'ftReportTest' && isAdmin && <FtReportTestContent />}
         </div>
       </div>
     </div>
