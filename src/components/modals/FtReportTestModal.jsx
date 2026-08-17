@@ -23,7 +23,7 @@ export default function FtReportTestModal({ onClose }) {
   const { token } = useAuthStore()
   useEscapeKey(onClose)
 
-  const [reportId, setReportId] = useState('325957')
+  const [reportId, setReportId] = useState('')
   const [loading, setLoading] = useState(null) // 'report' | 'libraries' | null
   const [result, setResult] = useState(null)
 
@@ -31,7 +31,11 @@ export default function FtReportTestModal({ onClose }) {
     setLoading(which)
     setResult(null)
     try {
-      const url = which === 'report' ? `/api/flashtalking/test-report?id=${encodeURIComponent(reportId)}` : '/api/flashtalking/libraries'
+      // Empty id -> "Display Report List" (lists what actually exists on this
+      // account); an id -> "Display Report Status" for that specific report.
+      const url = which === 'report'
+        ? `/api/flashtalking/test-report${reportId ? `?id=${encodeURIComponent(reportId)}` : ''}`
+        : '/api/flashtalking/libraries'
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       const data = await res.json()
       setResult({ which, httpStatus: res.status, data })
@@ -64,6 +68,7 @@ export default function FtReportTestModal({ onClose }) {
           <input
             value={reportId}
             onChange={(e) => setReportId(e.target.value)}
+            placeholder="leave blank to list all reports"
             className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
           />
         </div>
@@ -74,7 +79,7 @@ export default function FtReportTestModal({ onClose }) {
             disabled={loading !== null}
             className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium transition-colors"
           >
-            {loading === 'report' ? 'Testing…' : 'Test Reporting API'}
+            {loading === 'report' ? 'Testing…' : reportId ? 'Test Report Status' : 'List All Reports'}
           </button>
           <button
             onClick={() => run('libraries')}
