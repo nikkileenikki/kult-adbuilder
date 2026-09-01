@@ -2,15 +2,15 @@ import React from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 
 const positions = [
-  { id: 'top-left',     label: '↖', row: 0, col: 0 },
+  { id: 'top-left',     label: '↖', rotate: -45,  row: 0, col: 0 },
   { id: 'top',          label: '↑', row: 0, col: 1 },
-  { id: 'top-right',    label: '↗', row: 0, col: 2 },
+  { id: 'top-right',    label: '↗', rotate: 45,   row: 0, col: 2 },
   { id: 'left',         label: '←', row: 1, col: 0 },
   { id: 'center',       label: '•', row: 1, col: 1 },
   { id: 'right',        label: '→', row: 1, col: 2 },
-  { id: 'bottom-left',  label: '↙', row: 2, col: 0 },
+  { id: 'bottom-left',  label: '↙', rotate: -135, row: 2, col: 0 },
   { id: 'bottom',       label: '↓', row: 2, col: 1 },
-  { id: 'bottom-right', label: '↘', row: 2, col: 2 },
+  { id: 'bottom-right', label: '↘', rotate: 135,  row: 2, col: 2 },
 ]
 
 export default function AlignPad({ el, save }) {
@@ -48,7 +48,14 @@ export default function AlignPad({ el, save }) {
             title={`Align ${p.id}`}
             className="flex items-center justify-center text-blue-200 hover:bg-blue-400/20 hover:text-white transition-all text-base"
           >
-            {p.label}
+            {/* Diagonal corners use a rotated fa-arrow-up icon instead of the ↖/↗/↙/↘
+                Unicode glyphs — those render as full-color emoji (not a plain
+                monochrome arrow) on Windows browsers, since Windows' default emoji
+                font claims diagonal arrow codepoints that the straight ↑/↓/←/→ ones
+                aren't affected by. */}
+            {p.rotate != null
+              ? <i className="fa-solid fa-arrow-up" style={{ fontSize: 13, transform: `rotate(${p.rotate}deg)` }} />
+              : p.label}
           </button>
         ))}
       </div>
