@@ -2,15 +2,15 @@ import React from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 
 const positions = [
-  { id: 'top-left',     label: '↖', rotate: -45,  row: 0, col: 0 },
-  { id: 'top',          label: '↑', row: 0, col: 1 },
-  { id: 'top-right',    label: '↗', rotate: 45,   row: 0, col: 2 },
-  { id: 'left',         label: '←', row: 1, col: 0 },
-  { id: 'center',       label: '•', row: 1, col: 1 },
-  { id: 'right',        label: '→', row: 1, col: 2 },
-  { id: 'bottom-left',  label: '↙', rotate: -135, row: 2, col: 0 },
-  { id: 'bottom',       label: '↓', row: 2, col: 1 },
-  { id: 'bottom-right', label: '↘', rotate: 135,  row: 2, col: 2 },
+  { id: 'top-left',     rotate: -45,  row: 0, col: 0 },
+  { id: 'top',          rotate: 0,    row: 0, col: 1 },
+  { id: 'top-right',    rotate: 45,   row: 0, col: 2 },
+  { id: 'left',         rotate: -90,  row: 1, col: 0 },
+  { id: 'center',       label: '•',   row: 1, col: 1 },
+  { id: 'right',        rotate: 90,   row: 1, col: 2 },
+  { id: 'bottom-left',  rotate: -135, row: 2, col: 0 },
+  { id: 'bottom',       rotate: 180,  row: 2, col: 1 },
+  { id: 'bottom-right', rotate: 135,  row: 2, col: 2 },
 ]
 
 export default function AlignPad({ el, save }) {
@@ -48,11 +48,12 @@ export default function AlignPad({ el, save }) {
             title={`Align ${p.id}`}
             className="flex items-center justify-center text-blue-200 hover:bg-blue-400/20 hover:text-white transition-all text-base"
           >
-            {/* Diagonal corners use a rotated fa-arrow-up icon instead of the ↖/↗/↙/↘
-                Unicode glyphs — those render as full-color emoji (not a plain
-                monochrome arrow) on Windows browsers, since Windows' default emoji
-                font claims diagonal arrow codepoints that the straight ↑/↓/←/→ ones
-                aren't affected by. */}
+            {/* All 8 directions share one rotated fa-arrow-up icon instead of Unicode
+                arrow glyphs (↑↓←→↖↗↙↘) — those render inconsistently across
+                platforms: the straight ones as thin text glyphs, the diagonal ones as
+                full-color emoji on Windows (Windows' default emoji font claims those
+                codepoints). A single icon keeps weight/style identical all the way
+                around the pad. */}
             {p.rotate != null
               ? <i className="fa-solid fa-arrow-up" style={{ fontSize: 13, transform: `rotate(${p.rotate}deg)` }} />
               : p.label}
