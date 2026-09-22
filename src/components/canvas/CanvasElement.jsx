@@ -28,10 +28,18 @@ export default function CanvasElement({ element, canvasWidth, canvasHeight }) {
     if (editingText) return
     e.stopPropagation()
     setSelected(element.id)
-    saveState()
-    dragState.current = { startX: e.clientX, startY: e.clientY, origX: element.x, origY: element.y }
+    // Deliberately no saveState() here — mousedown also fires for a plain click to
+    // select, and snapshotting there meant simply clicking around the canvas pushed a
+    // full copy of the banner onto the undo stack each time. The snapshot happens on
+    // the first actual move below, before the element is modified, so a click that
+    // doesn't move anything records nothing.
+    dragState.current = { startX: e.clientX, startY: e.clientY, origX: element.x, origY: element.y, saved: false }
 
     const onMove = (mv) => {
+      if (!dragState.current.saved) {
+        saveState()
+        dragState.current.saved = true
+      }
       const dx = (mv.clientX - dragState.current.startX) / scaleRef.current
       const dy = (mv.clientY - dragState.current.startY) / scaleRef.current
       let rawX = dragState.current.origX + dx

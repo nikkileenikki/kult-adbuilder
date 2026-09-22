@@ -16,7 +16,14 @@ export default function PropertiesSection() {
   if (!el) return null
 
   const update = (patch) => updateElement(selectedId, patch)
-  const save = (patch) => { saveState(); update(patch) }
+  // Coalesce key = the element plus the fields being written, so a burst of edits to
+  // one control (every keystroke in a text box, every step of a colour picker drag)
+  // collapses into a single undo step instead of one per character. Moving to a
+  // different field — or pausing — starts a fresh step. See historyStore.saveState.
+  const save = (patch) => {
+    saveState(`${selectedId}:${Object.keys(patch).join(',')}`)
+    update(patch)
+  }
 
   const isLocked = el.locked
   const ratioLocked = el.type === 'image' && el.lockAspectRatio && el.width && el.height
