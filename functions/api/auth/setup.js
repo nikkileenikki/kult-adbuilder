@@ -1,12 +1,38 @@
-// TEMPORARY - delete this file after creating your admin account
+// First-admin bootstrap for a brand-new deployment.
+//
+// This used to be unauthenticated, guarded only by "no users exist yet", and shipped
+// alongside a public/setup.html form — both labelled "delete after use", both still
+// live in production long after. That guard holds only as long as the users table is
+// non-empty: a restore from an empty backup, a bad migration, or a fresh D1 binding
+// would have briefly opened an unauthenticated path to creating an admin account on a
+// public URL.
+//
+// It now needs SETUP_TOKEN, a Cloudflare secret that is simply not set in normal
+// operation — with no secret configured the endpoint doesn't exist as far as callers
+// can tell. To bootstrap a new environment: set the secret, POST here with a matching
+// `token`, then unset it. The empty-users check is kept as a second, independent
+// condition so a leaked token still can't touch a populated instance.
 export async function onRequestPost({ request, env }) {
-  // Only allow if no users exist yet
-  const count = await env.DB.prepare('SELECT COUNT(*) as n FROM users').first()
-  if (count.n > 0) {
-    return json({ error: 'Setup already complete. Delete this endpoint.' }, 403)
+  // 404 rather than 403 — a disabled endpoint shouldn't confirm it exists.
+  if (!env.SETUP_TOKEN) return json({ error: 'Not found' }, 404)
+
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400)
   }
 
-  const { username, display_name, email, password } = await request.json()
+  const { token, username, display_name, email, password } = body || {}
+  if (!token || !timingSafeEqual(String(token), String(env.SETUP_TOKEN))) {
+    return json({ error: 'Not found' }, 404)
+  }
+
+  const count = await env.DB.prepare('SELECT COUNT(*) as n FROM users').first()
+  if (count.n > 0) {
+    return json({ error: 'Setup already complete — users already exist.' }, 403)
+  }
+
   if (!username || !display_name || !email || !password) {
     return json({ error: 'username, display_name, email and password are required' }, 400)
   }
@@ -23,7 +49,16 @@ export async function onRequestPost({ request, env }) {
     return json({ error: 'Server error' }, 500)
   }
 
-  return json({ ok: true, message: 'Admin account created. Delete /api/auth/setup now.' })
+  return json({ ok: true, message: 'Admin account created. Unset SETUP_TOKEN now.' })
+}
+
+// Compares in time independent of how far the strings match, so the token can't be
+// recovered a character at a time from response timing.
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
 }
 
 async function hashPassword(password) {
