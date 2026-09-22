@@ -27,14 +27,17 @@ function buildElementCSS(el) {
     styles.push(`word-break:break-word`)
     styles.push(`overflow:hidden`)
     styles.push(`text-wrap:balance`)
-    if (el.textShadowBlur || el.textShadowX || el.textShadowY || el.textGlowBlur) {
-      const parts = []
-      if (el.textShadowBlur || el.textShadowX || el.textShadowY)
-        parts.push(`${el.textShadowX||0}px ${el.textShadowY||0}px ${el.textShadowBlur||0}px ${el.textShadowColor||'#000'}`)
-      if (el.textGlowBlur || el.textGlowX || el.textGlowY)
-        parts.push(`${el.textGlowX||0}px ${el.textGlowY||0}px ${el.textGlowBlur||0}px ${el.textGlowSpread||0}px ${el.textGlowColor||'#fff'}`)
-      if (parts.length) styles.push(`text-shadow:${parts.join(', ')}`)
-    }
+    // No spread term here: CSS text-shadow takes only offset-x/offset-y/blur/color,
+    // and one invalid layer invalidates the whole declaration — so emitting a 4th
+    // length made the browser drop the text shadow *and* the glow entirely (computed
+    // value "none"). Kept in sync with buildTextShadow in CanvasElement.jsx, and the
+    // glow's Spread input was dropped from TextProperties for the same reason.
+    const shadowParts = []
+    if (el.textShadowBlur || el.textShadowX || el.textShadowY)
+      shadowParts.push(`${el.textShadowX||0}px ${el.textShadowY||0}px ${el.textShadowBlur||0}px ${el.textShadowColor||'#000'}`)
+    if (el.textGlowBlur || el.textGlowX || el.textGlowY)
+      shadowParts.push(`${el.textGlowX||0}px ${el.textGlowY||0}px ${el.textGlowBlur||0}px ${el.textGlowColor||'#fff'}`)
+    if (shadowParts.length) styles.push(`text-shadow:${shadowParts.join(', ')}`)
   }
   if (el.type === 'shape') {
     const isCircle = el.shapeType === 'circle'
@@ -278,7 +281,7 @@ function buildClickTagJS(elements) {
   const lines = clicks.map((el) => {
     const idx = el.clickIndex || 1
     const url = el.url || ''
-    return `  document.getElementById('${el.id}').addEventListener('click', function() { myFT.clickTag(${idx}${url ? `, '${url}'` : ''}); });`
+    return `  document.getElementById('${el.id}').addEventListener('click', function() { myFT.clickTag(${idx}${url ? `, ${jsStr(url)}` : ''}); });`
   })
   return lines.join('\n')
 }
@@ -391,7 +394,7 @@ function buildTrackingJS(elements) {
   tracked.forEach((el) => {
     const target = `document.getElementById('${el.id}')`
     const body = [
-      el.trackingName ? `myFT.tracker('${el.trackingName}');` : '',
+      el.trackingName ? `myFT.tracker(${jsStr(el.trackingName)});` : '',
       ...(el.actions || []).map((a) => buildActionJS(a, elements)),
     ].filter(Boolean).join(' ')
     if (!body) return
@@ -460,7 +463,7 @@ function buildHoverEffectJS(elements) {
     if (el.hoverBgId && el.hoverBgColor) {
       resolveTargetElements(el.hoverBgId, elements).forEach((bgEl) => {
         const origBg = bgEl.transparent ? 'transparent' : (bgEl.cssBackground || bgEl.fillColor || '#888')
-        const args = `'${bgEl.id}', 'background', %ENTERING%, '${el.hoverBgColor}', '${origBg}'`
+        const args = `${jsStr(bgEl.id)}, 'background', %ENTERING%, ${jsStr(el.hoverBgColor)}, ${jsStr(origBg)}`
         lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColor(${args.replace('%ENTERING%', 'true')}); });`)
         lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColor(${args.replace('%ENTERING%', 'false')}); });`)
       })
@@ -468,7 +471,7 @@ function buildHoverEffectJS(elements) {
     if (el.hoverTextId && el.hoverTextColor) {
       resolveTargetElements(el.hoverTextId, elements).forEach((txtEl) => {
         const origText = txtEl.color || '#000'
-        const args = `'${txtEl.id}', 'color', %ENTERING%, '${el.hoverTextColor}', '${origText}'`
+        const args = `${jsStr(txtEl.id)}, 'color', %ENTERING%, ${jsStr(el.hoverTextColor)}, ${jsStr(origText)}`
         lines.push(`  ${target}.addEventListener('mouseenter', function() { ktHoverColor(${args.replace('%ENTERING%', 'true')}); });`)
         lines.push(`  ${target}.addEventListener('mouseleave', function() { ktHoverColor(${args.replace('%ENTERING%', 'false')}); });`)
       })
@@ -491,6 +494,17 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+}
+
+// Embeds an arbitrary value as a JS string literal in the generated banner script.
+// Hand-quoting these ('${value}') broke the *entire* exported banner the moment a
+// value contained an apostrophe — a perfectly ordinary thing in a click URL
+// (…?q=o'brien) or a tracking event name — because the resulting script failed to
+// parse, taking every animation and click handler down with it, silently.
+// JSON.stringify handles quotes, backslashes and newlines; escaping "<" on top of
+// that keeps a value containing "</script>" from closing the surrounding script block.
+function jsStr(value) {
+  return JSON.stringify(String(value ?? '')).replace(/</g, '\\u003c')
 }
 
 export async function buildBannerZipBlob({ elements, groups, canvasWidth, canvasHeight, bannerName, politeLoad, activeTemplate, animStopPoints, animDuration }) {
