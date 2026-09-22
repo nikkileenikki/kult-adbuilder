@@ -74,8 +74,11 @@ export default function TextProperties({ el, update, save }) {
       <Field label="Text Shadow">
         <ShadowInputs prefix="textShadow" el={el} save={save} />
       </Field>
+      {/* No Spread input: CSS text-shadow has no spread parameter, and emitting one
+          invalidated the entire declaration — setting a glow silently wiped out the
+          text shadow too. Shapes keep their Spread (box-shadow does support it). */}
       <Field label="Glow Effect">
-        <ShadowInputs prefix="textGlow" el={el} save={save} spread />
+        <ShadowInputs prefix="textGlow" el={el} save={save} />
       </Field>
     </div>
   )

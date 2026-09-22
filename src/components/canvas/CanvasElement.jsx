@@ -266,13 +266,18 @@ function ResizeHandles({ element, canvasWidth, canvasHeight }) {
   )
 }
 
+// No spread term here: CSS text-shadow takes only offset-x/offset-y/blur/color, and
+// one invalid layer invalidates the whole declaration — so emitting a 4th length made
+// the browser drop the text shadow *and* the glow entirely (computed value "none").
+// Kept in sync with buildElementCSS in exportBanner.js. box-shadow (buildBoxShadow
+// below) does take a spread, so shapes keep theirs.
 function buildTextShadow(el) {
   const parts = []
   if (el.textShadowBlur || el.textShadowX || el.textShadowY) {
     parts.push(`${el.textShadowX || 0}px ${el.textShadowY || 0}px ${el.textShadowBlur || 0}px ${el.textShadowColor || '#000'}`)
   }
-  if (el.textGlowBlur || el.textGlowX || el.textGlowY || el.textGlowSpread) {
-    parts.push(`${el.textGlowX || 0}px ${el.textGlowY || 0}px ${el.textGlowBlur || 0}px ${el.textGlowSpread || 0}px ${el.textGlowColor || '#fff'}`)
+  if (el.textGlowBlur || el.textGlowX || el.textGlowY) {
+    parts.push(`${el.textGlowX || 0}px ${el.textGlowY || 0}px ${el.textGlowBlur || 0}px ${el.textGlowColor || '#fff'}`)
   }
   return parts.join(', ')
 }
