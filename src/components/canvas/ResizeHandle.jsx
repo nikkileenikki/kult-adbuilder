@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react'
 import { useUiStore } from '../../store/uiStore.js'
+import { useHistoryStore } from '../../store/historyStore.js'
 
 const SNAP_THRESHOLD = 6
 
@@ -13,15 +14,22 @@ function snapTo(val, candidates) {
 export default function ResizeHandle({ handle, element, onResize, canvasWidth, canvasHeight }) {
   const scaleRef = useRef(1)
   scaleRef.current = useUiStore((s) => s.canvasZoom / 100)
+  const { saveState } = useHistoryStore()
   const onMouseDown = useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
     const start = { x: e.clientX, y: e.clientY }
     const orig = { x: element.x, y: element.y, w: element.width, h: element.height }
+    // Resizing had no history integration at all, so Ctrl+Z after a resize undid
+    // whatever came *before* it and the resize itself could never be backed out.
+    // Saved on the first move (not mousedown) so grabbing a handle without dragging
+    // doesn't add an undo step, matching how dragging works in CanvasElement.
+    let saved = false
 
     const ratio = element.lockAspectRatio && orig.h ? orig.w / orig.h : null
 
     const onMove = (mv) => {
+      if (!saved) { saveState(); saved = true }
       const dx = (mv.clientX - start.x) / scaleRef.current
       const dy = (mv.clientY - start.y) / scaleRef.current
       let { x, y, w, h } = orig
@@ -65,7 +73,7 @@ export default function ResizeHandle({ handle, element, onResize, canvasWidth, c
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [handle, element, onResize])
+  }, [handle, element, onResize, saveState])
 
   const style = {
     position: 'absolute',
