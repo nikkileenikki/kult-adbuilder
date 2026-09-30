@@ -8,6 +8,7 @@ import FlashTalkingModal from '../modals/FlashTalkingModal.jsx'
 import LibraryPickerModal from '../modals/LibraryPickerModal.jsx'
 import VideoAssetsModal from '../modals/VideoAssetsModal.jsx'
 import PreviewModal from '../modals/PreviewModal.jsx'
+import VideoExportModal from '../modals/VideoExportModal.jsx'
 
 const PRESET_SIZES = [
   { value: '300x250', label: '300×250', w: 300, h: 250 },
@@ -62,6 +63,7 @@ export default function Toolbar() {
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [showVideoAssets, setShowVideoAssets] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showVideoExport, setShowVideoExport] = useState(false)
   const [brands, setBrands] = useState([])
 
   useEffect(() => {
@@ -313,6 +315,13 @@ export default function Toolbar() {
               </label>
               <MenuItem icon="fa-file-zipper" iconClass="text-green-400" label="Export as ZIP" onClick={handleExportZip} />
               <MenuItem
+                icon="fa-video"
+                iconClass="text-rose-400"
+                label="Export as Video (.mp4)"
+                title="Render the animation to a video file for social placements"
+                onClick={() => { setMenuOpen(false); setShowVideoExport(true) }}
+              />
+              <MenuItem
                 icon="fa-cloud-arrow-up"
                 iconClass={ftLibrary ? 'text-purple-400' : 'text-gray-600'}
                 label="Publish to Flashtalking"
@@ -350,6 +359,10 @@ export default function Toolbar() {
 
       {showPreview && (
         <PreviewModal onClose={() => setShowPreview(false)} />
+      )}
+
+      {showVideoExport && (
+        <VideoExportModal onClose={() => setShowVideoExport(false)} bannerName={bannerName} />
       )}
     </div>
   )
