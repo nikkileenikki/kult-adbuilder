@@ -54,15 +54,24 @@ export default function ResizeHandle({ handle, element, onResize, canvasWidth, c
       }
 
       if (ratio) {
-        // Determine dominant axis from handle and apply ratio to the other
-        const changedW = handle.id.includes('e') || handle.id.includes('w')
-        const changedH = handle.id.includes('n') || handle.id.includes('s')
-        if (changedW && !changedH) {
-          h = Math.round(w / ratio)
-        } else {
-          w = Math.round(h * ratio)
-          if (handle.id.includes('w')) x = orig.x + orig.w - w
-        }
+        // Only corner handles exist (see ResizeHandles in CanvasElement), so every
+        // handle changes both axes and the old "is this a horizontal-only handle?"
+        // test could never be true — width was always derived from height, which made
+        // dragging a corner sideways do nothing at all while the lock was on.
+        //
+        // Pick the axis the pointer actually moved further along, proportionally, and
+        // derive the other from it. That tracks the cursor on whichever direction the
+        // user is leading with, in both axes.
+        const wChange = Math.abs(w / orig.w - 1)
+        const hChange = Math.abs(h / orig.h - 1)
+        if (wChange >= hChange) h = Math.max(10, Math.round(w / ratio))
+        else w = Math.max(10, Math.round(h * ratio))
+
+        // Re-anchor whichever edges this handle is supposed to leave fixed: a west
+        // handle pins the right edge, a north handle pins the bottom. The north case
+        // was missing, so nw/ne drags grew downward out of the corner being held.
+        if (handle.id.includes('w')) x = orig.x + orig.w - w
+        if (handle.id.includes('n')) y = orig.y + orig.h - h
       }
 
       onResize(element.id, { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) })

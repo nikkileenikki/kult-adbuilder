@@ -26,7 +26,15 @@ export default function PropertiesSection() {
   }
 
   const isLocked = el.locked
-  const ratioLocked = el.type === 'image' && el.lockAspectRatio && el.width && el.height
+  // Aspect-ratio lock applies to anything with a width and a height, not just images.
+  // It used to additionally require `el.type === 'image'`, which broke the feature in
+  // both directions: for a shape or text layer the lock button toggled the stored flag
+  // but never lit up and never constrained the W/H fields (so it read as doing
+  // nothing), while ResizeHandle — which has no such type check — *did* honour the
+  // flag when dragging a corner. Worst affected were videos, where selecting a
+  // transcoded asset sets lockAspectRatio itself (see VideoProperties): resizing was
+  // silently ratio-locked with the UI showing it unlocked and no way to turn it off.
+  const ratioLocked = !!el.lockAspectRatio && el.width > 0 && el.height > 0
   const currentRatio = el.width && el.height ? el.width / el.height : 1
   const ratio = ratioLocked ? currentRatio : null
 
@@ -65,7 +73,9 @@ export default function PropertiesSection() {
                   className={`flex items-center justify-center rounded transition-colors ${ratioLocked ? 'text-blue-400' : 'text-gray-600 hover:text-gray-400'}`}
                   style={{ width: 20, height: 20 }}
                 >
-                  <i className={`fa-solid ${ratioLocked ? 'fa-link' : 'fa-link'}`} style={{ fontSize: 10 }} />
+                  {/* Both arms used to be fa-link, leaving a faint colour change as the
+                      only cue — a broken-link glyph makes the off state legible. */}
+                  <i className={`fa-solid ${ratioLocked ? 'fa-link' : 'fa-link-slash'}`} style={{ fontSize: 10 }} />
                 </button>
                 {el.type === 'image' && (
                   <button
