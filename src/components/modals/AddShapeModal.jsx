@@ -1,8 +1,9 @@
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore.js'
 import { useHistoryStore } from '../../store/historyStore.js'
 import { useUiStore } from '../../store/uiStore.js'
 import { Modal } from './AddTextModal.jsx'
+import CustomColorButton from '../common/CustomColorButton.jsx'
 
 const COLORS = ['#FFFFFF', '#000000', '#6B7280', '#EF4444', '#3B82F6', '#10B981', '#F59E0B']
 
@@ -11,7 +12,6 @@ export default function AddShapeModal() {
   const [width, setWidth] = useState(200)
   const [height, setHeight] = useState(150)
   const [fillColor, setFillColor] = useState('#3B82F6')
-  const colorRef = useRef(null)
   const { addElement } = useCanvasStore()
   const { saveState } = useHistoryStore()
   const { closeModal } = useUiStore()
@@ -53,14 +53,7 @@ export default function AddShapeModal() {
               <button key={c} onClick={() => setFillColor(c)} title={c}
                 style={{ background: c, width: 24, height: 24, borderRadius: 4, border: fillColor === c ? '2px solid #3b82f6' : '2px solid #444', flexShrink: 0 }} />
             ))}
-            <button
-              onClick={() => colorRef.current?.click()}
-              title="Custom color"
-              style={{ width: 24, height: 24, borderRadius: 4, border: '2px solid #444', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-            >
-              <i className="fa-solid fa-palette" style={{ fontSize: 11, color: '#d1d5db' }} />
-            </button>
-            <input ref={colorRef} type="color" value={fillColor} onChange={(e) => setFillColor(e.target.value)} className="hidden" />
+            <CustomColorButton value={fillColor} onChange={setFillColor} size={24} />
           </div>
         </div>
       </div>

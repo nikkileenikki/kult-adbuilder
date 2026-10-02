@@ -1,12 +1,11 @@
 import React from 'react'
 import { Field, NumInput, SelectInput } from '../left/PropertiesSection.jsx'
+import CustomColorButton from '../common/CustomColorButton.jsx'
 
 const FONTS = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Courier New', 'Verdana', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black']
 const COLORS = ['#FFFFFF', '#000000', '#6B7280', '#EF4444', '#3B82F6', '#10B981', '#F59E0B']
 
 export default function TextProperties({ el, update, save }) {
-  const colorInputRef = React.useRef(null)
-
   return (
     <div className="space-y-2 pb-2 border-b border-gray-700">
       <Field label="Text Content">
@@ -40,20 +39,7 @@ export default function TextProperties({ el, update, save }) {
             />
           ))}
           {/* Custom colour picker trigger */}
-          <button
-            onClick={() => colorInputRef.current?.click()}
-            title="Custom color"
-            style={{ width: 22, height: 22, borderRadius: 4, border: '2px solid #444', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-          >
-            <i className="fa-solid fa-palette" style={{ fontSize: 11, color: '#d1d5db' }} />
-          </button>
-          <input
-            ref={colorInputRef}
-            type="color"
-            value={el.color || '#000000'}
-            onChange={(e) => save({ color: e.target.value })}
-            className="hidden"
-          />
+          <CustomColorButton value={el.color || '#000000'} onChange={(v) => save({ color: v })} size={22} />
         </div>
       </Field>
 
