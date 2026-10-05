@@ -21,21 +21,79 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 export const VIDEO_FPS_CHOICES = [24, 25, 30, 60]
 export const DEFAULT_FPS = 30
 
-// H.264 baseline — the codec every social platform and NLE accepts. Chromium builds
-// without proprietary codecs (and non-Chrome engines) fall back to VP9, which is still
-// a valid MP4 but not universally importable, so the UI says so when it happens.
-const CODEC_PREFS = [
-  { codec: 'avc1.42001F', muxer: 'avc', label: 'H.264' },
-  { codec: 'avc1.42E01E', muxer: 'avc', label: 'H.264' },
-  { codec: 'vp09.00.10.08', muxer: 'vp9', label: 'VP9' },
+// A codec string carries a *level*, and a level caps the frame size it may encode.
+// These were once hardcoded to `avc1.42001F` — H.264 level 3.1, which tops out at
+// 1280x720 — so every canvas above 720p (a 1920x1080 custom size, say) asked the
+// encoder for something its own codec string forbade, and the export died. The level
+// has to be derived from the canvas, not assumed.
+//
+// Each entry is the cap for that level: MaxFS in 16x16 macroblocks, and MaxMBPS, the
+// macroblocks per second that bounds frame size *and* frame rate together.
+const H264_LEVELS = [
+  { id: 0x1e, maxFS: 1620, maxMBPS: 40500 },      // 3.0
+  { id: 0x1f, maxFS: 3600, maxMBPS: 108000 },     // 3.1 — 1280x720
+  { id: 0x20, maxFS: 5120, maxMBPS: 216000 },     // 3.2
+  { id: 0x28, maxFS: 8192, maxMBPS: 245760 },     // 4.0 — 1920x1080
+  { id: 0x29, maxFS: 8192, maxMBPS: 245760 },     // 4.1
+  { id: 0x2a, maxFS: 8704, maxMBPS: 522240 },     // 4.2
+  { id: 0x32, maxFS: 22080, maxMBPS: 589824 },    // 5.0
+  { id: 0x33, maxFS: 36864, maxMBPS: 983040 },    // 5.1 — 4096x2304
+  { id: 0x34, maxFS: 36864, maxMBPS: 2073600 },   // 5.2
+  { id: 0x3c, maxFS: 139264, maxMBPS: 4177920 },  // 6.0
+  { id: 0x3d, maxFS: 139264, maxMBPS: 8355840 },  // 6.1
+  { id: 0x3e, maxFS: 139264, maxMBPS: 16711680 }, // 6.2
 ]
 
-// Rough "looks clean at banner sizes" target. Banners are small and mostly flat colour
-// and text, where H.264 is very efficient — but text edges are exactly what low
-// bitrates smear, so this is deliberately generous rather than minimal.
+// VP9 levels cap luma samples per picture rather than macroblocks.
+const VP9_LEVELS = [
+  { id: '10', maxPixels: 36864 },      // 1.0 — 256x144
+  { id: '11', maxPixels: 73728 },      // 1.1
+  { id: '20', maxPixels: 122880 },     // 2.0
+  { id: '21', maxPixels: 245760 },     // 2.1
+  { id: '30', maxPixels: 552960 },     // 3.0
+  { id: '31', maxPixels: 983040 },     // 3.1
+  { id: '40', maxPixels: 2228224 },    // 4.0 — 1920x1080
+  { id: '41', maxPixels: 2228224 },    // 4.1
+  { id: '50', maxPixels: 8912896 },    // 5.0 — 3840x2160
+  { id: '51', maxPixels: 8912896 },    // 5.1
+  { id: '60', maxPixels: 35651584 },   // 6.0
+]
+
+const hex2 = (n) => n.toString(16).padStart(2, '0')
+
+// Candidate codec strings for this canvas, best first. H.264 is what every social
+// platform and NLE accepts, so it leads; VP9 and VP8 are the fallbacks for Chromium
+// builds without proprietary codecs. Each profile gets the lowest level that can
+// actually hold the frame, plus the next two as slack for encoders that are stricter
+// about MaxMBPS than the table is.
+function codecCandidates(width, height, fps) {
+  const frameMBs = Math.ceil(width / 16) * Math.ceil(height / 16)
+  const mbps = frameMBs * fps
+  const fitH264 = H264_LEVELS.filter((l) => l.maxFS >= frameMBs && l.maxMBPS >= mbps).slice(0, 3)
+
+  const out = []
+  // High, then Main, then Baseline: all three are universally supported for playback,
+  // and High encodes banner text noticeably cleaner at the same bitrate.
+  for (const [prefix, name] of [['6400', 'High'], ['4d40', 'Main'], ['42e0', 'Baseline']]) {
+    for (const lvl of fitH264) {
+      out.push({ codec: `avc1.${prefix}${hex2(lvl.id)}`, muxer: 'avc', label: 'H.264', detail: name })
+    }
+  }
+  const pixels = width * height
+  for (const lvl of VP9_LEVELS.filter((l) => l.maxPixels >= pixels).slice(0, 3)) {
+    out.push({ codec: `vp09.00.${lvl.id}.08`, muxer: 'vp9', label: 'VP9' })
+  }
+  out.push({ codec: 'vp8', muxer: 'vp8', label: 'VP8' })
+  return out
+}
+
+// Rough "looks clean at banner sizes" target. Banners are mostly flat colour and text,
+// where H.264 is very efficient — but text edges are exactly what low bitrates smear,
+// so this is deliberately generous rather than minimal. The ceiling has to clear what
+// 1080p30 actually asks for (~13.7 Mbps); the old 12 Mbps cap quietly starved it.
 function bitrateFor(width, height, fps) {
   const pixels = width * height
-  return Math.round(Math.max(1_000_000, Math.min(12_000_000, pixels * fps * 0.22)))
+  return Math.round(Math.max(1_000_000, Math.min(20_000_000, pixels * fps * 0.22)))
 }
 
 /**
@@ -106,12 +164,43 @@ export function analyzeVideoExport({ elements = [], animStopPoints = [] } = {}) 
   return { warnings, blockers }
 }
 
-async function pickCodec(width, height, bitrate) {
-  for (const pref of CODEC_PREFS) {
+// Picks the first candidate the browser will *actually* encode with.
+//
+// isConfigSupported() on its own is not enough: it can report a config supported and
+// then have the encoder fail asynchronously once real frames arrive — by which point
+// the whole render has been paid for and there's nothing to fall back to. So each
+// candidate is proved by encoding two throwaway frames at the real size and flushing.
+// That costs milliseconds (no rasterisation involved) and turns a late, fatal failure
+// into an early, silent fallthrough to the next codec.
+async function pickCodec(width, height, bitrate, fps) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d', { alpha: false })
+  ctx.fillStyle = '#000000'
+  ctx.fillRect(0, 0, width, height)
+
+  for (const pref of codecCandidates(width, height, fps)) {
+    const config = { codec: pref.codec, width, height, bitrate, framerate: fps }
     try {
-      const support = await VideoEncoder.isConfigSupported({ codec: pref.codec, width, height, bitrate })
-      if (support.supported) return pref
-    } catch { /* unsupported codec strings throw rather than report false */ }
+      const support = await VideoEncoder.isConfigSupported(config)
+      if (!support.supported) continue
+
+      let failed = null
+      const encoder = new VideoEncoder({ output: () => {}, error: (e) => { failed = e } })
+      try {
+        encoder.configure(config) // throws synchronously on a malformed config
+        for (let i = 0; i < 2; i++) {
+          const frame = new VideoFrame(canvas, { timestamp: i * 1000, duration: 1000 })
+          encoder.encode(frame, { keyFrame: i === 0 })
+          frame.close()
+        }
+        await encoder.flush()
+      } finally {
+        try { if (encoder.state !== 'closed') encoder.close() } catch { /* already gone */ }
+      }
+      if (!failed) return pref
+    } catch { /* malformed codec string, or the probe blew up — try the next */ }
   }
   return null
 }
@@ -136,11 +225,16 @@ export async function renderBannerVideo({ html, width, height, duration, fps = D
   const outH = evenUp(Math.round(height))
   const totalFrames = Math.max(1, Math.round(duration * fps))
   const bitrate = bitrateFor(outW, outH, fps)
+  // ~8M pixels of queued frames: 30-odd frames at banner sizes, only a handful at
+  // 1080p. See the backpressure check in the render loop.
+  const maxQueuedFrames = Math.max(2, Math.min(fps, Math.floor(8_000_000 / (outW * outH))))
 
   const throwIfAborted = () => { if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError') }
 
-  const codec = await pickCodec(outW, outH, bitrate)
-  if (!codec) throw new Error('No supported video codec found in this browser.')
+  const codec = await pickCodec(outW, outH, bitrate, fps)
+  if (!codec) {
+    throw new Error(`This browser could not encode video at ${outW}×${outH}. Try a smaller canvas size or a lower frame rate.`)
+  }
 
   onProgress({ phase: 'loading', frame: 0, totalFrames })
 
@@ -218,8 +312,10 @@ export async function renderBannerVideo({ html, width, height, duration, fps = D
       encoder.encode(videoFrame, { keyFrame: i % (fps * 2) === 0 })
       videoFrame.close()
 
-      // Backpressure: without this the whole banner queues up in encoder memory at once.
-      if (encoder.encodeQueueSize > fps) {
+      // Backpressure: without this the whole banner queues up in encoder memory at
+      // once. The cap is by pixels rather than by frame count, since what matters is
+      // bytes in flight — a second of queued 1080p is ~20x a second of queued 300x250.
+      if (encoder.encodeQueueSize > maxQueuedFrames) {
         await new Promise((r) => setTimeout(r, 0))
       }
 
