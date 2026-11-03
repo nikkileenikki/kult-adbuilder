@@ -49,7 +49,7 @@ export default function VideoExportModal({ onClose, bannerName }) {
         activeTemplate, animStopPoints, animDuration,
       })
       const out = await renderBannerVideo({
-        html, width: canvasWidth, height: canvasHeight,
+        html, elements, width: canvasWidth, height: canvasHeight,
         duration: animDuration, fps,
         onProgress: setProgress,
         signal: controller.signal,
@@ -154,16 +154,26 @@ export default function VideoExportModal({ onClose, bannerName }) {
           )}
 
           {status === 'done' && result && (
-            <Notice
-              tone="ok"
-              icon="fa-circle-check"
-              title={`Rendered ${result.frames} frames at ${result.fps} fps`}
-              detail={
-                result.codecLabel === 'H.264'
-                  ? `${result.width}×${result.height} H.264 MP4 — ready for any social platform or editor.`
-                  : `${result.width}×${result.height} ${result.codecLabel} MP4. This browser can't encode H.264, so the file uses ${result.codecLabel} instead — it plays in Chrome but some platforms and editors won't accept it. Export from Chrome or Edge for an H.264 file.`
-              }
-            />
+            <>
+              <Notice
+                tone="ok"
+                icon="fa-circle-check"
+                title={`Rendered ${result.frames} frames at ${result.fps} fps`}
+                detail={
+                  result.codecLabel === 'H.264'
+                    ? `${result.width}×${result.height} H.264 MP4 — ready for any social platform or editor.`
+                    : `${result.width}×${result.height} ${result.codecLabel} MP4. This browser can't encode H.264, so the file uses ${result.codecLabel} instead — it plays in Chrome but some platforms and editors won't accept it. Export from Chrome or Edge for an H.264 file.`
+                }
+              />
+              {!!result.failedVideos?.length && (
+                <Notice
+                  tone="warn"
+                  icon="fa-triangle-exclamation"
+                  title={`${result.failedVideos.length} video layer${result.failedVideos.length > 1 ? 's' : ''} could not be loaded`}
+                  detail={`${result.failedVideos.join(', ')} — the footage could not be fetched, so ${result.failedVideos.length > 1 ? 'those areas are' : 'that area is'} blank in the file. Check the video is still in the Flashtalking library.`}
+                />
+              )}
+            </>
           )}
         </div>
 
