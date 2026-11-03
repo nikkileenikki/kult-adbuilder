@@ -140,15 +140,26 @@ export function analyzeVideoExport({ elements = [], animStopPoints = [] } = {}) 
     })
   }
 
-  // <ft-video> is a Flashtalking custom element resolved at ad-serve time. There is no
-  // real <video> in the preview DOM to rasterise, so these come out blank rather than
-  // subtly wrong — worth saying out loud.
+  // Video layers are composited from the same CDN footage the editor canvas previews,
+  // so they do render — but only the picture. Anything hanging off playback is still
+  // lost: time-cue animations key off the <ft-video> element's own timeupdate events,
+  // which never fire for an element the ad-serving runtime hasn't resolved.
   const videoLayers = visible.filter((el) => el.type === 'video')
-  if (videoLayers.length) {
+  const unsourced = videoLayers.filter((el) => !el.videoUrl)
+  const cueDriven = videoLayers.filter((el) => (el.timeCues || []).length)
+
+  if (unsourced.length) {
     warnings.push({
       id: 'videoLayers',
-      title: `${videoLayers.length} video layer${videoLayers.length > 1 ? 's' : ''} will render blank`,
-      detail: 'Video layers are resolved by Flashtalking when the ad is served, so there is no footage in the editor to capture. They will appear as empty areas in the exported file.',
+      title: `${unsourced.length} video layer${unsourced.length > 1 ? 's' : ''} will render blank`,
+      detail: 'These layers have no video selected yet, so there is no footage to record. Pick a transcoded video for them, or they will appear as empty areas in the exported file.',
+    })
+  }
+  if (cueDriven.length) {
+    warnings.push({
+      id: 'videoCues',
+      title: `Time-cue animations on ${cueDriven.length} video layer${cueDriven.length > 1 ? 's' : ''} will not fire`,
+      detail: 'The footage itself is recorded, but animations triggered at specific points in a video run off playback events that only exist once Flashtalking serves the ad. Anything those cues reveal or move will stay as it starts.',
     })
   }
 
@@ -220,7 +231,7 @@ function evenUp(n) { return n % 2 === 0 ? n : n + 1 }
  * @param {AbortSignal} opts.signal
  * @returns {Promise<{ blob, codecLabel, width, height, fps, frames }>}
  */
-export async function renderBannerVideo({ html, width, height, duration, fps = DEFAULT_FPS, onProgress = () => {}, signal }) {
+export async function renderBannerVideo({ html, elements = [], width, height, duration, fps = DEFAULT_FPS, onProgress = () => {}, signal }) {
   const outW = evenUp(Math.round(width))
   const outH = evenUp(Math.round(height))
   const totalFrames = Math.max(1, Math.round(duration * fps))
@@ -251,6 +262,8 @@ export async function renderBannerVideo({ html, width, height, duration, fps = D
   document.body.appendChild(frame)
 
   let muxer, encoder
+  let videoLayers = []
+  let failedVideos = []
   try {
     const win = await waitForTimeline(frame, signal)
     throwIfAborted()
@@ -267,6 +280,13 @@ export async function renderBannerVideo({ html, width, height, duration, fps = D
     // fallback face — a difference that is very visible in a side-by-side.
     try { await win.document.fonts.ready } catch { /* not all engines expose this */ }
     await inlineImages(win.document)
+    throwIfAborted()
+
+    const loaded = await loadVideoLayers(win, elements, signal)
+    videoLayers = loaded.layers
+    failedVideos = loaded.failed
+    const plan = paintPlan(win, videoLayers)
+    const pageBg = win.getComputedStyle(win.document.body).backgroundColor || '#ffffff'
     throwIfAborted()
 
     const target = new ArrayBufferTarget()
@@ -298,10 +318,25 @@ export async function renderBannerVideo({ html, width, height, duration, fps = D
       await nextFrame(win)
       await nextFrame(win)
 
-      const image = await rasterize(win, width, height)
-      ctx.fillStyle = '#ffffff'
+      // Footage is seeked to the same instant as the animation, so the two stay in
+      // step however long the render takes.
+      for (const layer of videoLayers) {
+        await seekVideo(layer.video, layer.autoplay ? i / fps : 0)
+      }
+
+      const styled = snapshotStyledClone(win)
+      ctx.fillStyle = pageBg
       ctx.fillRect(0, 0, outW, outH)
-      ctx.drawImage(image, 0, 0)
+      for (const step of plan) {
+        if (step.type === 'dom') {
+          ctx.drawImage(await rasterizeClone(styled, step.keep, width, height), 0, 0)
+        } else {
+          const { rect, video } = step.layer
+          // readyState below HAVE_CURRENT_DATA means there is no frame to draw yet;
+          // skipping leaves what is already on the canvas rather than painting black.
+          if (video.readyState >= 2) ctx.drawImage(video, rect.x, rect.y, rect.w, rect.h)
+        }
+      }
 
       const videoFrame = new VideoFrame(canvas, {
         timestamp: Math.round((i / fps) * 1_000_000), // microseconds
@@ -331,8 +366,11 @@ export async function renderBannerVideo({ html, width, height, duration, fps = D
       blob: new Blob([target.buffer], { type: 'video/mp4' }),
       codecLabel: codec.label,
       width: outW, height: outH, fps, frames: totalFrames,
+      videosRendered: videoLayers.length,
+      failedVideos,
     }
   } finally {
+    for (const layer of videoLayers) { layer.video.src = ''; layer.video.remove() }
     try { encoder?.state !== 'closed' && encoder?.close() } catch { /* already torn down */ }
     frame.remove()
   }
@@ -384,14 +422,138 @@ async function inlineImages(doc) {
   }))
 }
 
-// Snapshots the live DOM into a bitmap.
+// --- Video layers ------------------------------------------------------------------
+//
+// Video layers export as <ft-video>, a Flashtalking custom element that only resolves
+// to real footage under their ad-serving runtime — so in the rendered preview it is an
+// unknown, empty element. And even where a real <video> exists, <foreignObject> does
+// not rasterise video pixels, so a DOM snapshot alone would come out blank either way.
+//
+// So the footage is loaded separately, from the same CDN URL the editor canvas uses to
+// preview it, and composited onto the frame by hand. It is seeked rather than played,
+// to stay in lockstep with the frame being rendered.
+const FT_CDN = 'https://cdn.flashtalking.com'
+
+function videoSrcFor(el) {
+  return el.videoUrl ? `${FT_CDN}/${el.videoUrl}.mp4` : null
+}
+
+// crossOrigin is load-bearing: a cross-origin video drawn to the canvas taints it, and
+// every subsequent VideoFrame fails with the same opaque SecurityError as the SVG case
+// above. The CDN reflects the requesting origin, so an anonymous request is clean.
+async function loadVideoLayers(win, elements, signal) {
+  const layers = []
+  const failed = []
+  const candidates = (elements || []).filter((el) => el.visible && el.type === 'video' && videoSrcFor(el))
+
+  for (const el of candidates) {
+    const node = win.document.getElementById(el.id)
+    if (!node) continue
+
+    const video = document.createElement('video')
+    video.crossOrigin = 'anonymous'
+    video.muted = true
+    video.playsInline = true
+    video.preload = 'auto'
+    video.src = videoSrcFor(el)
+
+    const ready = await new Promise((resolve) => {
+      const done = (ok) => { cleanup(); resolve(ok) }
+      const onLoad = () => done(true)
+      const onErr = () => done(false)
+      const timer = setTimeout(() => done(false), 20000)
+      function cleanup() {
+        clearTimeout(timer)
+        video.removeEventListener('loadeddata', onLoad)
+        video.removeEventListener('error', onErr)
+      }
+      video.addEventListener('loadeddata', onLoad)
+      video.addEventListener('error', onErr)
+      if (signal) signal.addEventListener('abort', () => done(false), { once: true })
+    })
+
+    if (!ready) { failed.push(el.videoName || el.id); continue }
+
+    const rect = node.getBoundingClientRect()
+    layers.push({
+      el,
+      video,
+      // A layer that isn't set to autoplay never starts in the real banner either, so
+      // it holds its first frame for the whole render rather than playing through.
+      autoplay: el.playTrigger === 'autoplay',
+      rect: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
+      zIndex: Number(win.getComputedStyle(node).zIndex) || 0,
+      domIndex: [...(node.parentElement?.children || [])].indexOf(node),
+    })
+  }
+  return { layers, failed }
+}
+
+// Orders the frame into paint steps so videos land at the right depth.
+//
+// Painting the whole DOM and then the videos would put a video over everything above
+// it; painting videos first would put the background over them. Neither is right in
+// general, so the container's children are split at each video's z-index and the
+// passes interleave: children below v1, v1, children between v1 and v2, v2, and so on.
+// With no video layers this collapses to a single full-DOM pass, the original path.
+function paintPlan(win, layers) {
+  const container = win.document.getElementById('container') || win.document.body
+  const children = [...container.children]
+  if (!layers.length) return [{ type: 'dom', keep: null }]
+
+  const keyOf = (z, i) => z * 100000 + i
+  const childKeys = children.map((node, i) => keyOf(Number(win.getComputedStyle(node).zIndex) || 0, i))
+  const videoKeys = layers.map((l) => keyOf(l.zIndex, l.domIndex))
+
+  const ordered = layers.map((l, i) => ({ layer: l, key: videoKeys[i] })).sort((a, b) => a.key - b.key)
+
+  const steps = []
+  let cursor = -Infinity
+  for (const { layer, key } of ordered) {
+    const keep = new Set()
+    children.forEach((node, i) => {
+      // The ft-video node itself paints nothing, so it is never worth including.
+      if (layers.some((l) => l.domIndex === i)) return
+      if (childKeys[i] > cursor && childKeys[i] < key) keep.add(i)
+    })
+    if (keep.size) steps.push({ type: 'dom', keep })
+    steps.push({ type: 'video', layer })
+    cursor = key
+  }
+  const tail = new Set()
+  children.forEach((node, i) => {
+    if (layers.some((l) => l.domIndex === i)) return
+    if (childKeys[i] > cursor) tail.add(i)
+  })
+  if (tail.size) steps.push({ type: 'dom', keep: tail })
+  return steps
+}
+
+// Seeking is what keeps the footage in step with the frame being rendered: the video
+// is never played, so a slow render can't desynchronise it from the animation.
+function seekVideo(video, time) {
+  return new Promise((resolve) => {
+    const target = Math.max(0, Math.min(time, Math.max(0, (video.duration || 0) - 0.001)))
+    if (Math.abs(video.currentTime - target) < 0.001) return resolve()
+    const done = () => { video.removeEventListener('seeked', done); clearTimeout(timer); resolve() }
+    const timer = setTimeout(done, 2000)
+    video.addEventListener('seeked', done)
+    video.currentTime = target
+  })
+}
+
+// Snapshots the live DOM into a styled clone, ready to rasterise.
 //
 // <foreignObject> renders with the browser's own engine, so gradients, border-radius,
 // text-shadow, blend modes and font rendering all come out exactly as they do on
 // screen — unlike a DOM-reimplementing rasteriser. The catch is that the SVG is a
 // closed document with no access to the page's stylesheets, so every computed style
 // has to be flattened onto the cloned nodes first.
-async function rasterize(win, width, height) {
+//
+// Flattening is by far the expensive part, so it happens once per frame even when the
+// frame is painted as several layers (see paintPlan): each layer is a cheap structural
+// clone of this result with the other layers' children dropped.
+function snapshotStyledClone(win) {
   const doc = win.document
   const source = doc.getElementById('container') || doc.body
   const clone = source.cloneNode(true)
@@ -406,13 +568,25 @@ async function rasterize(win, width, height) {
     for (const prop of cs) text += `${prop}:${cs.getPropertyValue(prop)};`
     dst.setAttribute('style', text)
   }
+  return clone
+}
 
-  const bodyBg = win.getComputedStyle(doc.body).backgroundColor
+// Rasterises a styled clone, keeping only the top-level children whose index is in
+// `keep` (all of them when `keep` is null). The wrapper is transparent so layers can
+// be painted over one another — the caller fills the page background first.
+async function rasterizeClone(styledClone, keep, width, height) {
+  let clone = styledClone
+  if (keep) {
+    clone = styledClone.cloneNode(true) // structural only: styles are already inline
+    const children = [...clone.children]
+    children.forEach((child, i) => { if (!keep.has(i)) child.remove() })
+  }
+
   const markup = new XMLSerializer().serializeToString(clone)
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
     `<foreignObject width="100%" height="100%">` +
-    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;position:relative;background:${bodyBg}">` +
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;position:relative">` +
     markup +
     `</div></foreignObject></svg>`
 
