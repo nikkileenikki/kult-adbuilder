@@ -231,7 +231,7 @@ function evenUp(n) { return n % 2 === 0 ? n : n + 1 }
  * @param {AbortSignal} opts.signal
  * @returns {Promise<{ blob, codecLabel, width, height, fps, frames }>}
  */
-export async function renderBannerVideo({ html, elements = [], width, height, duration, fps = DEFAULT_FPS, includeAudio = true, onProgress = () => {}, signal }) {
+export async function renderBannerVideo({ html, elements = [], width, height, duration, fps = DEFAULT_FPS, includeAudio = true, authToken = null, onProgress = () => {}, signal }) {
   const outW = evenUp(Math.round(width))
   const outH = evenUp(Math.round(height))
   const totalFrames = Math.max(1, Math.round(duration * fps))
@@ -285,7 +285,7 @@ export async function renderBannerVideo({ html, elements = [], width, height, du
     await inlineImages(win.document)
     throwIfAborted()
 
-    const loaded = await loadVideoLayers(win, elements, signal)
+    const loaded = await loadVideoLayers(win, elements, authToken, signal)
     videoLayers = loaded.layers
     failedVideos = loaded.failed
     const plan = paintPlan(win, videoLayers)
@@ -406,7 +406,11 @@ export async function renderBannerVideo({ html, elements = [], width, height, du
       audioUnavailable: includeAudio && videoLayers.some((l) => l.autoplay) && !audioCodec,
     }
   } finally {
-    for (const layer of videoLayers) { layer.video.src = ''; layer.video.remove() }
+    for (const layer of videoLayers) {
+      URL.revokeObjectURL(layer.video.src)
+      layer.video.removeAttribute('src')
+      layer.video.remove()
+    }
     try { encoder?.state !== 'closed' && encoder?.close() } catch { /* already torn down */ }
     frame.remove()
   }
@@ -474,10 +478,13 @@ function videoSrcFor(el) {
   return el.videoUrl ? `${FT_CDN}/${el.videoUrl}.mp4` : null
 }
 
-// crossOrigin is load-bearing: a cross-origin video drawn to the canvas taints it, and
-// every subsequent VideoFrame fails with the same opaque SecurityError as the SVG case
-// above. The CDN reflects the requesting origin, so an anonymous request is clean.
-async function loadVideoLayers(win, elements, signal) {
+// Footage is downloaded whole and played from a same-origin blob rather than streamed
+// from the CDN with crossOrigin set. A cross-origin video drawn to the canvas taints
+// it, failing every later VideoFrame with the same opaque SecurityError as the SVG case
+// above — and streaming with crossOrigin proved fragile in practice: it failed in a
+// user's browser while the same file played fine in the editor canvas. See
+// fetchVideoBytes for how the bytes are obtained.
+async function loadVideoLayers(win, elements, authToken, signal) {
   const layers = []
   const failed = []
   const candidates = (elements || []).filter((el) => el.visible && el.type === 'video' && videoSrcFor(el))
@@ -486,12 +493,20 @@ async function loadVideoLayers(win, elements, signal) {
     const node = win.document.getElementById(el.id)
     if (!node) continue
 
+    const url = videoSrcFor(el)
+    const fetched = await fetchVideoBytes(url, authToken, signal)
+    if (!fetched.blob) {
+      failed.push({ name: el.videoName || el.id, url, reason: fetched.reason })
+      continue
+    }
+
+    // Played from a blob: URL, which is same-origin by construction — so no
+    // crossOrigin attribute, and drawing it can never taint the canvas.
     const video = document.createElement('video')
-    video.crossOrigin = 'anonymous'
     video.muted = true
     video.playsInline = true
     video.preload = 'auto'
-    video.src = videoSrcFor(el)
+    video.src = URL.createObjectURL(fetched.blob)
 
     const ready = await new Promise((resolve) => {
       const done = (ok) => { cleanup(); resolve(ok) }
@@ -509,7 +524,9 @@ async function loadVideoLayers(win, elements, signal) {
     })
 
     if (!ready) {
-      failed.push({ name: el.videoName || el.id, url: video.src, reason: await diagnoseVideoUrl(video.src) })
+      // The bytes arrived, so this is a file the browser can't decode.
+      URL.revokeObjectURL(video.src)
+      failed.push({ name: el.videoName || el.id, url, reason: 'unreadable' })
       continue
     }
 
@@ -523,6 +540,7 @@ async function loadVideoLayers(win, elements, signal) {
     layers.push({
       el,
       video,
+      blob: fetched.blob, // reused for the soundtrack, so the file is downloaded once
       // A layer that isn't set to autoplay never starts in the real banner either, so
       // it holds its first frame for the whole render rather than playing through.
       autoplay: el.playTrigger === 'autoplay',
@@ -538,15 +556,41 @@ async function loadVideoLayers(win, elements, signal) {
 // directly recovers the HTTP status, which is the difference between "this address
 // has no file" and "the file is there but something blocked it" — two problems with
 // entirely different fixes.
-async function diagnoseVideoUrl(url) {
+// Downloads a video layer's whole file, so it can be played from a same-origin blob.
+//
+// Direct from the CDN first, with the browser cache bypassed (`no-store`) so a copy
+// cached earlier by the editor canvas — which fetches it without CORS — can't stand
+// in for this CORS request. If the browser still refuses it (a CORS failure surfaces
+// only as a bare TypeError), the bytes come through this app's own video-proxy
+// endpoint instead, which fetches server-to-server and involves no CORS at all.
+//
+// Returns { blob } on success, or { reason } — the same vocabulary the modal maps to
+// advice — taken from whichever attempt got furthest. The proxy's status is the more
+// trustworthy of the two, since nothing in the browser can obscure it.
+async function fetchVideoBytes(url, authToken, signal) {
+  let reason = 'blocked'
   try {
-    const res = await fetch(url, { mode: 'cors', headers: { Range: 'bytes=0-0' } })
-    if (res.status === 404) return 'not-found'
-    if (!res.ok && res.status !== 206) return `http-${res.status}`
-    return 'unreadable' // reachable, yet the browser still couldn't play it
-  } catch {
-    return 'blocked' // network failure, or the response was refused by CORS
+    const res = await fetch(url, { mode: 'cors', cache: 'no-store', signal })
+    if (res.ok) return { blob: await res.blob() }
+    reason = res.status === 404 ? 'not-found' : `http-${res.status}`
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err
   }
+
+  if (authToken) {
+    try {
+      const res = await fetch(`/api/flashtalking/video-proxy?src=${encodeURIComponent(url)}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+        cache: 'no-store',
+        signal,
+      })
+      if (res.ok) return { blob: await res.blob() }
+      reason = res.status === 404 ? 'not-found' : `http-${res.status}`
+    } catch (err) {
+      if (err?.name === 'AbortError') throw err
+    }
+  }
+  return { reason }
 }
 
 // Orders the frame into paint steps so videos land at the right depth.
@@ -642,11 +686,9 @@ async function mixAudio(layers, duration, signal) {
   for (const layer of playing) {
     if (signal?.aborted) break
     try {
-      const res = await fetch(layer.video.src, { mode: 'cors', signal })
-      if (!res.ok) continue
       // decodeAudioData pulls the soundtrack out of the MP4 container directly; it
       // rejects outright when there is no audio track, which is the silent-clip case.
-      const decoded = await mix.decodeAudioData(await res.arrayBuffer())
+      const decoded = await mix.decodeAudioData(await layer.blob.arrayBuffer())
       const node = mix.createBufferSource()
       node.buffer = decoded
       node.connect(mix.destination)

@@ -6,6 +6,7 @@ import {
   VIDEO_FPS_CHOICES, DEFAULT_FPS,
 } from '../../utils/exportVideo.js'
 import useEscapeKey from '../../hooks/useEscapeKey.js'
+import { useAuthStore } from '../../store/authStore.js'
 
 // Renders the banner's animation to an MP4, for social/paid-social placements.
 //
@@ -16,6 +17,8 @@ import useEscapeKey from '../../hooks/useEscapeKey.js'
 export default function VideoExportModal({ onClose, bannerName }) {
   const { elements, groups, canvasWidth, canvasHeight, activeTemplate, animStopPoints, animDuration } = useCanvasStore()
 
+  // Lets the export fall back to fetching footage through the app's own server.
+  const { token } = useAuthStore()
   const [fps, setFps] = useState(DEFAULT_FPS)
   // Off by default: sound is opt-in for each export.
   const [includeAudio, setIncludeAudio] = useState(false)
@@ -53,7 +56,7 @@ export default function VideoExportModal({ onClose, bannerName }) {
         activeTemplate, animStopPoints, animDuration,
       })
       const out = await renderBannerVideo({
-        html, elements, width: canvasWidth, height: canvasHeight, includeAudio,
+        html, elements, width: canvasWidth, height: canvasHeight, includeAudio, authToken: token,
         duration: animDuration, fps,
         onProgress: setProgress,
         signal: controller.signal,
@@ -292,7 +295,7 @@ const FAILURE_REASONS = {
   'not-found':
     "There's no video file at this address. The layer's Video URL doesn't match a file on Flashtalking's CDN — reselect the video from the library in the layer's properties.",
   blocked:
-    "The address couldn't be reached from this browser — check your connection, or whether a network filter is blocking Flashtalking's CDN.",
+    "The video couldn't be downloaded, either directly or through the app's server. Check your connection and try again.",
   unreadable:
     'The file is there, but this browser could not play it. It may still be processing on Flashtalking, or be in a format the browser cannot decode.',
 }
