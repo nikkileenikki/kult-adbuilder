@@ -17,6 +17,7 @@ export default function VideoExportModal({ onClose, bannerName }) {
   const { elements, groups, canvasWidth, canvasHeight, activeTemplate, animStopPoints, animDuration } = useCanvasStore()
 
   const [fps, setFps] = useState(DEFAULT_FPS)
+  const [includeAudio, setIncludeAudio] = useState(true)
   const [status, setStatus] = useState('idle') // idle | working | done | error
   const [progress, setProgress] = useState({ phase: '', frame: 0, totalFrames: 0 })
   const [result, setResult] = useState(null)
@@ -34,6 +35,8 @@ export default function VideoExportModal({ onClose, bannerName }) {
   )
 
   const totalFrames = Math.max(1, Math.round(animDuration * fps))
+  // The sound switch only means something when there's footage to take sound from.
+  const hasFootage = elements.some((el) => el.visible && el.type === 'video' && el.videoUrl)
 
   const run = async () => {
     setStatus('working')
@@ -49,7 +52,7 @@ export default function VideoExportModal({ onClose, bannerName }) {
         activeTemplate, animStopPoints, animDuration,
       })
       const out = await renderBannerVideo({
-        html, elements, width: canvasWidth, height: canvasHeight,
+        html, elements, width: canvasWidth, height: canvasHeight, includeAudio,
         duration: animDuration, fps,
         onProgress: setProgress,
         signal: controller.signal,
@@ -69,6 +72,7 @@ export default function VideoExportModal({ onClose, bannerName }) {
   const phaseLabel = {
     loading: 'Loading banner…',
     rendering: `Rendering frame ${progress.frame} of ${progress.totalFrames}`,
+    audio: 'Mixing sound…',
     encoding: 'Finishing the file…',
   }[progress.phase] || 'Working…'
 
@@ -129,6 +133,27 @@ export default function VideoExportModal({ onClose, bannerName }) {
                 </select>
                 <span className="text-xs text-gray-500">{totalFrames} frames</span>
               </div>
+              {hasFootage && (
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <span className="text-xs text-gray-400 w-20 shrink-0 pt-0.5">Sound</span>
+                  <span className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={includeAudio}
+                      disabled={status === 'working'}
+                      onChange={(e) => setIncludeAudio(e.target.checked)}
+                      className="mt-0.5 w-3.5 h-3.5 accent-rose-500"
+                    />
+                    <span className="text-xs text-gray-300 leading-relaxed">
+                      Include the video layers' sound
+                      <span className="block text-gray-500">
+                        Included even where the layer is muted in the banner — browsers only allow
+                        autoplay without sound, but a video file has no such restriction.
+                      </span>
+                    </span>
+                  </span>
+                </label>
+              )}
               <p className="text-xs text-gray-500 leading-relaxed">
                 Every frame is rendered from the timeline directly, so the result is frame-accurate
                 no matter how long the render takes. Larger banners and higher frame rates simply
@@ -165,6 +190,34 @@ export default function VideoExportModal({ onClose, bannerName }) {
                     : `${result.width}×${result.height} ${result.codecLabel} MP4. This browser can't encode H.264, so the file uses ${result.codecLabel} instead — it plays in Chrome but some platforms and editors won't accept it. Export from Chrome or Edge for an H.264 file.`
                 }
               />
+              {result.audioCodecLabel && (
+                <Notice
+                  tone="ok"
+                  icon="fa-volume-high"
+                  title={`Sound included from ${result.audioSources} video layer${result.audioSources > 1 ? 's' : ''}`}
+                  detail={
+                    result.audioCodecLabel === 'AAC'
+                      ? 'AAC audio — plays everywhere.'
+                      : `${result.audioCodecLabel} audio. This browser can't encode AAC, so the soundtrack uses ${result.audioCodecLabel} — it plays in browsers and on social platforms, but QuickTime and some editors won't open it. Export from Chrome on Windows or Mac for AAC.`
+                  }
+                />
+              )}
+              {includeAudio && hasFootage && !result.audioCodecLabel && !result.audioUnavailable && (
+                <Notice
+                  tone="warn"
+                  icon="fa-volume-xmark"
+                  title="No sound in this file"
+                  detail="None of the autoplaying video layers has a soundtrack, so there was nothing to include. Click-to-play videos never start in the banner, so their sound isn't recorded either."
+                />
+              )}
+              {result.audioUnavailable && (
+                <Notice
+                  tone="warn"
+                  icon="fa-volume-xmark"
+                  title="This browser can't encode sound"
+                  detail="The video was exported without its soundtrack. Export from Chrome or Edge to include sound."
+                />
+              )}
               {!!result.failedVideos?.length && (
                 <Notice
                   tone="warn"

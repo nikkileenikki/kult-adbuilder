@@ -231,7 +231,7 @@ function evenUp(n) { return n % 2 === 0 ? n : n + 1 }
  * @param {AbortSignal} opts.signal
  * @returns {Promise<{ blob, codecLabel, width, height, fps, frames }>}
  */
-export async function renderBannerVideo({ html, elements = [], width, height, duration, fps = DEFAULT_FPS, onProgress = () => {}, signal }) {
+export async function renderBannerVideo({ html, elements = [], width, height, duration, fps = DEFAULT_FPS, includeAudio = true, onProgress = () => {}, signal }) {
   const outW = evenUp(Math.round(width))
   const outH = evenUp(Math.round(height))
   const totalFrames = Math.max(1, Math.round(duration * fps))
@@ -264,6 +264,9 @@ export async function renderBannerVideo({ html, elements = [], width, height, du
   let muxer, encoder
   let videoLayers = []
   let failedVideos = []
+  let audioCodec = null
+  let audioBuffer = null
+  let audioSources = 0
   try {
     const win = await waitForTimeline(frame, signal)
     throwIfAborted()
@@ -289,12 +292,32 @@ export async function renderBannerVideo({ html, elements = [], width, height, du
     const pageBg = win.getComputedStyle(win.document.body).backgroundColor || '#ffffff'
     throwIfAborted()
 
+    // Sound is settled before the muxer exists, because whether the file has an audio
+    // track at all has to be declared up front.
+    if (includeAudio && videoLayers.length) {
+      onProgress({ phase: 'audio', frame: 0, totalFrames })
+      audioCodec = await pickAudioCodec()
+      if (audioCodec) {
+        const mixed = await mixAudio(videoLayers, duration, signal)
+        audioBuffer = mixed.buffer
+        audioSources = mixed.sources
+      }
+      throwIfAborted()
+    }
+
     const target = new ArrayBufferTarget()
     muxer = new Muxer({
       target,
       video: { codec: codec.muxer, width: outW, height: outH, frameRate: fps },
+      ...(audioBuffer && {
+        audio: { codec: audioCodec.muxer, numberOfChannels: AUDIO_CHANNELS, sampleRate: AUDIO_SAMPLE_RATE },
+      }),
       fastStart: 'in-memory', // moov atom up front, so the file streams/previews properly
     })
+
+    // The whole soundtrack goes in first. With in-memory fast start the muxer holds
+    // every chunk until finalize, so the tracks needn't be fed interleaved.
+    if (audioBuffer) await encodeAudio(audioBuffer, audioCodec, muxer)
 
     let encodeError = null
     encoder = new VideoEncoder({
@@ -324,7 +347,7 @@ export async function renderBannerVideo({ html, elements = [], width, height, du
         await seekVideo(layer.video, layer.autoplay ? i / fps : 0)
       }
 
-      const styled = snapshotStyledClone(win)
+      const styled = snapshotStyledClone(win, width, height)
       ctx.fillStyle = pageBg
       ctx.fillRect(0, 0, outW, outH)
       for (const step of plan) {
@@ -337,6 +360,14 @@ export async function renderBannerVideo({ html, elements = [], width, height, du
           if (video.readyState >= 2) ctx.drawImage(video, rect.x, rect.y, rect.w, rect.h)
         }
       }
+
+      // Odd canvas sizes are padded by a pixel because H.264 needs even dimensions
+      // (see evenUp). Left as page background, that pad showed as a hairline down the
+      // right or along the bottom; repeating the last real column/row makes it
+      // indistinguishable from the content beside it.
+      const iw = Math.round(width), ih = Math.round(height)
+      if (outW > iw) ctx.drawImage(canvas, iw - 1, 0, 1, ih, iw, 0, outW - iw, ih)
+      if (outH > ih) ctx.drawImage(canvas, 0, ih - 1, outW, 1, 0, ih, outW, outH - ih)
 
       const videoFrame = new VideoFrame(canvas, {
         timestamp: Math.round((i / fps) * 1_000_000), // microseconds
@@ -368,6 +399,11 @@ export async function renderBannerVideo({ html, elements = [], width, height, du
       width: outW, height: outH, fps, frames: totalFrames,
       videosRendered: videoLayers.length,
       failedVideos,
+      // null when sound was off, nothing was playing, or nothing had a soundtrack;
+      // see audioUnavailable for the one case worth telling the user about.
+      audioCodecLabel: audioBuffer ? audioCodec.label : null,
+      audioSources,
+      audioUnavailable: includeAudio && videoLayers.some((l) => l.autoplay) && !audioCodec,
     }
   } finally {
     for (const layer of videoLayers) { layer.video.src = ''; layer.video.remove() }
@@ -474,7 +510,13 @@ async function loadVideoLayers(win, elements, signal) {
 
     if (!ready) { failed.push(el.videoName || el.id); continue }
 
-    const rect = node.getBoundingClientRect()
+    // Measured from the container, not the page: the snapshot puts the container's
+    // top-left at the frame's origin, while page coordinates also include the 1px ad
+    // border on <body> — which used to draw every video 1px down and right of the
+    // layers around it.
+    const box = node.getBoundingClientRect()
+    const origin = (win.document.getElementById('container') || win.document.body).getBoundingClientRect()
+    const rect = { left: box.left - origin.left, top: box.top - origin.top, width: box.width, height: box.height }
     layers.push({
       el,
       video,
@@ -529,6 +571,111 @@ function paintPlan(win, layers) {
   return steps
 }
 
+// --- Sound -------------------------------------------------------------------------
+//
+// The only sound a banner has is its video layers' soundtracks. These are mixed down
+// offline, ahead of the frames, rather than captured during the render: the picture is
+// produced by seeking, never by playing, so there is no live playback to record — and
+// an offline mix is sample-accurate however long the render takes.
+const AUDIO_SAMPLE_RATE = 48000
+const AUDIO_CHANNELS = 2
+
+// AAC first because every social platform, editor and player accepts it. WebCodecs
+// only exposes an AAC encoder where the OS provides one (typically Windows and macOS,
+// not desktop Linux), so Opus is the fallback: still a valid MP4, but some editors and
+// QuickTime won't open it — the result panel says so, as it does for VP9.
+const AUDIO_CODECS = [
+  { codec: 'mp4a.40.2', muxer: 'aac', label: 'AAC' },
+  { codec: 'opus', muxer: 'opus', label: 'Opus' },
+]
+
+async function pickAudioCodec() {
+  if (typeof AudioEncoder === 'undefined') return null
+  for (const pref of AUDIO_CODECS) {
+    try {
+      const { supported } = await AudioEncoder.isConfigSupported({
+        codec: pref.codec, sampleRate: AUDIO_SAMPLE_RATE, numberOfChannels: AUDIO_CHANNELS, bitrate: 160_000,
+      })
+      if (supported) return pref
+    } catch { /* unknown codec string — try the next */ }
+  }
+  return null
+}
+
+// Mixes every playing video layer's soundtrack into one buffer covering the render.
+//
+// Only autoplay layers contribute, for the same reason only they move in the picture:
+// a click-to-play video never starts in the real banner. Each starts at 0 and plays
+// once, matching how the frames clamp to the clip's end rather than looping. A layer
+// whose file has no audio track (common for banner footage) is simply skipped.
+//
+// Note this deliberately ignores the layer's banner "muted" setting. Banner videos are
+// muted because browsers refuse to autoplay with sound, not as a creative choice — a
+// video file for social placements has no such restriction. The modal's "Include
+// sound" switch is the control for this instead.
+async function mixAudio(layers, duration, signal) {
+  const playing = layers.filter((l) => l.autoplay)
+  if (!playing.length || typeof OfflineAudioContext === 'undefined') return { buffer: null, sources: 0 }
+
+  const frames = Math.max(1, Math.ceil(duration * AUDIO_SAMPLE_RATE))
+  const mix = new OfflineAudioContext(AUDIO_CHANNELS, frames, AUDIO_SAMPLE_RATE)
+  let sources = 0
+
+  for (const layer of playing) {
+    if (signal?.aborted) break
+    try {
+      const res = await fetch(layer.video.src, { mode: 'cors', signal })
+      if (!res.ok) continue
+      // decodeAudioData pulls the soundtrack out of the MP4 container directly; it
+      // rejects outright when there is no audio track, which is the silent-clip case.
+      const decoded = await mix.decodeAudioData(await res.arrayBuffer())
+      const node = mix.createBufferSource()
+      node.buffer = decoded
+      node.connect(mix.destination)
+      node.start(0)
+      sources++
+    } catch { /* no audio track, or the fetch failed — the picture still renders */ }
+  }
+
+  if (!sources) return { buffer: null, sources: 0 }
+  return { buffer: await mix.startRendering(), sources }
+}
+
+// Feeds the mixed buffer through WebCodecs into the muxer, in ~0.1s blocks.
+async function encodeAudio(buffer, codec, muxer) {
+  let failed = null
+  const encoder = new AudioEncoder({
+    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    error: (e) => { failed = e },
+  })
+  encoder.configure({
+    codec: codec.codec, sampleRate: AUDIO_SAMPLE_RATE, numberOfChannels: AUDIO_CHANNELS, bitrate: 160_000,
+  })
+
+  const channels = Array.from({ length: AUDIO_CHANNELS }, (_, c) => buffer.getChannelData(Math.min(c, buffer.numberOfChannels - 1)))
+  const BLOCK = 4800
+  for (let start = 0; start < buffer.length; start += BLOCK) {
+    if (failed) break
+    const n = Math.min(BLOCK, buffer.length - start)
+    // f32-planar: each channel's samples laid end to end.
+    const planar = new Float32Array(n * AUDIO_CHANNELS)
+    channels.forEach((data, c) => planar.set(data.subarray(start, start + n), c * n))
+    const data = new AudioData({
+      format: 'f32-planar',
+      sampleRate: AUDIO_SAMPLE_RATE,
+      numberOfFrames: n,
+      numberOfChannels: AUDIO_CHANNELS,
+      timestamp: Math.round((start / AUDIO_SAMPLE_RATE) * 1_000_000),
+      data: planar,
+    })
+    encoder.encode(data)
+    data.close()
+  }
+  await encoder.flush()
+  encoder.close()
+  if (failed) throw failed
+}
+
 // Seeking is what keeps the footage in step with the frame being rendered: the video
 // is never played, so a slow render can't desynchronise it from the animation.
 function seekVideo(video, time) {
@@ -553,7 +700,7 @@ function seekVideo(video, time) {
 // Flattening is by far the expensive part, so it happens once per frame even when the
 // frame is painted as several layers (see paintPlan): each layer is a cheap structural
 // clone of this result with the other layers' children dropped.
-function snapshotStyledClone(win) {
+function snapshotStyledClone(win, width, height) {
   const doc = win.document
   const source = doc.getElementById('container') || doc.body
   const clone = source.cloneNode(true)
@@ -568,6 +715,16 @@ function snapshotStyledClone(win) {
     for (const prop of cs) text += `${prop}:${cs.getPropertyValue(prop)};`
     dst.setAttribute('style', text)
   }
+
+  // The exported banner's <body> carries Flashtalking's standard 1px ad border with
+  // box-sizing:border-box, so #container computes 2px narrower and shorter than the
+  // canvas. Copied as-is, that left a 2px strip of bare page background down the right
+  // and along the bottom of every frame. The border is an ad-serving convention, not
+  // part of the creative (the editor canvas doesn't draw it), so the container is
+  // stretched back to the full canvas. Elements are absolutely positioned from its
+  // top-left, so nothing moves — the last 2px simply stop being clipped.
+  clone.style.width = `${width}px`
+  clone.style.height = `${height}px`
   return clone
 }
 
