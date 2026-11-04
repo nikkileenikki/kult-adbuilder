@@ -218,14 +218,30 @@ export default function VideoExportModal({ onClose, bannerName }) {
                   detail="The video was exported without its soundtrack. Export from Chrome or Edge to include sound."
                 />
               )}
-              {!!result.failedVideos?.length && (
+              {(result.failedVideos || []).map((f) => (
                 <Notice
+                  key={f.url}
                   tone="warn"
                   icon="fa-triangle-exclamation"
-                  title={`${result.failedVideos.length} video layer${result.failedVideos.length > 1 ? 's' : ''} could not be loaded`}
-                  detail={`${result.failedVideos.join(', ')} — the footage could not be fetched, so ${result.failedVideos.length > 1 ? 'those areas are' : 'that area is'} blank in the file. Check the video is still in the Flashtalking library.`}
+                  title={`"${f.name}" could not be loaded — that area is blank in the file`}
+                  detail={
+                    <>
+                      {FAILURE_REASONS[f.reason] ||
+                        (/^http-\d+$/.test(f.reason)
+                          ? `Flashtalking's CDN refused this file (HTTP ${f.reason.slice(5)}).`
+                          : FAILURE_REASONS.unreadable)}
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block mt-1.5 font-mono text-[11px] text-sky-300 hover:text-sky-200 break-all select-text"
+                      >
+                        {f.url}
+                      </a>
+                    </>
+                  }
                 />
-              )}
+              ))}
             </>
           )}
         </div>
@@ -268,6 +284,16 @@ export default function VideoExportModal({ onClose, bannerName }) {
       </div>
     </div>
   )
+}
+
+// What each diagnosed failure means for the user, worded around what to do next.
+const FAILURE_REASONS = {
+  'not-found':
+    "There's no video file at this address. The layer's Video URL doesn't match a file on Flashtalking's CDN — reselect the video from the library in the layer's properties.",
+  blocked:
+    "The address couldn't be reached from this browser — check your connection, or whether a network filter is blocking Flashtalking's CDN.",
+  unreadable:
+    'The file is there, but this browser could not play it. It may still be processing on Flashtalking, or be in a format the browser cannot decode.',
 }
 
 const TONES = {

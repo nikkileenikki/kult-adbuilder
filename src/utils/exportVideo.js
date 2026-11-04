@@ -508,7 +508,10 @@ async function loadVideoLayers(win, elements, signal) {
       if (signal) signal.addEventListener('abort', () => done(false), { once: true })
     })
 
-    if (!ready) { failed.push(el.videoName || el.id); continue }
+    if (!ready) {
+      failed.push({ name: el.videoName || el.id, url: video.src, reason: await diagnoseVideoUrl(video.src) })
+      continue
+    }
 
     // Measured from the container, not the page: the snapshot puts the container's
     // top-left at the frame's origin, while page coordinates also include the 1px ad
@@ -529,6 +532,21 @@ async function loadVideoLayers(win, elements, signal) {
     })
   }
   return { layers, failed }
+}
+
+// A <video> error says only that loading failed, never why. Asking for the first byte
+// directly recovers the HTTP status, which is the difference between "this address
+// has no file" and "the file is there but something blocked it" — two problems with
+// entirely different fixes.
+async function diagnoseVideoUrl(url) {
+  try {
+    const res = await fetch(url, { mode: 'cors', headers: { Range: 'bytes=0-0' } })
+    if (res.status === 404) return 'not-found'
+    if (!res.ok && res.status !== 206) return `http-${res.status}`
+    return 'unreadable' // reachable, yet the browser still couldn't play it
+  } catch {
+    return 'blocked' // network failure, or the response was refused by CORS
+  }
 }
 
 // Orders the frame into paint steps so videos land at the right depth.
