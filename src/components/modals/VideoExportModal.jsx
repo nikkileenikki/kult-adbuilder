@@ -17,7 +17,8 @@ export default function VideoExportModal({ onClose, bannerName }) {
   const { elements, groups, canvasWidth, canvasHeight, activeTemplate, animStopPoints, animDuration } = useCanvasStore()
 
   const [fps, setFps] = useState(DEFAULT_FPS)
-  const [includeAudio, setIncludeAudio] = useState(true)
+  // Off by default: sound is opt-in for each export.
+  const [includeAudio, setIncludeAudio] = useState(false)
   const [status, setStatus] = useState('idle') // idle | working | done | error
   const [progress, setProgress] = useState({ phase: '', frame: 0, totalFrames: 0 })
   const [result, setResult] = useState(null)
