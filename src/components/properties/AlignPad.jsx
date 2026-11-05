@@ -33,7 +33,7 @@ export default function AlignPad({ el, save }) {
       <div
         className="relative mx-auto rounded-lg overflow-hidden"
         style={{
-          width: 150, height: 150,
+          width: 114, height: 114, // 38px cells — still an easy target, a third less height
           background: 'rgb(31,41,55)',
           border: '1px solid rgb(75,85,99)',
           display: 'grid',
@@ -55,7 +55,7 @@ export default function AlignPad({ el, save }) {
                 codepoints). A single icon keeps weight/style identical all the way
                 around the pad. */}
             {p.rotate != null
-              ? <i className="fa-solid fa-arrow-up" style={{ fontSize: 13, transform: `rotate(${p.rotate}deg)` }} />
+              ? <i className="fa-solid fa-arrow-up" style={{ fontSize: 12, transform: `rotate(${p.rotate}deg)` }} />
               : p.label}
           </button>
         ))}
