@@ -54,10 +54,10 @@ export default function PropertiesSection() {
   }
 
   return (
-    <div className="mb-3 relative">
-      <h2 className="text-base font-semibold mb-2 text-white">Properties</h2>
-      <div className={`space-y-2 bg-gray-900 rounded-lg p-3 ${isLocked ? 'opacity-60 pointer-events-none' : ''}`}>
-        <div className="grid grid-cols-2 gap-2 pb-2 border-b border-gray-700">
+    <div className="mb-2.5 relative">
+      <h2 className="text-sm font-semibold mb-1.5 text-white">Properties</h2>
+      <div className={`space-y-2 bg-gray-900 rounded-lg p-2 ${isLocked ? 'opacity-60 pointer-events-none' : ''}`}>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 pb-2 border-b border-gray-700">
           {/* Width / Height with lock + fill-height */}
           <div className="col-span-2">
             <div className="flex items-end gap-1">
@@ -159,7 +159,7 @@ export function NumInput({ value, onChange, min, max, placeholder }) {
         if (!isNaN(n)) onChange(n)
         else setLocal(String(value ?? ''))
       }}
-      className="w-full bg-gray-800 rounded px-2 py-1.5 text-sm text-gray-100"
+      className="w-full bg-gray-800 rounded px-2 py-1 text-sm text-gray-100"
     />
   )
 }
@@ -169,7 +169,7 @@ export function TextInput({ value, onChange, placeholder }) {
     <input
       type="text" value={value} placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-gray-800 rounded px-2 py-1.5 text-sm text-gray-100"
+      className="w-full bg-gray-800 rounded px-2 py-1 text-sm text-gray-100"
     />
   )
 }
@@ -179,7 +179,7 @@ export function SelectInput({ value, onChange, children }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-gray-800 rounded px-2 py-1.5 text-sm text-gray-100"
+      className="w-full bg-gray-800 rounded px-2 py-1 text-sm text-gray-100"
     >
       {children}
     </select>

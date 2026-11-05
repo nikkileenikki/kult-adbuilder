@@ -12,7 +12,7 @@ export default function TextProperties({ el, update, save }) {
         <input
           type="text" value={el.text || ''}
           onChange={(e) => save({ text: e.target.value })}
-          className="w-full bg-gray-800 rounded px-2 py-1.5 text-sm text-gray-100"
+          className="w-full bg-gray-800 rounded px-2 py-1 text-sm text-gray-100"
         />
       </Field>
       <Field label="Font Family">
@@ -32,14 +32,16 @@ export default function TextProperties({ el, update, save }) {
               title={c}
               style={{
                 background: c,
-                width: 22, height: 22, borderRadius: 4,
+                // 20px so all 7 swatches and the custom-colour button share one row in
+                // the narrowed left panel; at 22px the custom button wrapped onto its own.
+                width: 20, height: 20, borderRadius: 4,
                 border: el.color === c ? '2px solid #3b82f6' : '2px solid #444',
                 flexShrink: 0,
               }}
             />
           ))}
           {/* Custom colour picker trigger */}
-          <CustomColorButton value={el.color || '#000000'} onChange={(v) => save({ color: v })} size={22} />
+          <CustomColorButton value={el.color || '#000000'} onChange={(v) => save({ color: v })} size={20} />
         </div>
       </Field>
 
@@ -75,7 +77,7 @@ function StyleBtn({ icon, active, onClick, title }) {
     <button
       onClick={onClick}
       title={title}
-      className={`flex-1 flex items-center justify-center py-1.5 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+      className={`flex-1 flex items-center justify-center py-1 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
     >
       <i className={`fa-solid ${icon}`} style={{ fontSize: 13 }} />
     </button>
@@ -87,7 +89,7 @@ function AlignBtn({ icon, value, current, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center py-1.5 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+      className={`flex-1 flex items-center justify-center py-1 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
     >
       <i className={`fa-solid ${icon}`} style={{ fontSize: 13 }} />
     </button>

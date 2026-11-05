@@ -53,22 +53,22 @@ export default function AddElementsSection() {
   }
 
   return (
-    <div className="mb-3">
-      <h2 className="text-base font-semibold mb-2 text-white">Add Elements</h2>
-      <div className="space-y-2">
+    <div className="mb-2.5">
+      <h2 className="text-sm font-semibold mb-1.5 text-white">Add Elements</h2>
+      <div className="space-y-1.5">
         <div
           onClick={() => fileRef.current?.click()}
           onDragOver={onDragOver}
           onDrop={onDrop}
-          className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 transition-colors"
+          className="border-2 border-dashed border-gray-600 rounded-lg px-2 py-2 text-center cursor-pointer hover:border-blue-400 transition-colors"
         >
-          <i className="fa-solid fa-upload fa-xl mx-auto text-gray-500 mb-1 block" />
+          <i className="fa-solid fa-upload mx-auto text-gray-500 mb-1 block" style={{ fontSize: 15 }} />
           <p className="text-xs text-gray-400">Upload or Drop Images</p>
           <p className="text-xs text-gray-500 mt-0.5">JPG, PNG, GIF, SVG, WEBP</p>
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/svg+xml,image/webp" multiple className="hidden" onChange={onFileChange} />
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           <AddBtn onClick={() => openModal('addText')} icon="fa-t" className="bg-blue-600 hover:bg-blue-700">Text</AddBtn>
           <AddBtn onClick={() => openModal('addShape')} icon="fa-shapes" className="bg-teal-600 hover:bg-teal-700">Shape</AddBtn>
         </div>
@@ -83,7 +83,7 @@ export default function AddElementsSection() {
 
 function AddBtn({ onClick, icon, className, children }) {
   return (
-    <button onClick={onClick} className={`flex items-center justify-center gap-1.5 text-white py-2 rounded transition-colors text-sm ${className}`}>
+    <button onClick={onClick} className={`flex items-center justify-center gap-1.5 text-white py-1.5 rounded transition-colors text-sm ${className}`}>
       <i className={`fa-solid ${icon}`} style={{ fontSize: 12 }} />
       {children}
     </button>

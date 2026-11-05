@@ -216,7 +216,7 @@ export default function VideoProperties({ el, update, save, elements = [] }) {
       ) : (
         <button
           onClick={() => setShowLibrary(true)}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2 mb-1"
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 mb-1"
         >
           <i className="fa-solid fa-film" style={{ fontSize: 13 }} />
           Video Library ({uploaded.length + transcoded.length})

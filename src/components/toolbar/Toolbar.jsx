@@ -168,7 +168,14 @@ export default function Toolbar() {
   }
 
   return (
-    <div className="bg-gray-900 border-b border-gray-700 px-3 py-2 flex items-center gap-2 shrink-0">
+    // Two rows, because one ran out of room: with a custom size selected the controls
+    // need ~1260px, more than the space beside the left panel on a typical laptop, so
+    // Export was pushed off-screen. Top row is the banner itself (name, size, zoom,
+    // history); bottom row is project and output (brand, library, assets, preview,
+    // export). Each row still wraps rather than overflowing on very narrow windows, and
+    // nowrap stops multi-word labels like "Video Assets" breaking inside their buttons.
+    <div className="bg-gray-900 border-b border-gray-700 px-3 py-1.5 flex flex-col gap-1.5 shrink-0">
+    <div className="flex items-center gap-2 flex-wrap whitespace-nowrap">
 
       {/* Banner name */}
       <input
@@ -234,8 +241,10 @@ export default function Toolbar() {
         </button>
       </div>
 
-      {/* Right side */}
-      <div className="ml-auto flex items-center gap-1.5">
+    </div>
+
+    {/* Row 2 — project & output */}
+    <div className="flex items-center gap-1.5 flex-wrap whitespace-nowrap">
 
         {/* Brand select — used by Design with AI / Generate Image with AI */}
         <select
@@ -267,8 +276,10 @@ export default function Toolbar() {
           <i className="fa-solid fa-chevron-down" style={{ fontSize: 9 }} />
         </button>
 
+        {/* ml-auto: brand and library sit at the left as context; the actions from
+            here on line up at the right, under where the eye ends on the top row. */}
         <button onClick={() => openModal('templates')}
-          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
+          className="ml-auto flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded text-xs border border-gray-700">
           <i className="fa-solid fa-table-columns" style={{ fontSize: 12 }} /> Templates
         </button>
 

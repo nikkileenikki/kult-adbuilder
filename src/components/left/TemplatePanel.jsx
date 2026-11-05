@@ -144,7 +144,7 @@ function VarRow({ v, el, isSelected, onSelect, onImageUpload, onTextChange, onUr
             value={el?.text || ''}
             onChange={(e) => onTextChange(e.target.value)}
             placeholder="Enter text…"
-            className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full bg-gray-700 rounded px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         )}
 
@@ -154,7 +154,7 @@ function VarRow({ v, el, isSelected, onSelect, onImageUpload, onTextChange, onUr
             value={el?.url || ''}
             onChange={(e) => onUrlChange(e.target.value)}
             placeholder="https://…"
-            className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full bg-gray-700 rounded px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         )}
 
@@ -164,7 +164,7 @@ function VarRow({ v, el, isSelected, onSelect, onImageUpload, onTextChange, onUr
             value={el?.videoUrl || ''}
             onChange={(e) => onVideoUrlChange(e.target.value)}
             placeholder="Video URL…"
-            className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full bg-gray-700 rounded px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         )}
       </div>
@@ -192,7 +192,7 @@ function ImageDropzone({ el, fileRef, onImageUpload }) {
         dragging
           ? 'border-blue-400 bg-blue-500/20'
           : 'border-dashed border-gray-600 hover:border-gray-400 hover:bg-gray-700/40'
-      } px-2 py-1.5`}
+      } px-2 py-1`}
     >
       {el?.src ? (
         <img src={el.src} alt="" className="w-10 h-8 object-cover rounded border border-gray-700 shrink-0" />
@@ -222,7 +222,7 @@ function TokenVarRow({ v, value, onChange }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Value…"
-          className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full bg-gray-700 rounded px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       )}
     </div>
@@ -248,7 +248,7 @@ function TokenImageInput({ value, onChange }) {
       onClick={() => fileRef.current?.click()}
       className={`flex items-center gap-2 rounded border cursor-pointer transition-colors ${
         dragging ? 'border-blue-400 bg-blue-500/20' : 'border-dashed border-gray-600 hover:border-gray-400 hover:bg-gray-700/40'
-      } px-2 py-1.5`}
+      } px-2 py-1`}
     >
       {value ? (
         <img src={value} alt="" className="w-10 h-8 object-cover rounded border border-gray-700 shrink-0" />
@@ -288,26 +288,26 @@ function TokenVideoInput({ value, onChange }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="220952/video"
-          className="flex-1 min-w-0 bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 min-w-0 bg-gray-700 rounded px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <button
           onClick={openPicker}
           disabled={!ftLibrary}
           title={ftLibrary ? 'Choose a transcoded video from the library' : 'Select a Creative Library in the toolbar first'}
-          className="shrink-0 bg-gray-700 hover:bg-purple-900/40 disabled:opacity-40 text-gray-300 hover:text-purple-300 rounded px-2 py-1.5 text-xs border border-gray-600"
+          className="shrink-0 bg-gray-700 hover:bg-purple-900/40 disabled:opacity-40 text-gray-300 hover:text-purple-300 rounded px-2 py-1 text-xs border border-gray-600"
         >
           <i className="fa-solid fa-film" style={{ fontSize: 11 }} />
         </button>
       </div>
       {showPicker && (
         <div className="mt-1.5 bg-gray-800 border border-gray-700 rounded max-h-32 overflow-y-auto">
-          {loading && <p className="text-xs text-gray-500 px-2 py-1.5">Loading…</p>}
-          {!loading && videos.length === 0 && <p className="text-xs text-gray-500 px-2 py-1.5">No transcoded videos yet.</p>}
+          {loading && <p className="text-xs text-gray-500 px-2 py-1">Loading…</p>}
+          {!loading && videos.length === 0 && <p className="text-xs text-gray-500 px-2 py-1">No transcoded videos yet.</p>}
           {videos.map((v) => (
             <button
               key={v.id}
               onClick={() => { onChange(`${ftLibrary.id}/${v.name.replace(/\.[^.]+$/, '')}`); setShowPicker(false) }}
-              className="w-full text-left px-2 py-1.5 text-xs text-gray-200 hover:bg-gray-700 truncate block"
+              className="w-full text-left px-2 py-1 text-xs text-gray-200 hover:bg-gray-700 truncate block"
             >
               {v.name}
             </button>
