@@ -115,6 +115,13 @@ export default function Timeline() {
           case 'rotate180':    tl.to(dom, { rotation: 180, duration: dur, ease }, start); break
           case 'rotate270':    tl.to(dom, { rotation: 270, duration: dur, ease }, start); break
           case 'rotate360':    tl.to(dom, { rotation: 360, duration: dur, ease }, start); break
+          // Kept identical to the rotateCustom case in exportBanner.js, so the editor's
+          // preview and the exported banner turn to the same angle.
+          case 'rotateCustom': {
+            const deg = Number(anim.rotateDeg)
+            tl.to(dom, { rotation: Number.isFinite(deg) ? deg : 0, duration: dur, ease }, start)
+            break
+          }
           default: break
         }
       })
@@ -697,7 +704,11 @@ function DraggableAnimBlock({ batch, elementId, onUpdateTiming, onDelete, durati
   const { openModal } = useUiStore()
   const anim = batch.anims[0]
   const isBatch = batch.anims.length > 1
-  const label = batch.anims.map((a) => a.type).join(' + ')
+  // A custom rotation reads like the presets ("rotate45", "rotate-90") so the bar
+  // shows the angle, not the internal "rotateCustom" type name.
+  const label = batch.anims
+    .map((a) => (a.type === 'rotateCustom' ? `rotate${Number.isFinite(Number(a.rotateDeg)) ? Number(a.rotateDeg) : 0}` : a.type))
+    .join(' + ')
 
   const onDoubleClick = (e) => {
     e.preventDefault(); e.stopPropagation()
