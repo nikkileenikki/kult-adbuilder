@@ -153,6 +153,14 @@ function buildAnimationJS(elements, stopPoints, animDuration) {
         case 'rotate180':    lines.push(`tl.to(${t},{rotation:180,duration:${dur},ease:'${ease}'},${start});`); break
         case 'rotate270':    lines.push(`tl.to(${t},{rotation:270,duration:${dur},ease:'${ease}'},${start});`); break
         case 'rotate360':    lines.push(`tl.to(${t},{rotation:360,duration:${dur},ease:'${ease}'},${start});`); break
+        // Rotates to an arbitrary angle, like the presets above (to, not by). The value
+        // is spliced into generated script, so it is forced to a finite number here —
+        // anything else stored on the animation becomes 0 rather than reaching the JS.
+        case 'rotateCustom': {
+          const deg = Number(anim.rotateDeg)
+          lines.push(`tl.to(${t},{rotation:${Number.isFinite(deg) ? deg : 0},duration:${dur},ease:'${ease}'},${start});`)
+          break
+        }
         default: break
       }
     })

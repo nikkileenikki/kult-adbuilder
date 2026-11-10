@@ -44,6 +44,7 @@ const ANIM_GROUPS = [
     { value: 'rotate180', label: '180°' },
     { value: 'rotate270', label: '270°' },
     { value: 'rotate360', label: '360°' },
+    { value: 'rotateCustom', label: 'Custom' },
   ]},
 ]
 
@@ -73,9 +74,11 @@ export default function AnimationModal() {
   const batchSlideXAnim = batchAnims.find((a) => ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(a.type))
   const batchSlideYAnim = batchAnims.find((a) => ['slideUp','slideDown','slideToUp','slideToDown'].includes(a.type))
   const batchScaleAnim  = batchAnims.find((a) => SCALE_TYPES.has(a.type))
+  const batchRotateAnim = batchAnims.find((a) => a.type === 'rotateCustom')
   const srcOffsetX = batchSlideXAnim ?? initAnim
   const srcOffsetY = batchSlideYAnim ?? initAnim
   const srcScale   = batchScaleAnim  ?? initAnim
+  const srcRotate  = batchRotateAnim ?? initAnim
 
   const [selected, setSelected] = useState(() => {
     if (isBatch) return new Set(batchAnims.map((a) => {
@@ -90,6 +93,7 @@ export default function AnimationModal() {
   const [offsetY, setOffsetY] = useState(String(srcOffsetY.offsetY ?? (srcOffsetY.offset ?? 400)))
   const [scaleValue, setScaleValue] = useState(String(srcScale.scaleParam ?? 0))
   const [transformOrigin, setTransformOrigin] = useState(srcScale.transformOrigin ?? 'center center')
+  const [rotateDeg, setRotateDeg] = useState(String(srcRotate.rotateDeg ?? 45))
   const [startTime, setStartTime] = useState(initAnim.startTime ?? 0)
   const [duration, setDuration] = useState(initAnim.duration ?? 1)
   const [ease, setEase] = useState(initAnim.ease ?? 'power1.out')
@@ -97,6 +101,7 @@ export default function AnimationModal() {
   const hasSlideX = [...selected].some((t) => ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(t))
   const hasSlideY = [...selected].some((t) => ['slideUp','slideDown','slideToUp','slideToDown'].includes(t))
   const hasScale  = [...selected].some((t) => SCALE_TYPES.has(t))
+  const hasCustomRotate = selected.has('rotateCustom')
 
   const toggle = (value) => {
     if (isEdit && !isBatch) {
@@ -114,10 +119,18 @@ export default function AnimationModal() {
     const pOffX = offsetX === '' ? 400 : Math.max(1, Number(offsetX))
     const pOffY = offsetY === '' ? 400 : Math.max(1, Number(offsetY))
     const parsedScale = scaleValue === '' ? 0 : Number(scaleValue)
-    const slideExtra = (type) => {
-      const usesX = ['slideLeft','slideRight','slideToLeft','slideToRight'].includes(type)
-      const usesY = ['slideUp','slideDown','slideToUp','slideToDown'].includes(type)
-      return usesX ? { offsetX: pOffX } : usesY ? { offsetY: pOffY } : {}
+    // Empty or unparseable counts as 0° (rotate back upright) rather than dropping the
+    // animation. Negative values turn counter-clockwise; past 360 makes extra full turns.
+    const parsedDeg = Number.isFinite(Number(rotateDeg)) && rotateDeg !== '' ? Number(rotateDeg) : 0
+    // The per-type settings each animation carries, in one place — every save path
+    // below (add, add-to-group, edit, edit-group) spreads this, so a new parameterised
+    // type only needs adding here.
+    const paramsFor = (type) => {
+      if (['slideLeft','slideRight','slideToLeft','slideToRight'].includes(type)) return { offsetX: pOffX }
+      if (['slideUp','slideDown','slideToUp','slideToDown'].includes(type)) return { offsetY: pOffY }
+      if (SCALE_TYPES.has(type)) return { scaleParam: parsedScale, transformOrigin }
+      if (type === 'rotateCustom') return { rotateDeg: parsedDeg }
+      return {}
     }
 
     if (isAddToBatch) {
@@ -128,8 +141,7 @@ export default function AnimationModal() {
       const newAnims = [...selected].map((type) => ({
         batchId: modalData.batchId,
         type, startTime, duration, ease,
-        ...slideExtra(type),
-        ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale, transformOrigin } : {}),
+        ...paramsFor(type),
       }))
       updateElement(modalData.elementId, { animations: [...(el.animations || []), ...newAnims] })
       closeModal()
@@ -153,8 +165,7 @@ export default function AnimationModal() {
       const newBatchAnims = [...selected].map((type) => ({
         ...(existingByType[type] || {}),
         batchId, type, startTime, duration, ease,
-        ...slideExtra(type),
-        ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale, transformOrigin } : {}),
+        ...paramsFor(type),
       }))
       const batchIndexSet = new Set(modalData.batchIndices)
       const insertAt = Math.min(...modalData.batchIndices)
@@ -169,8 +180,7 @@ export default function AnimationModal() {
       const anims = [...(el.animations || [])]
       anims[modalData.animIdx] = {
         type, startTime, duration, ease,
-        ...slideExtra(type),
-        ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale, transformOrigin } : {}),
+        ...paramsFor(type),
       }
       updateElement(modalData.elementId, { animations: anims })
     } else {
@@ -181,8 +191,7 @@ export default function AnimationModal() {
       const newAnims = [...selected].map((type) => ({
         ...(batchId ? { batchId } : {}),
         type, startTime, duration, ease,
-        ...slideExtra(type),
-        ...(SCALE_TYPES.has(type) ? { scaleParam: parsedScale, transformOrigin } : {}),
+        ...paramsFor(type),
       }))
       updateElement(selectedId, { animations: [...(el.animations || []), ...newAnims] })
     }
@@ -269,6 +278,15 @@ export default function AnimationModal() {
                 onChange={(e) => setScaleValue(e.target.value)}
                 className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200"
                 placeholder="e.g. 0 or 0.5 or 2" />
+            </div>
+          )}
+          {hasCustomRotate && (
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Rotate To (°)</label>
+              <input type="number" value={rotateDeg} step={15}
+                onChange={(e) => setRotateDeg(e.target.value)}
+                className="w-full bg-gray-700 rounded px-2 py-1.5 text-sm text-gray-200"
+                placeholder="e.g. 45, -90, 720" />
             </div>
           )}
           {hasScale && (
