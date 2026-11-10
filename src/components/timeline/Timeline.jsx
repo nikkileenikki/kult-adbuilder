@@ -87,10 +87,18 @@ export default function Timeline() {
         switch (anim.type) {
           case 'fadeIn':       tl.fromTo(dom, { autoAlpha: 0 }, { autoAlpha: el.opacity ?? 1, duration: dur, ease }, start); break
           case 'fadeOut':      tl.to(dom, { autoAlpha: 0, duration: dur, ease }, start); break
-          case 'slideLeft':    tl.fromTo(dom, { x: -ox }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
-          case 'slideRight':   tl.fromTo(dom, { x: ox }, { x: 0, duration: dur, ease, immediateRender: false }, start); break
-          case 'slideUp':      tl.fromTo(dom, { y: -oy }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
-          case 'slideDown':    tl.fromTo(dom, { y: oy }, { y: 0, duration: dur, ease, immediateRender: false }, start); break
+          // Entrance tweens (slide in, scale from) rely on fromTo's default immediate
+          // render, which puts the element at its starting offset as soon as the timeline
+          // is built, so it stays hidden until its own start time. These used to pass
+          // immediateRender: false, which the exported banner never did — so in the editor
+          // an element animating in at 1s sat in its final place on Play, then jumped away
+          // and slid back. Kept identical to buildAnimationJS so the preview matches the
+          // real banner. Editing is unaffected: the timeline only exists while playing or
+          // scrubbing, and clearGsapProps wipes everything it set when it stops.
+          case 'slideLeft':    tl.fromTo(dom, { x: -ox }, { x: 0, duration: dur, ease }, start); break
+          case 'slideRight':   tl.fromTo(dom, { x: ox }, { x: 0, duration: dur, ease }, start); break
+          case 'slideUp':      tl.fromTo(dom, { y: -oy }, { y: 0, duration: dur, ease }, start); break
+          case 'slideDown':    tl.fromTo(dom, { y: oy }, { y: 0, duration: dur, ease }, start); break
           case 'slideToLeft':  tl.to(dom, { x: -ox, duration: dur, ease }, start); break
           case 'slideToRight': tl.to(dom, { x: ox, duration: dur, ease }, start); break
           case 'slideToUp':    tl.to(dom, { y: -oy, duration: dur, ease }, start); break
@@ -99,7 +107,7 @@ export default function Timeline() {
           case 'scaleFrom': {
             const origin = anim.transformOrigin || 'center center'
             tl.set(dom, { transformOrigin: origin }, start)
-            tl.fromTo(dom, { scale: sp }, { scale: 1, duration: dur, ease, immediateRender: false }, start)
+            tl.fromTo(dom, { scale: sp }, { scale: 1, duration: dur, ease }, start)
             break
           }
           case 'scaleTo': {
@@ -109,7 +117,7 @@ export default function Timeline() {
             break
           }
           // legacy
-          case 'scaleIn':      tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease, immediateRender: false }, start); break
+          case 'scaleIn':      tl.fromTo(dom, { scale: 0 }, { scale: 1, duration: dur, ease }, start); break
           case 'scaleOut':     tl.to(dom, { scale: 0, duration: dur, ease }, start); break
           case 'rotate90':     tl.to(dom, { rotation: 90,  duration: dur, ease }, start); break
           case 'rotate180':    tl.to(dom, { rotation: 180, duration: dur, ease }, start); break
